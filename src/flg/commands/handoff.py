@@ -1,0 +1,648 @@
+"""flg handoff command - Generate agent handoff summary."""
+
+import json
+from datetime import datetime
+from pathlib import Path
+from typing import Optional
+
+import typer
+from rich.console import Console
+from rich.markdown import Markdown
+
+from ..core.files import is_flg_project, read_file_safe
+from ..core.patches import list_patches
+from ..core.state import load_state
+
+console = Console()
+
+
+def parse_patch_for_handoff(content: str) -> dict:
+    """Parse patch content for handoff summary."""
+    info = {
+        "patch_id": "",
+        "source_command": "unknown",
+        "risk_level": "unknown",
+        "generated_at": "unknown",
+        "status": "unknown",
+        "decisions": [],
+        "risks": [],
+        "questions": [],
+        "next_actions": [],
+    }
+    
+    current_section = None
+    current_decision = None
+    
+    for line in content.split("\n"):
+        if line.startswith("patch_id:"):
+            info["patch_id"] = line.split(":", 1)[1].strip()
+        elif line.startswith("source_command:"):
+            info["source_command"] = line.split(":", 1)[1].strip()
+        elif line.startswith("risk_level:"):
+            info["risk_level"] = line.split(":", 1)[1].strip()
+        elif line.startswith("generated_at:"):
+            info["generated_at"] = line.split(":", 1)[1].strip()
+        elif line.startswith("status:") and not current_section:
+            info["status"] = line.split(":", 1)[1].strip()
+
+        # Detect section headers
+        if line.startswith("## "):
+            current_section = line[3:].strip()
+            continue
+        
+        # Parse candidate decisions
+        if current_section and "Candidate Decision" in current_section:
+            if line.startswith("status:"):
+                if current_decision:
+                    current_decision["status"] = line.split(":", 1)[1].strip()
+            elif line.startswith("confidence:"):
+                if current_decision:
+                    current_decision["confidence"] = line.split(":", 1)[1].strip()
+            elif line.startswith("decision_type:"):
+                if current_decision:
+                    current_decision["type"] = line.split(":", 1)[1].strip()
+            elif line.startswith("why_this_is_a_decision:"):
+                if current_decision:
+                    current_decision["why"] = line.split(":", 1)[1].strip()
+            elif line.startswith("source_excerpt:"):
+                if current_decision:
+                    current_decision["excerpt"] = line.split(":", 1)[1].strip().lstrip(">").strip()
+            elif line.startswith("suggested_action:"):
+                if current_decision:
+                    current_decision["action"] = line.split(":", 1)[1].strip()
+            # New bold-label fields from Phase 1 closeout output
+            elif line.startswith("**What was decided:**"):
+                if current_decision:
+                    val = line.split(":", 2)[-1].strip().lstrip("*").strip()
+                    current_decision["what_decided"] = val
+            elif line.startswith("**Why:**"):
+                if current_decision:
+                    val = line.split(":", 2)[-1].strip().lstrip("*").strip()
+                    current_decision["why"] = val
+            elif line.startswith("**Alternatives mentioned:**"):
+                if current_decision:
+                    val = line.split(":", 2)[-1].strip().lstrip("*").strip()
+                    current_decision["alternatives"] = val
+            elif line.startswith("**Rejected because:**"):
+                if current_decision:
+                    val = line.split(":", 2)[-1].strip().lstrip("*").strip()
+                    current_decision["rejected"] = val
+            elif line.startswith("**Could reverse if:**"):
+                if current_decision:
+                    val = line.split(":", 2)[-1].strip().lstrip("*").strip()
+                    current_decision["reversal"] = val
+            elif line.startswith("### Candidate Decision"):
+                # New decision
+                title = line.split(":", 1)[1].strip() if ":" in line else line
+                current_decision = {
+                    "title": title,
+                    "status": "pending_review",
+                    "confidence": "unknown",
+                    "type": "unknown",
+                    "what_decided": "",
+                    "why": "",
+                    "alternatives": "",
+                    "rejected": "",
+                    "reversal": "",
+                    "excerpt": "",
+                    "action": "needs_review",
+                }
+                info["decisions"].append(current_decision)
+        
+        # Parse risks
+        elif current_section and "Risks" in current_section:
+            if line.startswith("- ") and line != "- (none identified)":
+                info["risks"].append(line[2:])
+        
+        # Parse open questions
+        elif current_section and "Open Questions" in current_section:
+            if line.startswith("- ") and line != "- (none identified)":
+                info["questions"].append(line[2:])
+        
+        elif current_section and "Suggested Next Actions" in current_section:
+            if line.startswith("- ") and line != "- (none identified)":
+                info["next_actions"].append(line[2:])
+    
+    return info
+
+
+def generate_handoff_summary(root: Path, format: str = "markdown") -> str:
+    """Generate agent handoff summary."""
+    # Load state
+    state = load_state(root)
+    if not state:
+        return "Error: No FLG project found."
+    
+    project_name = state.get("project_name", "Unknown")
+    current_stage = state.get("current_stage", "Unknown")
+    created_at = state.get("created_at", "Unknown")
+    
+    # Read core files
+    snapshot_content = read_file_safe(root / "SNAPSHOT.md") or ""
+    framing_content = read_file_safe(root / "FRAMING.md") or ""
+    decisions_content = read_file_safe(root / "DECISIONS.md") or ""
+    progress_content = read_file_safe(root / "PROGRESS.md") or ""
+    anchors_content = read_file_safe(root / "ANCHORS.md") or ""
+    
+    # NEW: Detect FRAMING.md field completeness for smarter handoff
+    framing_fields_status = _detect_framing_completeness(framing_content)
+    framing_is_complete = (
+        framing_fields_status["filled_count"] == framing_fields_status["total_count"]
+        and framing_fields_status["total_count"] > 0
+    )
+    
+    # Read pending patches
+    patches_dir = root / ".flg" / "patches"
+    pending_patches = []
+    all_decisions = []
+    all_risks = []
+    all_questions = []
+    all_next_actions = []
+    
+    if patches_dir.exists():
+        for patch_file in patches_dir.glob("*.patch.md"):
+            content = read_file_safe(patch_file)
+            if content:
+                patch_info = parse_patch_for_handoff(content)
+                pending_patches.append({
+                    "filename": patch_file.name,
+                    "source_command": patch_info["source_command"],
+                    "risk_level": patch_info["risk_level"],
+                    "generated_at": patch_info["generated_at"],
+                    "decisions": patch_info["decisions"],
+                    "risks": patch_info["risks"],
+                    "questions": patch_info["questions"],
+                    "next_actions": patch_info["next_actions"],
+                })
+                all_decisions.extend(patch_info["decisions"])
+                all_risks.extend(patch_info["risks"])
+                all_questions.extend(patch_info["questions"])
+                all_next_actions.extend(patch_info["next_actions"])
+    
+    # Extract current goal from SNAPSHOT
+    current_goal = "(not defined)"
+    for line in snapshot_content.split("\n"):
+        if "Current Core Goal" in line:
+            idx = snapshot_content.index(line) + len(line)
+            remaining = snapshot_content[idx:].strip()
+            if remaining:
+                current_goal = remaining.split("\n")[0].strip()
+            break
+    
+    # NEW: If SNAPSHOT only has the default init template goal
+    # (e.g. "Define project scope and goals for X"), fall back to FRAMING.md Goals.
+    _DEFAULT_GOAL_HINT = "Define project scope and goals for"
+    if current_goal == "(not defined)" or current_goal.startswith(_DEFAULT_GOAL_HINT):
+        framing_goal = _extract_framing_goal(framing_content)
+        if framing_goal != "(not defined)":
+            current_goal = framing_goal
+    
+    # NEW: Pull Open Questions from FRAMING.md (in addition to patches)
+    framing_questions = _extract_framing_questions(framing_content)
+    if framing_questions:
+        seen = set(q.lower().strip() for q in all_questions)
+        for q in framing_questions:
+            if q.lower().strip() not in seen:
+                all_questions.append(q)
+                seen.add(q.lower().strip())
+    
+    # Extract confirmed facts from core files
+    confirmed_facts = []
+    
+    # From SNAPSHOT
+    in_confirmed = False
+    for line in snapshot_content.split("\n"):
+        if "Confirmed" in line and "##" in line:
+            in_confirmed = True
+            continue
+        if in_confirmed:
+            if line.startswith("## "):
+                break
+            if line.startswith("- ") and line != "- (none yet)":
+                confirmed_facts.append(line[2:])
+    
+    # From DECISIONS
+    for line in decisions_content.split("\n"):
+        if line.startswith("## D-") and "accepted" in line:
+            confirmed_facts.append(line.strip())
+    
+    recent_updated = created_at
+    tracked_paths = [
+        root / "PROJECT.md",
+        root / "FRAMING.md",
+        root / "SNAPSHOT.md",
+        root / "DECISIONS.md",
+        root / "PROGRESS.md",
+    ]
+    existing_times = [path.stat().st_mtime for path in tracked_paths if path.exists()]
+    if existing_times:
+        recent_updated = datetime.fromtimestamp(max(existing_times)).isoformat(timespec="seconds")
+
+    # Build summary
+    summary = f"""# FLG Handoff Summary
+
+## 1. Project State
+
+- **Project:** {project_name}
+- **Stage:** {current_stage}
+- **Current Goal:** {current_goal}
+- **Created:** {created_at}
+- **Last Updated:** {recent_updated}
+- **Generated:** {datetime.now().isoformat(timespec="seconds")}
+
+---
+
+## 2. Confirmed Facts
+
+"""
+    if confirmed_facts:
+        for fact in confirmed_facts[:10]:
+            summary += f"- {fact}\n"
+    else:
+        summary += "(no confirmed facts yet)\n"
+    
+    # --- Authoritative Anchors from ANCHORS.md ---
+    anchor_entries = _parse_anchors(anchors_content)
+    if anchor_entries:
+        summary += "\n## Authoritative Anchors\n\n"
+        summary += "> 冲突时以锚点文件为准。Agent 应优先读取这些文件。\n\n"
+        for entry in anchor_entries:
+            summary += f"### {entry['topic']}\n\n"
+            summary += f"- **File:** `{entry['file']}`\n"
+            summary += f"- **Role:** {entry['role']}\n"
+            summary += f"- **Authority:** {entry['authority']}\n"
+            summary += f"- **Provenance:** {entry['provenance']}\n"
+            summary += f"- **Lifecycle:** {entry['lifecycle']}\n"
+            if entry['notes']:
+                summary += f"- **Notes:** {entry['notes']}\n"
+            summary += "\n"
+    else:
+        summary += "\n## Authoritative Anchors\n\n"
+        summary += "(no anchors defined — edit ANCHORS.md to add)\n"
+    
+    # --- Decision Context from DECISIONS.md ---
+    decision_context_items = _extract_decisions_context(decisions_content)
+    if decision_context_items:
+        summary += "\n## Decision Context (from DECISIONS.md)\n\n"
+        for item in decision_context_items[:5]:
+            summary += f"### {item['title']}\n\n"
+            if item['what_decided']:
+                summary += f"- **What was decided:** {item['what_decided']}\n"
+            if item['why']:
+                summary += f"- **Why:** {item['why']}\n"
+            if item['alternatives']:
+                summary += f"- **Alternatives mentioned:** {item['alternatives']}\n"
+            if item['rejected']:
+                summary += f"- **Rejected because:** {item['rejected']}\n"
+            if item['reversal']:
+                summary += f"- **Could reverse if:** {item['reversal']}\n"
+            summary += "\n"
+    
+    summary += """
+---
+
+## 3. Pending Patches
+
+"""
+    if pending_patches:
+        summary += f"**{len(pending_patches)} pending patch(es) found.**\n\n"
+        for patch in pending_patches:
+            summary += f"- `{patch['filename']}` | source: `{patch['source_command']}` | risk: `{patch['risk_level']}` | generated: `{patch['generated_at']}`\n"
+    else:
+        summary += "(no pending patches)\n"
+    
+    summary += """
+---
+
+## 4. Pending Candidate Decisions
+
+"""
+    if all_decisions:
+        summary += f"**{len(all_decisions)} candidate decision(s) pending review.**\n\n"
+        for i, d in enumerate(all_decisions[:5], 1):
+            summary += f"### {i}. {d['title']}\n\n"
+            summary += f"- **Status:** {d['status']}\n"
+            summary += f"- **Confidence:** {d['confidence']}\n"
+            if d['what_decided']:
+                summary += f"- **What was decided:** {d['what_decided']}\n"
+            if d['why']:
+                summary += f"- **Why:** {d['why']}\n"
+            elif d['type'] != "unknown":
+                summary += f"- **Type:** {d['type']}\n"
+            if d['alternatives']:
+                summary += f"- **Alternatives mentioned:** {d['alternatives']}\n"
+            if d['rejected']:
+                summary += f"- **Rejected because:** {d['rejected']}\n"
+            if d['reversal']:
+                summary += f"- **Could reverse if:** {d['reversal']}\n"
+            if d['excerpt']:
+                summary += f"- **Source excerpt:** {d['excerpt']}\n"
+            summary += "\n"
+    else:
+        summary += "(no candidate decisions)\n"
+    
+    summary += """
+---
+
+## 5. Open Questions
+
+"""
+    if all_questions:
+        for q in all_questions[:5]:
+            summary += f"- {q}\n"
+    else:
+        summary += "(no open questions)\n"
+    
+    summary += """
+---
+
+## 6. Risks
+
+"""
+    if all_risks:
+        for r in all_risks[:3]:
+            summary += f"- {r}\n"
+    else:
+        summary += "(no risks identified)\n"
+    
+    summary += """
+---
+
+## 7. Suggested Next Actions
+
+"""
+    if all_next_actions:
+        for idx, action in enumerate(all_next_actions[:5], 1):
+            summary += f"{idx}. {action}\n"
+    elif current_stage == "initialized" and not framing_is_complete:
+        summary += "1. Run `flg frame` to define project goals and boundaries\n"
+        summary += "2. Review and fill in FRAMING.md\n"
+    elif framing_is_complete and not all_decisions and not pending_patches:
+        # NEW: FRAMING is done — push user to session work
+        summary += "1. FRAMING.md is complete — proceed with project work\n"
+        summary += "2. Run `flg closeout --transcript <file>` at end of session\n"
+    elif all_decisions:
+        summary += "1. Review pending candidate decisions with source excerpts\n"
+        summary += "2. Confirm or reject each decision before merge\n"
+        summary += "3. Merge confirmed patches: `flg merge --patch <file>`\n"
+        summary += "4. Continue project work from the updated ledger\n"
+    else:
+        summary += "1. Continue project work\n"
+        summary += "2. Run `flg closeout` at end of session\n"
+    
+    summary += """
+---
+
+## 8. Do Not Misread
+
+"""
+    # Add warnings
+    if all_decisions:
+        summary += "- Pending candidate decisions are NOT confirmed facts\n"
+        summary += "- They require human review before merging\n"
+    if all_risks:
+        summary += "- Risks identified are from keyword matching, may need verification\n"
+    
+    summary += """
+---
+
+*This summary is generated for agent handoff. Read both formal ledger and pending patches to understand full project state.*
+"""
+    
+    return summary
+
+
+# ---------------------------------------------------------------------------
+# FRAMING.md smart helpers (Goal 3 v0.1.7 handoff enhancement)
+# These let handoff reflect FRAMING.md state instead of pretending it's empty.
+# ---------------------------------------------------------------------------
+
+# Mirror of frame.py REQUIRED_FIELDS, kept here to avoid circular import.
+_FRAMING_REQUIRED_PATTERNS = [
+    ("Problem Statement", r"##\s+Problem\s+Statement"),
+    ("Explicit Requirements", r"###\s+Explicit\s+Requirements"),
+    ("Real Needs Hypothesis", r"###\s+Real\s+Needs\s+Hypothesis"),
+    ("Goals", r"##\s+Goals"),
+    ("Non-Goals", r"##\s+Non-Goals"),
+    ("User Objects", r"##\s+User\s+Objects"),
+    ("Review Objects", r"##\s+Review\s+Objects"),
+    ("Success Criteria", r"##\s+Success\s+Criteria"),
+    ("Constraints", r"##\s+Constraints"),
+    ("Open Questions", r"##\s+Open\s+Questions"),
+]
+
+_PLACEHOLDER_PATTERNS = [
+    "(to be defined)",
+    "(to be filled)",
+    "(to be confirmed)",
+    "(to be identified)",
+    "(none yet)",
+    "(to be hypothesized)",
+]
+
+
+def _detect_framing_completeness(framing_content: str) -> dict:
+    """Return field-by-field fill status for FRAMING.md."""
+    import re
+    filled = []
+    missing = []
+    for field_name, pattern in _FRAMING_REQUIRED_PATTERNS:
+        match = re.search(pattern, framing_content, re.IGNORECASE)
+        is_filled = False
+        if match:
+            start = match.end()
+            next_heading = re.search(r"^##\s+", framing_content[start:], re.MULTILINE)
+            field_text = framing_content[start:start + next_heading.start()] if next_heading else framing_content[start:]
+            stripped = field_text.strip()
+            if stripped:
+                is_filled = not any(p in stripped for p in _PLACEHOLDER_PATTERNS)
+        if is_filled:
+            filled.append(field_name)
+        else:
+            missing.append(field_name)
+    return {
+        "filled": filled,
+        "missing": missing,
+        "filled_count": len(filled),
+        "total_count": len(_FRAMING_REQUIRED_PATTERNS),
+    }
+
+
+def _extract_framing_goal(framing_content: str) -> str:
+    """Pull a one-line Current Goal summary from FRAMING.md's Goals section.
+
+    Strategy:
+    1. Skip bold labels (e.g. **Top 3 Goals:**) — these are sub-headers.
+    2. Skip headings/placeholders/blank lines.
+    3. Prefer the first bullet point; fall back to the first non-empty line.
+    Returns "(not defined)" if no usable content is found.
+    """
+    import re
+    match = re.search(r"##\s+Goals", framing_content, re.IGNORECASE)
+    if not match:
+        return "(not defined)"
+    start = match.end()
+    next_heading = re.search(r"^##\s+", framing_content[start:], re.MULTILINE)
+    body = framing_content[start:start + next_heading.start()] if next_heading else framing_content[start:]
+    first_bullet = None
+    for raw in body.split("\n"):
+        line = raw.strip()
+        if not line:
+            continue
+        if line.startswith("#"):
+            break
+        if any(p in line for p in _PLACEHOLDER_PATTERNS):
+            continue
+        # Skip bold sub-headers like "**Top 3 Goals:**"
+        if line.startswith("**") and line.endswith("**"):
+            continue
+        if line.startswith("- "):
+            bullet = line[2:].strip()
+            if bullet:
+                if first_bullet is None:
+                    first_bullet = bullet
+                # keep scanning in case later bullet is shorter/summarized
+        elif first_bullet is None:
+            # Non-bullet line; only use it as fallback
+            return line
+    return first_bullet or "(not defined)"
+
+
+def _extract_framing_questions(framing_content: str) -> list:
+    """Pull Open Questions list from FRAMING.md (in addition to patch-sourced questions)."""
+    import re
+    match = re.search(r"##\s+Open\s+Questions", framing_content, re.IGNORECASE)
+    if not match:
+        return []
+    start = match.end()
+    next_heading = re.search(r"^##\s+", framing_content[start:], re.MULTILINE)
+    body = framing_content[start:start + next_heading.start()] if next_heading else framing_content[start:]
+    questions = []
+    for raw in body.split("\n"):
+        line = raw.strip()
+        if not line:
+            continue
+        if line.startswith("#"):
+            break
+        if line.startswith("- "):
+            q = line[2:].strip()
+            if q and not any(p in q for p in _PLACEHOLDER_PATTERNS):
+                questions.append(q)
+    return questions
+
+
+def _extract_decisions_context(decisions_content: str) -> list:
+    """Extract confirmed decision context from DECISIONS.md.
+
+    Returns a list of dicts with keys: title, what_decided, why, alternatives, rejected, reversal.
+    Each DECISIONS.md entry is expected to have headings like:
+        ## D-001 | Title
+        ### 最终决策
+        ### 决策理由
+        ### 备选方案
+        ### 放弃理由
+        ### 复盘入口
+    """
+    import re
+    items = []
+    # Split by ## D- headings
+    blocks = re.split(r"(?=^## D-)", decisions_content, flags=re.MULTILINE)
+    for block in blocks:
+        title_match = re.match(r"^## (D-\d+\s*\|.*)", block, re.MULTILINE)
+        if not title_match:
+            continue
+        title = title_match.group(1).strip()
+        # Only include accepted/confirmed decisions (look for 'accepted' or 'confirmed' marker)
+        if "accepted" not in block.lower() and "confirmed" not in block.lower():
+            continue
+
+        def _extract_subsection(heading: str) -> str:
+            pattern = rf"###\s+{re.escape(heading)}\s*\n([\s\S]*?)(?=\n###\s|\n##\s|\Z)"
+            m = re.search(pattern, block)
+            if m:
+                text = m.group(1).strip()
+                # Strip placeholder patterns
+                if text and not any(p in text for p in _PLACEHOLDER_PATTERNS):
+                    return text
+            return ""
+
+        item = {
+            "title": title,
+            "what_decided": _extract_subsection("最终决策"),
+            "why": _extract_subsection("决策理由"),
+            "alternatives": _extract_subsection("备选方案"),
+            "rejected": _extract_subsection("放弃理由"),
+            "reversal": _extract_subsection("复盘入口"),
+        }
+        # Only include if at least one field has content
+        if any(item[k] for k in ("what_decided", "why", "alternatives", "rejected", "reversal")):
+            items.append(item)
+    return items
+
+
+def handoff_command(
+    format: str = typer.Option("markdown", "--format", "-f", help="Output format (markdown)"),
+) -> None:
+    """Generate agent handoff summary."""
+    root = Path.cwd()
+    
+    # Check if this is a FLG project
+    if not is_flg_project(root):
+        console.print("[red]Not a FLG project. Run 'flg init' first.[/red]")
+        raise typer.Exit(1)
+    
+    # Generate summary
+    summary = generate_handoff_summary(root, format)
+    
+    # Output
+    if format == "markdown":
+        console.print(Markdown(summary))
+    else:
+        console.print(summary)
+
+
+def _parse_anchors(anchors_content: str) -> list:
+    """Parse ANCHORS.md content into structured anchor entries.
+
+    Returns a list of dicts with keys: topic, file, role, authority, provenance, lifecycle, notes.
+    """
+    import re
+    entries = []
+
+    # Split by ### headings (each anchor entry)
+    blocks = re.split(r"(?=^### )", anchors_content, flags=re.MULTILINE)
+    for block in blocks:
+        # Match ### [Topic Name]
+        topic_match = re.match(r"^### (.+)", block, re.MULTILINE)
+        if not topic_match:
+            continue
+        topic = topic_match.group(1).strip()
+        # Skip the template placeholder
+        if topic.startswith("[") and topic.endswith("]"):
+            continue
+
+        def _extract_field(field_name: str) -> str:
+            pattern = rf"\*\*{re.escape(field_name)}:\*\*\s*(.+)"
+            m = re.search(pattern, block)
+            if m:
+                val = m.group(1).strip()
+                # Strip placeholder parentheses
+                if val.startswith("(") and val.endswith(")"):
+                    return ""
+                return val
+            return ""
+
+        entry = {
+            "topic": topic,
+            "file": _extract_field("File"),
+            "role": _extract_field("Role"),
+            "authority": _extract_field("Authority"),
+            "provenance": _extract_field("Provenance"),
+            "lifecycle": _extract_field("Lifecycle"),
+            "notes": _extract_field("Notes"),
+        }
+        # Only include entries that have at least a file path
+        if entry["file"]:
+            entries.append(entry)
+
+    return entries
