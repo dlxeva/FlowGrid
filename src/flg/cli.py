@@ -8,9 +8,11 @@ from .commands.frame import frame_project
 from .commands.closeout import closeout_session
 from .commands.merge import merge_patch
 from .commands.handoff import handoff_command
+from .commands.export_handoff import export_handoff_pack
 from .commands.audit import audit_project
 from .commands.extract import extract_decisions_command
 from .commands.import_cmd import import_project
+from .core.state import load_state
 
 console = Console()
 
@@ -26,6 +28,7 @@ app.command(name="frame", help="Check framing completeness and generate frame pa
 app.command(name="closeout", help="Generate closeout patch from session transcript")(closeout_session)
 app.command(name="merge", help="Merge pending patch into formal ledger")(merge_patch)
 app.command(name="handoff", help="Generate agent handoff summary")(handoff_command)
+app.command(name="export-handoff", help="Export a resumable handoff pack")(export_handoff_pack)
 app.command(name="audit", help="Audit existing project directory")(audit_project)
 app.command(name="extract-decisions", help="Extract candidate decisions")(extract_decisions_command)
 app.command(name="import", help="Import existing project into FLG")(import_project)
@@ -41,7 +44,6 @@ def show_version() -> None:
 @app.command(name="status")
 def show_status() -> None:
     """Show current project status."""
-    import json
     from pathlib import Path
     from rich.table import Table
     
@@ -52,7 +54,10 @@ def show_status() -> None:
         console.print("[red]Not a FLG project. Run 'flg init' first.[/red]")
         raise typer.Exit(1)
     
-    state = json.loads(state_path.read_text(encoding="utf-8"))
+    state = load_state(root)
+    if state is None:
+        console.print("[red]No readable state found. Run 'flg init' first.[/red]")
+        raise typer.Exit(1)
     
     console.print()
     console.print(f"[bold]Project:[/bold] {state['project_name']}")

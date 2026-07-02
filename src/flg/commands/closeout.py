@@ -98,6 +98,16 @@ OPEN_QUESTION_KEYWORDS = [
     "need to confirm", "pending", "open question", "to be determined",
 ]
 
+GOAL_SHIFT_PATTERNS = [
+    r"目标变化",
+    r"目标改成",
+    r"目标从.*变成",
+    r"goal changed",
+    r"goal is now",
+    r"we are shifting to",
+    r"priority shifted",
+]
+
 NEXT_ACTION_KEYWORDS = [
     r"\bnext step[s]?\b",
     r"\baction item[s]?\b",
@@ -442,6 +452,62 @@ def extract_next_actions(content: str) -> list[str]:
     return unique_actions
 
 
+def extract_goal_shifts(content: str) -> list[str]:
+    """Extract sentences that signal goal evolution."""
+    shifts = []
+    seen = set()
+    for sentence in iter_segments(content):
+        if not sentence or len(sentence) < 10:
+            continue
+        if match_pattern(sentence, GOAL_SHIFT_PATTERNS):
+            if sentence not in seen:
+                seen.add(sentence)
+                shifts.append(sentence.strip())
+    return shifts
+
+
+def extract_related_docs_and_assets(content: str) -> tuple[list[str], list[str]]:
+    """Extract file-like references from transcript text."""
+    doc_matches = re.findall(r"\b[\w./-]+\.(?:md|docx|pdf|html|pptx|xlsx|csv)\b", content, re.IGNORECASE)
+    asset_matches = re.findall(r"\b[\w./-]+\.(?:png|jpg|jpeg|gif|webp|mp4|mov|fig)\b", content, re.IGNORECASE)
+
+    docs = list(dict.fromkeys(doc_matches))
+    assets = list(dict.fromkeys(asset_matches))
+    return docs, assets
+
+
+def infer_decision_relations(decision: dict, next_actions: list[str], content: str) -> dict:
+    """Infer lightweight decision relations for patch review."""
+    related_docs, related_assets = extract_related_docs_and_assets(content)
+    related_goals = []
+    affected_actions = []
+    supersedes = "(none detected)"
+
+    for sentence in iter_segments(content):
+        lower = sentence.lower()
+        if "goal" in lower or "目标" in sentence:
+            related_goals.append(sentence.strip())
+        if any(token in lower for token in ["replace", "instead of", "supersede"]) or any(token in sentence for token in ["取代", "改成", "替代", "改为"]):
+            supersedes = sentence.strip()
+
+    decision_words = {word.lower() for word in re.findall(r"[A-Za-z]+", decision["content"])}
+    for action in next_actions:
+        action_words = {word.lower() for word in re.findall(r"[A-Za-z]+", action)}
+        if decision_words & action_words:
+            affected_actions.append(action)
+
+    if not affected_actions:
+        affected_actions = next_actions[:2]
+
+    return {
+        "related_goals": list(dict.fromkeys(related_goals[:2])) or ["(none detected)"],
+        "related_docs": related_docs[:3] or ["(none detected)"],
+        "related_assets": related_assets[:3] or ["(none detected)"],
+        "affected_actions": affected_actions[:3] or ["(none detected)"],
+        "supersedes": supersedes,
+    }
+
+
 def extract_rationale_excerpts(content: str) -> list[str]:
     """Extract thinking-process excerpts from conversation.
 
@@ -731,6 +797,7 @@ The following decisions were extracted by LLM ({get_llm_config()['model']}).
     next_actions = extract_next_actions(content)
     rationale_excerpts = extract_rationale_excerpts(content)
     lessons_learned_signals = extract_lessons_learned_signals(content)
+    goal_shifts = extract_goal_shifts(content)
     
     # Apply limits for concise mode
     if mode == "concise":
@@ -740,6 +807,7 @@ The following decisions were extracted by LLM ({get_llm_config()['model']}).
         next_actions = next_actions[:5]
         rationale_excerpts = rationale_excerpts[:5]
         lessons_learned_signals = lessons_learned_signals[:5]
+        goal_shifts = goal_shifts[:3]
     
     # Build sections
     now = get_iso_now()
@@ -764,6 +832,11 @@ The following decisions were extracted by LLM ({get_llm_config()['model']}).
             reasoning = d.get("reasoning", "")
             rejected = d.get("rejected_alternatives", "")
             reversal = d.get("reversal_conditions", "")
+            relations = infer_decision_relations(d, next_actions, content)
+            related_goals = "; ".join(relations["related_goals"])
+            related_docs = "; ".join(relations["related_docs"])
+            related_assets = "; ".join(relations["related_assets"])
+            affected_actions = "; ".join(relations["affected_actions"])
             candidate_decisions += f"""
 ### Candidate Decision {i}: {title}
 
@@ -776,6 +849,11 @@ why_this_is_a_decision: {why_this_is_a_decision(d)}
 **Alternatives mentioned:** {rejected if rejected else '(not detected in context)'}
 **Rejected because:** {rejected if rejected else '(not detected in context)'}
 **Could reverse if:** {reversal if reversal else '(not detected in context)'}
+**Related goals:** {related_goals}
+**Related docs:** {related_docs}
+**Related assets:** {related_assets}
+**Affected actions:** {affected_actions}
+**Supersedes:** {relations['supersedes']}
 source_excerpt: > {d['content']}
 suggested_action: needs_review
 
@@ -806,6 +884,13 @@ suggested_action: needs_review
             questions_text += f"- {q}\n"
     else:
         questions_text = "(none identified)\n"
+
+    goal_shifts_text = ""
+    if goal_shifts:
+        for shift in goal_shifts:
+            goal_shifts_text += f"- {shift}\n"
+    else:
+        goal_shifts_text = "(none identified)\n"
     
     # Build evidence section
     evidence = ""
@@ -873,23 +958,28 @@ mode: {mode}
 
 {questions_text}
 
-## 6. Evidence Excerpts
+    ## 6. Goal Evolution Signals
 
-{evidence}
+    {goal_shifts_text}
 
-## 7. Rationale Excerpts (thinking process)
+    ## 7. Evidence Excerpts
 
-{rationale_text}
+    {evidence}
 
-## 8. Lessons Learned Trigger
+    ## 8. Rationale Excerpts (thinking process)
 
-{lessons_text}
+    {rationale_text}
 
-## 9. Needs Human Review
+    ## 9. Lessons Learned Trigger
 
-- [ ] Review candidate decisions
-- [ ] Review suggested next actions
-- [ ] Confirm or reject each decision
+    {lessons_text}
+
+    ## 10. Needs Human Review
+
+    - [ ] Review candidate decisions
+    - [ ] Review goal evolution signals
+    - [ ] Review suggested next actions
+    - [ ] Confirm or reject each decision
 - [ ] Evaluate risks
 - [ ] Address open questions
 - [ ] Fill in LESSONS_LEARNED.md if signals detected

@@ -13,13 +13,16 @@ from ..core.files import ensure_dir, is_flg_project, safe_write
 from ..core.state import create_initial_state, save_state
 from ..templates import (
     ANCHORS_MD,
+    CONSTRAINTS_MD,
     CONTRACT_MD,
     DECISIONS_MD,
     FRAMING_MD,
+    GOAL_EVOLUTION_MD,
     LESSONS_LEARNED_MD,
     PROGRESS_MD,
     PROJECT_MD,
     RATIONALE_TRAIL_MD,
+    ROLE_TEMPLATES,
     SNAPSHOT_MD,
     get_iso_now,
 )
@@ -32,6 +35,7 @@ def init_project(
     project_type: str = typer.Option("proposal", "--type", "-t", help="Project type"),
     client: str = typer.Option("", "--client", "-c", help="Client or sponsor"),
     background: str = typer.Option("", "--background", "-b", help="Project background"),
+    template: Optional[str] = typer.Option(None, "--template", help="Optional role template: strategy, marketing, operations, solution"),
 ) -> None:
     """Initialize a new FlowGrid project in the current directory."""
     root = Path.cwd()
@@ -44,6 +48,15 @@ def init_project(
     
     now = get_iso_now()
     results = []
+    template_profile = None
+    if template:
+        normalized_template = template.lower().strip()
+        template_profile = ROLE_TEMPLATES.get(normalized_template)
+        if template_profile is None:
+            console.print(f"[red]Unknown template: {template}[/red]")
+            console.print("[dim]Supported templates: strategy, marketing, operations, solution[/dim]")
+            raise typer.Exit(1)
+        project_type = template_profile["project_type"]
     
     # Create core directories
     for subdir in [".flg/patches", ".flg/sessions", ".flg/memory"]:
@@ -58,7 +71,7 @@ def init_project(
         current_stage="initialized",
         deliverables="(to be defined)",
         timeline="(to be defined)",
-        constraints="(to be defined)",
+        constraints=(template_profile["constraints"] if template_profile else "(to be defined)"),
         background=background or "(to be filled)",
         created_at=now,
         updated_at=now,
@@ -81,6 +94,21 @@ def init_project(
         created_at=now,
         updated_at=now,
     )
+    if template_profile:
+        framing_content = FRAMING_MD.format(
+            problem_statement=template_profile["problem_statement"],
+            explicit_requirements=template_profile["explicit_requirements"],
+            real_needs=template_profile["real_needs"],
+            goals=template_profile["goals"],
+            non_goals=template_profile["non_goals"],
+            user_objects=template_profile["user_objects"],
+            review_objects=template_profile["review_objects"],
+            success_criteria=template_profile["success_criteria"],
+            constraints=template_profile["constraints"],
+            open_questions=template_profile["open_questions"],
+            created_at=now,
+            updated_at=now,
+        )
     written = safe_write(root / "FRAMING.md", framing_content)
     results.append(("FRAMING.md", "created" if written else "skipped"))
     
@@ -107,6 +135,24 @@ def init_project(
     progress_content = PROGRESS_MD.format(created_at=now, updated_at=now)
     written = safe_write(root / "PROGRESS.md", progress_content)
     results.append(("PROGRESS.md", "created" if written else "skipped"))
+
+    goal_evolution_content = GOAL_EVOLUTION_MD.format(created_at=now, updated_at=now)
+    if template_profile:
+        goal_evolution_content = GOAL_EVOLUTION_MD.format(created_at=now, updated_at=now).replace(
+            "<!-- 复制以下模板，每次目标变化一条 -->",
+            f"<!-- 复制以下模板，每次目标变化一条 -->\n\n{template_profile['goal_evolution']}"
+        )
+    written = safe_write(root / "GOAL_EVOLUTION.md", goal_evolution_content)
+    results.append(("GOAL_EVOLUTION.md", "created" if written else "skipped"))
+
+    constraints_content = CONSTRAINTS_MD.format(created_at=now, updated_at=now)
+    if template_profile:
+        constraints_content = CONSTRAINTS_MD.format(created_at=now, updated_at=now).replace(
+            "<!-- 复制以下模板，每条约束一个 -->",
+            f"<!-- 复制以下模板，每条约束一个 -->\n\n{template_profile['constraint_block']}"
+        )
+    written = safe_write(root / "CONSTRAINTS.md", constraints_content)
+    results.append(("CONSTRAINTS.md", "created" if written else "skipped"))
     
     # Create .flg/CONTRACT.md
     written = safe_write(root / ".flg" / "CONTRACT.md", CONTRACT_MD)
@@ -157,5 +203,6 @@ def init_project(
     console.print()
     console.print("Next steps:")
     console.print("  1. Edit [cyan]FRAMING.md[/cyan] to define your project")
-    console.print("  2. Run [cyan]flg frame[/cyan] to check framing completeness")
-    console.print("  3. Run [cyan]flg closeout --transcript <file>[/cyan] to close a session")
+    console.print("  2. Review [cyan]GOAL_EVOLUTION.md[/cyan] and [cyan]CONSTRAINTS.md[/cyan]")
+    console.print("  3. Run [cyan]flg frame[/cyan] to check framing completeness")
+    console.print("  4. Run [cyan]flg closeout --transcript <file>[/cyan] to close a session")

@@ -73,6 +73,8 @@ def test_closeout_extracts_decisions(flg_project_with_demo):
     
     # Should find decision-related content
     assert "decided" in patch_content.lower() or "decision" in patch_content.lower()
+    assert "**Related goals:**" in patch_content
+    assert "**Affected actions:**" in patch_content
 
 
 def test_closeout_extracts_risks(flg_project_with_demo):
@@ -599,7 +601,29 @@ Next step is to create a project plan.
         patch = next((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
         content = patch.read_text()
         assert "Lessons Learned Trigger" in content
-        lessons_section = content.split("## 8. Lessons Learned Trigger")[1].split("## 9.")[0]
+        lessons_section = content.split("## 9. Lessons Learned Trigger")[1].split("## 10.")[0]
         assert "(none identified)" in lessons_section
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_closeout_extracts_goal_evolution_signals(tmp_path):
+    """Goal shifts should surface in the dedicated goal evolution section."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Goal Shift Test"])
+        transcript = tmp_path / "goal_shift.md"
+        transcript.write_text("""# Session
+
+本轮目标变化：从做完整平台改成先做可续接的判断协议。
+The goal is now to validate continuity instead of multi-agent relay.
+""")
+        result = runner.invoke(app, ["closeout", "--transcript", str(transcript)])
+        assert result.exit_code == 0
+        patch = next((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
+        content = patch.read_text()
+        goal_section = content.split("## 6. Goal Evolution Signals")[1].split("## 7.")[0]
+        assert "目标变化" in goal_section or "goal is now" in goal_section.lower()
     finally:
         os.chdir(old_cwd)

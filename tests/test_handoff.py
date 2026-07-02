@@ -492,3 +492,27 @@ def test_handoff_anchors_empty_when_no_entries(tmp_path):
         assert "no anchors defined" in result.output
     finally:
         os.chdir(old_cwd)
+
+
+def test_export_handoff_creates_pack(tmp_path):
+    """export-handoff should write a resumable handoff pack including new state files."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        result = runner.invoke(app, ["init", "Export Test", "--template", "solution"])
+        assert result.exit_code == 0
+
+        result = runner.invoke(app, ["export-handoff"])
+        assert result.exit_code == 0
+        assert "Handoff pack exported" in result.output
+
+        export_dir = tmp_path / ".flg" / "exports"
+        pack_files = list(export_dir.glob("handoff-pack-*.md"))
+        assert pack_files
+        content = pack_files[0].read_text(encoding="utf-8")
+        assert "FlowGrid Handoff Pack" in content
+        assert "Goal Evolution" in content
+        assert "Constraints" in content
+        assert "Authoritative Anchors" in content
+    finally:
+        os.chdir(old_cwd)

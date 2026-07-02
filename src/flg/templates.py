@@ -168,6 +168,50 @@ SNAPSHOT_MD = """# Project Snapshot
 *Last Updated: {updated_at}*
 """
 
+GOAL_EVOLUTION_MD = """# Goal Evolution
+
+> 记录目标如何变化，而不只是记录最终拍板的决策。
+> 每次目标变化都写清楚：从什么变成什么，为什么变，影响到哪些文档或动作。
+
+<!-- 复制以下模板，每次目标变化一条 -->
+
+## Goal Shift 001
+
+- **When:** (日期)
+- **Previous Goal:** (之前的目标)
+- **New Goal:** (现在的目标)
+- **Trigger:** (触发变化的事件 / 信息 / 约束)
+- **Impact:** (影响了哪些文档 / 动作 / 边界)
+
+---
+
+*Created: {created_at}*
+*Last Updated: {updated_at}*
+"""
+
+CONSTRAINTS_MD = """# Constraints and Rules
+
+> 这里记录项目中的规则、约束、例外条件和复核触发器。
+> 适合运营机制、解决方案边界、交付条件、审批条件等内容。
+
+## Constraint Blocks
+
+<!-- 复制以下模板，每条约束一个 -->
+
+### Constraint 001
+
+- **If:** (触发条件)
+- **Then:** (应采取的动作 / 判断)
+- **Unless:** (例外条件；没有就写 none)
+- **Owner:** (负责确认的人或角色)
+- **Review Trigger:** (什么情况下必须重新检查这条约束)
+
+---
+
+*Created: {created_at}*
+*Last Updated: {updated_at}*
+"""
+
 PROGRESS_MD = """# Progress Log
 
 ## Document Evolution
@@ -376,6 +420,69 @@ DOC_ROLE_EXAMPLES = [
     "data_report",           # 数据报告
     "client_proposal",       # 客户提案
 ]
+
+ROLE_TEMPLATES = {
+    "strategy": {
+        "project_type": "strategy",
+        "problem_statement": "需要澄清目标、边界、评审逻辑和推进路径。",
+        "explicit_requirements": "- 明确这次判断要服务的业务问题\n- 明确评审对象与评审标准",
+        "real_needs": "- 用户可能真正需要的是更清晰的取舍逻辑，而不是更多材料",
+        "goals": "- 明确高层目标\n- 形成至少一条可推进的路径",
+        "non_goals": "- 不在本轮展开完整执行计划",
+        "user_objects": "- 决策人 / 业务负责人 / 方案拥有者",
+        "review_objects": "- 是否讲清楚目标、边界、取舍、推进路径",
+        "success_criteria": "- 评审人能明确说出为什么做、为什么不做",
+        "constraints": "- 时间有限\n- 信息不完整",
+        "open_questions": "- 当前最高优先级目标是否稳定？\n- 本轮不做什么是否已经讲清？",
+        "goal_evolution": "## Goal Shift 001\n\n- **When:** {created_at}\n- **Previous Goal:** (none)\n- **New Goal:** Clarify business goal, boundary, and review logic\n- **Trigger:** Project initialized with strategy template\n- **Impact:** FRAMING.md / SNAPSHOT.md / decision criteria\n",
+        "constraint_block": "### Constraint 001\n\n- **If:** 目标与资源不匹配\n- **Then:** 优先收缩范围，而不是继续扩展讨论\n- **Unless:** 决策人明确要求做多方案并行推演\n- **Owner:** strategy lead\n- **Review Trigger:** 评审对象变化或资源假设变化\n",
+    },
+    "marketing": {
+        "project_type": "marketing",
+        "problem_statement": "需要把 campaign 判断、brief、素材方向和交接状态收成一个可续接项目。",
+        "explicit_requirements": "- 明确 campaign 目标\n- 明确关键素材与上线节奏",
+        "real_needs": "- 用户可能真正需要的是减少反复解释创意方向和预算边界",
+        "goals": "- 锁定 campaign 方向\n- 让素材、判断、时间点能关联起来",
+        "non_goals": "- 本轮不搭完整投放后台",
+        "user_objects": "- 营销负责人 / 内容负责人 / 设计协作方",
+        "review_objects": "- brief 是否清楚\n- 关键动作是否能按节奏推进",
+        "success_criteria": "- 团队能明确当前方向、素材缺口和下一步动作",
+        "constraints": "- 时效性高\n- 预算变化快\n- 素材版本多",
+        "open_questions": "- 当前核心素材版本是哪一版？\n- 哪些判断已经确认，哪些只是创意草案？",
+        "goal_evolution": "## Goal Shift 001\n\n- **When:** {created_at}\n- **Previous Goal:** (none)\n- **New Goal:** Align campaign direction, key assets, and launch rhythm\n- **Trigger:** Project initialized with marketing template\n- **Impact:** brief / asset list / rollout plan\n",
+        "constraint_block": "### Constraint 001\n\n- **If:** campaign 上线时间提前\n- **Then:** 优先冻结素材范围和审核路径\n- **Unless:** 目标人群或投放渠道被同时调整\n- **Owner:** marketing lead\n- **Review Trigger:** 预算、上线日期或素材负责人发生变化\n",
+    },
+    "operations": {
+        "project_type": "operations",
+        "problem_statement": "需要把机制设计、节奏、约束和复盘依据收成可复用、可续接的规则结构。",
+        "explicit_requirements": "- 明确运行规则\n- 明确节奏和责任边界",
+        "real_needs": "- 用户可能真正需要的是避免机制靠口头传递、每次重新对齐",
+        "goals": "- 让机制规则可追踪\n- 让复盘时能回溯为什么这样设计",
+        "non_goals": "- 本轮不接复杂自动化平台",
+        "user_objects": "- 运营负责人 / 执行人 / 复盘人",
+        "review_objects": "- 规则是否清晰\n- 例外条件是否明确",
+        "success_criteria": "- 新接手的人能按规则运行而不需要反复口头解释",
+        "constraints": "- 条件逻辑多\n- 依赖数据验证\n- 多项目并行",
+        "open_questions": "- 哪些规则是硬约束，哪些是经验性建议？\n- 哪些数据是复盘必需证据？",
+        "goal_evolution": "## Goal Shift 001\n\n- **When:** {created_at}\n- **Previous Goal:** (none)\n- **New Goal:** Capture operating rules, cadence, and exception logic\n- **Trigger:** Project initialized with operations template\n- **Impact:** rules / reviews / handoff expectations\n",
+        "constraint_block": "### Constraint 001\n\n- **If:** 指标连续两周未达标\n- **Then:** 触发复盘并重审当前机制\n- **Unless:** 外部依赖或资源供给已被确认异常\n- **Owner:** operations lead\n- **Review Trigger:** 节奏、指标口径或责任人发生变化\n",
+    },
+    "solution": {
+        "project_type": "solution",
+        "problem_statement": "需要把客户需求翻译成方案判断和可交付路径，并追踪变更影响。",
+        "explicit_requirements": "- 明确客户需求\n- 明确交付边界与验收条件",
+        "real_needs": "- 用户可能真正需要的是减少需求变化导致的交付路径重建成本",
+        "goals": "- 把需求、方案、交付路径挂起来\n- 让需求变化的影响可回溯",
+        "non_goals": "- 本轮不做完整项目管理平台",
+        "user_objects": "- 客户 / 方案负责人 / 交付负责人",
+        "review_objects": "- 需求是否翻译准确\n- 交付边界是否说清",
+        "success_criteria": "- 任一需求变更都能快速定位受影响的方案和动作",
+        "constraints": "- 需求变化频繁\n- 商务与技术语言并存",
+        "open_questions": "- 当前哪份文档定义了真实交付边界？\n- 哪些需求是确认的，哪些仍在讨论？",
+        "goal_evolution": "## Goal Shift 001\n\n- **When:** {created_at}\n- **Previous Goal:** (none)\n- **New Goal:** Translate customer demand into a clear solution and delivery path\n- **Trigger:** Project initialized with solution template\n- **Impact:** requirements / proposal / delivery planning\n",
+        "constraint_block": "### Constraint 001\n\n- **If:** 客户新增需求影响交付范围\n- **Then:** 必须重新评估方案、时间和成本影响\n- **Unless:** 新增需求仅属于文案表述调整\n- **Owner:** solution lead\n- **Review Trigger:** 需求、预算或验收标准发生变化\n",
+    },
+}
 
 LESSONS_LEARNED_MD = """# Lessons Learned
 

@@ -36,6 +36,8 @@ def test_init_creates_project_structure(tmp_dir):
     assert (tmp_dir / "DECISIONS.md").exists()
     assert (tmp_dir / "SNAPSHOT.md").exists()
     assert (tmp_dir / "PROGRESS.md").exists()
+    assert (tmp_dir / "GOAL_EVOLUTION.md").exists()
+    assert (tmp_dir / "CONSTRAINTS.md").exists()
     
     # Check .flg directory structure
     assert (tmp_dir / ".flg").is_dir()
@@ -149,3 +151,39 @@ def test_init_creates_anchors_md(tmp_dir):
     assert "authoritative" in content
     assert "Provenance" in content
     assert "Lifecycle" in content
+
+
+def test_init_creates_goal_evolution_md(tmp_dir):
+    """Test that flg init creates GOAL_EVOLUTION.md."""
+    result = runner.invoke(app, ["init", "Test Project"])
+    assert result.exit_code == 0
+    path = tmp_dir / "GOAL_EVOLUTION.md"
+    assert path.exists()
+    content = path.read_text()
+    assert "Goal Evolution" in content
+    assert "Goal Shift" in content
+
+
+def test_init_creates_constraints_md(tmp_dir):
+    """Test that flg init creates CONSTRAINTS.md."""
+    result = runner.invoke(app, ["init", "Test Project"])
+    assert result.exit_code == 0
+    path = tmp_dir / "CONSTRAINTS.md"
+    assert path.exists()
+    content = path.read_text()
+    assert "Constraint Blocks" in content
+    assert "If:" in content
+
+
+def test_init_strategy_template_seeds_role_specific_content(tmp_dir):
+    """Template init should seed role-specific framing and constraint hints."""
+    result = runner.invoke(app, ["init", "Strategy Project", "--template", "strategy"])
+    assert result.exit_code == 0
+
+    framing_content = (tmp_dir / "FRAMING.md").read_text()
+    constraints_content = (tmp_dir / "CONSTRAINTS.md").read_text()
+    goal_evolution_content = (tmp_dir / "GOAL_EVOLUTION.md").read_text()
+
+    assert "评审逻辑" in framing_content
+    assert "strategy lead" in constraints_content
+    assert "Clarify business goal" in goal_evolution_content
