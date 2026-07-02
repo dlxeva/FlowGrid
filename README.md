@@ -1,6 +1,34 @@
 # FlowGrid (FLG)
 
-A local project workflow tool for non-coding knowledge work — strategy, marketing, research, and creative ideation. Built for single-operator Agent relay, not team coordination.
+[English](./README.md) | [简体中文](./README.zh-CN.md)
+
+> A local project workflow tool for non-coding knowledge work.
+> Built for single-operator agent relay, not team coordination.
+
+![Stage](https://img.shields.io/badge/stage-v0.2.1--alpha-4c6ef5)
+![Runtime](https://img.shields.io/badge/runtime-local--first-2b8a3e)
+![Interface](https://img.shields.io/badge/interface-CLI%20%2B%20project%20protocol-495057)
+![Tests](https://img.shields.io/badge/tests-58%20passed-2f9e44)
+
+FlowGrid helps strategy, marketing, research, operations, and solution professionals turn vague business work into structured, auditable, and transferable project systems.
+
+It keeps project memory in plain-text files, lets any local agent continue from the same directory, and treats decisions, progress, and pending patches as first-class project state.
+
+## Quick Links
+
+- [Why it exists](#what-is-flowgrid)
+- [Who it is for](#who-is-it-for)
+- [Quick start](#quick-start)
+- [CLI commands](#cli-commands)
+- [Chinese README](./README.zh-CN.md)
+
+## At a Glance
+
+- **Local-first:** project truth lives in files, not chat memory
+- **Agent-relay ready:** later agents read the same ledger and pending patches
+- **Decision-aware:** decisions store why, rejected options, and reversal conditions
+- **Patch-first:** medium/high-risk updates stay reviewable before merge
+- **Non-coder oriented:** built for briefs, proposals, planning, and judgment work
 
 ## What is FlowGrid?
 
@@ -69,7 +97,6 @@ If your work is "figure out what to do" rather than "do it at scale", FLG is for
 ## Installation
 
 ```bash
-cd framing-ledger
 pip install -e .
 flg version
 ```
