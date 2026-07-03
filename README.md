@@ -226,6 +226,7 @@ This ensures multi-agent relay works correctly: Agent B can see Agent A's closeo
 | `flg init <name>` | Initialize a new project |
 | `flg frame` | Check framing completeness |
 | `flg closeout --transcript <file>` | Generate closeout patch |
+| `flg review --patch <file>` | Accept candidate decisions into DECISIONS.md |
 | `flg merge --patch <file>` | Merge pending patch into formal ledger |
 | `flg handoff` | Generate agent handoff summary |
 | `flg audit <path>` | Audit existing project directory |

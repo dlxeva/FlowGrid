@@ -9,6 +9,7 @@ from .commands.closeout import closeout_session
 from .commands.merge import merge_patch
 from .commands.handoff import handoff_command
 from .commands.export_handoff import export_handoff_pack
+from .commands.review import review_patch
 from .commands.audit import audit_project
 from .commands.extract import extract_decisions_command
 from .commands.import_cmd import import_project
@@ -29,6 +30,7 @@ app.command(name="closeout", help="Generate closeout patch from session transcri
 app.command(name="merge", help="Merge pending patch into formal ledger")(merge_patch)
 app.command(name="handoff", help="Generate agent handoff summary")(handoff_command)
 app.command(name="export-handoff", help="Export a resumable handoff pack")(export_handoff_pack)
+app.command(name="review", help="Review candidate decisions from a patch")(review_patch)
 app.command(name="audit", help="Audit existing project directory")(audit_project)
 app.command(name="extract-decisions", help="Extract candidate decisions")(extract_decisions_command)
 app.command(name="import", help="Import existing project into FLG")(import_project)

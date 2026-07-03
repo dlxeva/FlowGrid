@@ -216,6 +216,7 @@ Agent 开始工作时，必须读取两层状态：
 | `flg init <name>` | 初始化项目 |
 | `flg frame` | 检查 framing 完整度 |
 | `flg closeout --transcript <file>` | 生成 closeout patch |
+| `flg review --patch <file>` | 审核候选决策并写入 DECISIONS.md |
 | `flg merge --patch <file>` | 将 patch 合并到正式账本 |
 | `flg handoff` | 生成 Agent 接力摘要 |
 | `flg audit <path>` | 审计已有项目目录 |
