@@ -17,9 +17,11 @@ It keeps project memory in plain-text files, lets any local agent continue from 
 ## Quick Links
 
 - [Why it exists](#what-is-flowgrid)
+- [30-second demo](#30-second-demo)
 - [Who it is for](#who-is-it-for)
 - [Quick start](#quick-start)
 - [CLI commands](#cli-commands)
+- [Protocol docs](./docs/protocol.md)
 - [Chinese README](./README.zh-CN.md)
 
 ## At a Glance
@@ -29,6 +31,23 @@ It keeps project memory in plain-text files, lets any local agent continue from 
 - **Decision-aware:** decisions store why, rejected options, and reversal conditions
 - **Patch-first:** medium/high-risk updates stay reviewable before merge
 - **Non-coder oriented:** built for briefs, proposals, planning, and judgment work
+
+## 30-Second Demo
+
+```bash
+mkdir demo && cd demo
+flg init "Launch Proposal" --type proposal --client "Client A"
+flg frame
+flg closeout --transcript meeting-notes.md
+flg handoff
+```
+
+After that, you will have:
+
+- a local project ledger: `PROJECT.md`, `FRAMING.md`, `DECISIONS.md`, `SNAPSHOT.md`, `PROGRESS.md`
+- a protocol directory: `.flg/`
+- reviewable pending changes in `.flg/patches/`
+- a resumable handoff summary for the next session or agent
 
 ## What is FlowGrid?
 
@@ -165,6 +184,8 @@ my-project/
 ├── DECISIONS.md
 ├── SNAPSHOT.md
 ├── PROGRESS.md
+├── GOAL_EVOLUTION.md
+├── CONSTRAINTS.md
 └── .flg/
     ├── CONTRACT.md
     ├── state.json
@@ -250,6 +271,17 @@ Legacy Audit features:
 ## History
 
 FlowGrid keeps `FLG` as its technical shorthand, CLI prefix, and `.flg/` project directory. Earlier iterations used the name "Framing Ledger", but the external product name was changed because "FlowGrid" reads more like a tool while preserving the existing FLG technical surface.
+
+## Protocol
+
+FlowGrid is not just a Python CLI. It is a local project protocol:
+
+- the filesystem is the source of truth
+- markdown files hold the durable project state
+- `.flg/` holds runtime and review state
+- agents may propose changes, but medium/high-risk updates stay reviewable
+
+See [docs/protocol.md](./docs/protocol.md) for the protocol-level model.
 
 ## Inspiration
 
