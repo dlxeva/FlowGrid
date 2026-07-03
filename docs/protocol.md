@@ -75,6 +75,24 @@ This is why FlowGrid is not just “files plus a CLI”. It is a protocol for ha
 - review boundaries
 - resumable state
 
+## Closeout Input Boundary
+
+`flg closeout` is meant for **raw session material**, such as:
+
+- meeting notes
+- chat transcripts
+- discussion drafts
+- files under `.flg/sessions/`
+
+It is **not** meant to re-process already-structured ledger files such as:
+
+- `PROGRESS.md`
+- `SNAPSHOT.md`
+- `DECISIONS.md`
+- `README.md`
+
+Those files already represent interpreted project state. Re-running extraction on them creates second-order noise and can turn status summaries into fake candidate decisions.
+
 ## Write Model
 
 FlowGrid uses a patch-first write strategy.

@@ -175,6 +175,9 @@ flg closeout --transcript path/to/transcript.md
 
 This extracts decisions, risks, and progress from a transcript and generates a closeout patch.
 
+Use raw meeting notes, session transcripts, or files under `.flg/sessions/`.
+Do not use structured ledger files such as `PROGRESS.md`, `SNAPSHOT.md`, or `DECISIONS.md` as closeout input unless you explicitly know why and pass `--force`.
+
 ## Project Structure
 
 ```

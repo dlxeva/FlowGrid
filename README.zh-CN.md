@@ -161,6 +161,9 @@ flg closeout --transcript path/to/transcript.md
 
 它会从对话或记录里提取决策、风险、进展，并生成 closeout patch。
 
+推荐输入原始会议纪要、原始对话记录，或 `.flg/sessions/` 下的 session 文件。
+不要直接拿 `PROGRESS.md`、`SNAPSHOT.md`、`DECISIONS.md` 这类结构化账本文件做 closeout，除非你明确知道自己在做什么，并显式加 `--force`。
+
 ## 项目结构
 
 ```text

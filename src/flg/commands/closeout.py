@@ -16,6 +16,21 @@ from ..llm_client import call_llm, parse_llm_response, get_llm_config
 
 console = Console()
 
+STRUCTURED_LEDGER_FILENAMES = {
+    "project.md",
+    "framing.md",
+    "decisions.md",
+    "snapshot.md",
+    "progress.md",
+    "readme.md",
+    "goal_evolution.md",
+    "constraints.md",
+    "anchors.md",
+    "项目进展.md",
+    "项目快照.md",
+    "决策日志.md",
+}
+
 # Decision keywords - must be explicit confirmation or trade-off
 DECISION_KEYWORDS = {
     # Explicit confirmation
@@ -659,6 +674,7 @@ def closeout_session(
     prompt_only: bool = typer.Option(False, "--prompt", "-p", help="Generate LLM prompt for decision extraction (no keyword matching)"),
     llm: bool = typer.Option(False, "--llm", "-l", help="Call LLM API directly for decision extraction (requires API key)"),
     provider: Optional[str] = typer.Option(None, "--provider", help="LLM provider override (openai, anthropic, custom)"),
+    force: bool = typer.Option(False, "--force", help="Allow closeout on structured ledger files (not recommended)"),
 ) -> None:
     """Generate closeout patch from session transcript.
 
@@ -678,6 +694,14 @@ def closeout_session(
     # Check transcript exists
     if not transcript.exists():
         console.print(f"[red]Transcript not found: {transcript}[/red]")
+        raise typer.Exit(1)
+
+    transcript_name = transcript.name.lower()
+    if transcript_name in STRUCTURED_LEDGER_FILENAMES and not force:
+        console.print("[red]Refusing to run closeout on a structured ledger file.[/red]")
+        console.print(f"[yellow]File:[/yellow] {transcript.name}")
+        console.print("[dim]Use raw session notes, meeting transcripts, or files under .flg/sessions/ instead.[/dim]")
+        console.print("[dim]If you intentionally want to process this file anyway, rerun with --force.[/dim]")
         raise typer.Exit(1)
     
     # Load state

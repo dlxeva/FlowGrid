@@ -102,6 +102,33 @@ def test_closeout_on_nonexistent_transcript(flg_project_with_demo):
     assert "not found" in result.output.lower()
 
 
+def test_closeout_rejects_structured_ledger_file(tmp_path):
+    """Structured ledger files should be blocked as closeout input unless forced."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Guardrail Test"])
+        result = runner.invoke(app, ["closeout", "--transcript", "PROGRESS.md"])
+        assert result.exit_code == 1
+        assert "structured ledger file" in result.output.lower()
+        assert "--force" in result.output
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_closeout_force_allows_structured_ledger_file(tmp_path):
+    """--force should allow explicit closeout on structured ledger files."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Force Test"])
+        result = runner.invoke(app, ["closeout", "--transcript", "PROGRESS.md", "--force"])
+        assert result.exit_code == 0
+        assert "Closeout patch generated" in result.output
+    finally:
+        os.chdir(old_cwd)
+
+
 def test_closeout_on_non_flg_project(tmp_path):
     """Test that flg closeout fails on non-FLG project."""
     old_cwd = os.getcwd()
