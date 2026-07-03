@@ -2,8 +2,8 @@
 
 [English](./README.md) | [简体中文](./README.zh-CN.md)
 
-> A local project workflow tool for non-coding knowledge work.
-> Built for single-operator agent relay, not team coordination.
+> An AI-native local project protocol for non-coding knowledge work.
+> Designed to work inside any AI agent work product, with natural language as the interface and local files as the source of truth.
 
 ![Stage](https://img.shields.io/badge/stage-v0.2.1--alpha-4c6ef5)
 ![Runtime](https://img.shields.io/badge/runtime-local--first-2b8a3e)
@@ -12,7 +12,7 @@
 
 FlowGrid helps strategy, marketing, research, operations, and solution professionals turn vague business work into structured, auditable, and transferable project systems.
 
-It keeps project memory in plain-text files, lets any local agent continue from the same directory, and treats decisions, progress, and pending patches as first-class project state.
+It keeps project memory in plain-text files, lets any AI agent work product continue from the same directory, and treats decisions, progress, and pending patches as first-class project state.
 
 ## Quick Links
 
@@ -22,12 +22,14 @@ It keeps project memory in plain-text files, lets any local agent continue from 
 - [Quick start](#quick-start)
 - [CLI commands](#cli-commands)
 - [Protocol docs](./docs/protocol.md)
+- [Host usage](./docs/host-usage.md)
 - [Chinese README](./README.zh-CN.md)
 
 ## At a Glance
 
 - **Local-first:** project truth lives in files, not chat memory
-- **Agent-relay ready:** later agents read the same ledger and pending patches
+- **Host-agnostic:** works inside Codex, Claude, OpenHands, Hermes, or any agent shell that can read files and run commands
+- **Continuity-first:** later agents and later sessions read the same ledger and pending patches
 - **Decision-aware:** decisions store why, rejected options, and reversal conditions
 - **Patch-first:** medium/high-risk updates stay reviewable before merge
 - **Non-coder oriented:** built for briefs, proposals, planning, and judgment work
@@ -49,9 +51,11 @@ After that, you will have:
 - reviewable pending changes in `.flg/patches/`
 - a resumable handoff summary for the next session or agent
 
+You can run that flow from Codex, Claude, OpenHands, Hermes, or any AI agent work product that can read files and run commands.
+
 ## What is FlowGrid?
 
-FlowGrid (FLG) is a local project directory protocol and AI workflow tool for strategy, marketing, operations, and solution professionals.
+FlowGrid (FLG) is an AI-native local project protocol for strategy, marketing, operations, and solution professionals.
 
 It helps you turn vague business problems into structured, auditable, and transferable project systems.
 
@@ -109,7 +113,7 @@ Be honest: there are tools that already serve these users better. If you fit one
 | Team lead running self-driving project workspaces | [Taskade Genesis / Workspace DNA](https://www.taskade.com/blog/autonomous-project-management) — 100+ integrations, prompt → running project |
 | Solo non-coder wanting low-friction agent task execution | [Claude Cowork](https://www.scrum.org/resources/blog/claude-cowork-ai-agents-email-moment-non-coding-agile-practitioners) — packaging code-agent power for non-coders |
 
-**FlowGrid's niche:** single-operator, non-coding knowledge work (marketing, strategy, research, creative ideation) where the deliverable is *decisions, drafts, briefs* — not code, not sprints, not running apps. Local-first, plain-text ledger, agent-relay continuity, no SaaS, no team coordination layer.
+**FlowGrid's niche:** single-operator, non-coding knowledge work (marketing, strategy, research, creative ideation) where the deliverable is *decisions, drafts, briefs* — not code, not sprints, not running apps. Local-first, plain-text ledger, resumable project state, no SaaS, no team coordination layer.
 
 If your work is "figure out what to do" rather than "do it at scale", FLG is for you.
 
@@ -286,6 +290,18 @@ FlowGrid is not just a Python CLI. It is a local project protocol:
 - agents may propose changes, but medium/high-risk updates stay reviewable
 
 See [docs/protocol.md](./docs/protocol.md) for the protocol-level model.
+
+## AI Host Usage
+
+FlowGrid is designed to work inside Codex, Claude, OpenHands, Hermes, or any AI agent work product that can read files and run commands.
+
+The intended pattern is:
+
+- the user speaks in natural language
+- the AI host decides when to call `flg`
+- FlowGrid writes durable local project state
+
+See [docs/host-usage.md](./docs/host-usage.md) for host-style usage.
 
 ## Inspiration
 
