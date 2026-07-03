@@ -90,15 +90,21 @@ def extract_decisions(sections: dict) -> list[dict]:
     
     for key, content in sections.items():
         if "decision" in key.lower() or "Decision" in key:
-            # Find individual decisions
-            pattern = r"###\s+Candidate Decision \d+\s*\n\n> (.*?)\n\n- \*\*Source:\*\*.*?\n- \*\*Status:\*\*.*?\n- \*\*Action:\*\*.*?"
-            matches = re.finditer(pattern, content, re.DOTALL)
-            for match in matches:
-                decisions.append({
-                    "content": match.group(1).strip(),
-                    "source": "transcript excerpt",
-                    "status": "needs_human_review",
-                })
+            blocks = re.split(r"(?=###\s+Candidate Decision \d+:)", content)
+            for block in blocks:
+                if not block.strip().startswith("### Candidate Decision"):
+                    continue
+                title_match = re.search(r"###\s+Candidate Decision \d+:\s*(.*)", block)
+                content_match = re.search(r"\*\*What was decided:\*\*\s*(.*)", block)
+                source_match = re.search(r"source_excerpt:\s*>\s*(.*)", block)
+                status_match = re.search(r"status:\s*(.*)", block)
+                if content_match:
+                    decisions.append({
+                        "title": title_match.group(1).strip() if title_match else "Candidate decision",
+                        "content": content_match.group(1).strip(),
+                        "source": source_match.group(1).strip() if source_match else "transcript excerpt",
+                        "status": status_match.group(1).strip() if status_match else "needs_human_review",
+                    })
     
     return decisions
 
@@ -173,6 +179,17 @@ def merge_patch(
     decisions = extract_decisions(sections)
     risks = extract_risks(sections)
     questions = extract_open_questions(sections)
+    reviewed_decisions_already_accepted = False
+    merge_patch_id = ""
+    for line in content.split("\n"):
+        if line.startswith("patch_id:"):
+            merge_patch_id = line.split(":", 1)[1].strip()
+            break
+    if state.get("pending_patches"):
+        for pending in state["pending_patches"]:
+            if pending.get("patch_id") == merge_patch_id and pending.get("decision_review_status") == "accepted":
+                reviewed_decisions_already_accepted = True
+                break
     
     # Display merge preview
     console.print()
@@ -189,7 +206,10 @@ def merge_patch(
     # Medium risk: decisions, risks, questions
     if decisions:
         console.print("[yellow]Medium Risk - DECISIONS.md:[/yellow]")
-        console.print(f"  {len(decisions)} candidate decisions (needs human review)")
+        if reviewed_decisions_already_accepted:
+            console.print(f"  {len(decisions)} candidate decisions already accepted via flg review")
+        else:
+            console.print(f"  {len(decisions)} candidate decisions (needs human review)")
         for d in decisions[:3]:
             console.print(f"    - {d['content'][:60]}...")
         console.print()
@@ -225,11 +245,7 @@ def merge_patch(
         "timestamp": now,
     }
     
-    # Extract patch_id from content
-    for line in content.split("\n"):
-        if line.startswith("patch_id:"):
-            merge_log["patch_id"] = line.split(":", 1)[1].strip()
-            break
+    merge_log["patch_id"] = merge_patch_id
     
     # 1. Append to PROGRESS.md (low risk)
     if progress_entry:
@@ -261,9 +277,13 @@ def merge_patch(
     
     # 3. High risk: decisions - generate report only
     if decisions:
-        merge_log["high_risk_sections"].append("Candidate decisions")
-        console.print("[yellow]⚠ Candidate decisions require manual review[/yellow]")
-        console.print("  Please review and add to DECISIONS.md manually")
+        if reviewed_decisions_already_accepted:
+            merge_log["skipped_sections"].append("Candidate decisions (already accepted via review)")
+            console.print("[green]✓ Candidate decisions already accepted via flg review[/green]")
+        else:
+            merge_log["high_risk_sections"].append("Candidate decisions")
+            console.print("[yellow]⚠ Candidate decisions require manual review[/yellow]")
+            console.print("  Please review and add to DECISIONS.md manually")
     
     # 4. Update patch status
     # Find patch in state and mark as merged

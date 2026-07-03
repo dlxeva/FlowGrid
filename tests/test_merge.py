@@ -123,3 +123,34 @@ def test_merge_on_non_flg_project(tmp_path):
     assert "Not a FLG project" in result.output
     
     os.chdir(old_cwd)
+
+
+def test_merge_does_not_rewarn_after_review(tmp_path):
+    """If candidate decisions were already accepted via review, merge should not warn again."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        result = runner.invoke(app, ["init", "Merge Review Test"])
+        assert result.exit_code == 0
+
+        transcript = tmp_path / "session.md"
+        transcript.write_text("""# Session
+
+We decided to focus on content marketing.
+There is a risk that KOLs are too expensive.
+Next step is to confirm budget.
+""", encoding="utf-8")
+
+        result = runner.invoke(app, ["closeout", "--transcript", str(transcript)])
+        assert result.exit_code == 0
+
+        patch = next((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
+        result = runner.invoke(app, ["review", "--patch", patch.name, "--accept-all"])
+        assert result.exit_code == 0
+
+        result = runner.invoke(app, ["merge", "--patch", patch.name], input="y\n")
+        assert result.exit_code == 0
+        assert "already accepted via flg review" in result.output
+        assert "Please review and add to DECISIONS.md manually" not in result.output
+    finally:
+        os.chdir(old_cwd)
