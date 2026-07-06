@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "flowgrid"
-version = "0.2.1-alpha"
+version = "0.2.2"
 description = "A local project workflow tool for non-coding knowledge work."
 readme = "README.md"
 license = {text = "MIT"}
