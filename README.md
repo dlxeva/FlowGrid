@@ -28,7 +28,7 @@ It keeps project memory in plain-text files, lets any AI agent work product cont
 ## At a Glance
 
 - **Local-first:** project truth lives in files, not chat memory
-- **Host-agnostic:** works inside Codex, Claude, OpenHands, Hermes, or any agent shell that can read files and run commands
+- **Host-agnostic:** works inside Codex, Claude, OpenClaw, Hermes, or any agent shell that can read files and run commands
 - **Continuity-first:** later agents and later sessions read the same ledger and pending patches
 - **Decision-aware:** decisions store why, rejected options, and reversal conditions
 - **Patch-first:** medium/high-risk updates stay reviewable before merge
@@ -51,7 +51,7 @@ After that, you will have:
 - reviewable pending changes in `.flg/patches/`
 - a resumable handoff summary for the next session or agent
 
-You can run that flow from Codex, Claude, OpenHands, Hermes, or any AI agent work product that can read files and run commands.
+You can run that flow from Codex, Claude, OpenClaw, Hermes, or any AI agent work product that can read files and run commands.
 
 ## What is FlowGrid?
 
@@ -69,7 +69,7 @@ It helps you turn vague business problems into structured, auditable, and transf
 ## How is it different from prompt workflows?
 
 | Dimension | Prompt Workflow | FlowGrid |
-|-----------|----------------|----------------|
+|-----------|----------------|----------|
 | Scope | Single conversation | Full project lifecycle |
 | Memory | AI memory (temporary) | Project files (persistent) |
 | Truth source | Scattered across conversations | Unified project ledger |
@@ -293,7 +293,7 @@ See [docs/protocol.md](./docs/protocol.md) for the protocol-level model.
 
 ## AI Host Usage
 
-FlowGrid is designed to work inside Codex, Claude, OpenHands, Hermes, or any AI agent work product that can read files and run commands.
+FlowGrid is designed to work inside Codex, Claude, OpenClaw, Hermes, or any AI agent work product that can read files and run commands.
 
 The intended pattern is:
 
