@@ -13,7 +13,7 @@ from .commands.review import review_patch
 from .commands.audit import audit_project
 from .commands.extract import extract_decisions_command
 from .commands.import_cmd import import_project
-from .core.state import load_state
+from .core.state import load_state, get_state_schema_info
 
 console = Console()
 
@@ -132,6 +132,79 @@ def show_status() -> None:
         console.print("\n[green]No pending patches[/green]")
     
     console.print()
+
+
+@app.command(name="state-schema")
+def show_state_schema() -> None:
+    """Show state.json schema health: core vs extension fields, variant mappings."""
+    import json
+    from pathlib import Path
+    from rich.table import Table
+    
+    root = Path.cwd()
+    state_path = root / ".flg" / "state.json"
+    
+    if not state_path.exists():
+        console.print("[red]Not a FLG project. Run 'flg init' first.[/red]")
+        raise typer.Exit(1)
+    
+    raw = json.loads(state_path.read_text(encoding="utf-8"))
+    # Use the normalized view — this is what the CLI actually works with
+    state = load_state(root)
+    if state is None:
+        console.print("[red]Failed to load state. File may be corrupt.[/red]")
+        raise typer.Exit(1)
+    info = get_state_schema_info(state)
+    
+    # Health badge
+    health_color = {"ok": "green", "legacy": "yellow", "degraded": "red"}
+    health_label = {"ok": "✅ 标准", "legacy": "⚠ 遗留（变体字段可映射）", "degraded": "❌ 降级（缺失核心字段）"}
+    
+    console.print()
+    console.print(f"[bold]State Schema Health:[/bold] [{health_color[info['schema_health']]}]{health_label[info['schema_health']]}[/{health_color[info['schema_health']]}]")
+    console.print(f"Schema version: {info['schema_version']}  |  Total fields: {info['total_fields']}  |  Core: {info['core_count']}  |  Extension: {info['extension_count']}")
+    console.print()
+    
+    # Core fields table
+    if info["core_fields"]:
+        ct = Table(title="Core Fields (CLI depends on these)", show_lines=False)
+        ct.add_column("Field", style="cyan")
+        ct.add_column("Value", style="dim")
+        for k in info["core_fields"]:
+            v = raw.get(k, "")
+            v_str = str(v)[:80]
+            ct.add_row(k, v_str)
+        console.print(ct)
+        console.print()
+    
+    # Variant mappings
+    if info["legacy_key_mappings"]:
+        console.print("[yellow]Legacy key mappings (variant → canonical):[/yellow]")
+        for variant, canonical in info["legacy_key_mappings"].items():
+            console.print(f"  [dim]{variant}[/dim] → [cyan]{canonical}[/cyan]")
+        console.print()
+    
+    # Extension fields
+    if info["extension_fields"]:
+        et = Table(title="Extension Fields (project-specific, CLI preserves but doesn't depend on)", show_lines=False)
+        et.add_column("Field", style="dim")
+        for k in info["extension_fields"]:
+            et.add_row(k)
+        console.print(et)
+        console.print()
+    
+    # Missing core
+    if info["missing_core"]:
+        console.print("[red]Missing core fields (cannot be autofilled):[/red]")
+        for k in info["missing_core"]:
+            console.print(f"  [red]✗[/red] {k}")
+        console.print()
+        console.print("[dim]Run 'flg init' to create a fresh state, or manually add these fields.[/dim]")
+    
+    # Upgrade hint
+    if info["schema_health"] in ("legacy", "degraded"):
+        console.print()
+        console.print("[dim]Tip: FLG reads legacy states safely via variant-key mapping. No forced rewrite — your custom fields are preserved. Run 'flg closeout' to normalize the state on next closeout.[/dim]")
 
 
 if __name__ == "__main__":

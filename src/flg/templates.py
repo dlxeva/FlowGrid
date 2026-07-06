@@ -324,6 +324,53 @@ CONTRACT_MD = f"""# FlowGrid Contract
 | Medium | SNAPSHOT.md, FRAMING.md (supplement) | Generate patch |
 | High | FRAMING.md (modify goals/boundaries), DECISIONS.md (override), PROJECT.md | Must patch + human confirm |
 
+## State Schema (`.flg/state.json`)
+
+FlowGrid maintains a project state file at `.flg/state.json`. The schema is split into two layers:
+
+### Core Fields (CLI depends on these)
+
+These 13 fields are required for CLI operations. When reading a state file, the CLI normalizes variant field names (see map below) and auto-fills safe defaults for missing fields.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `schema_version` | string | Schema version for migration ("1") |
+| `project_id` | string | Unique project identifier |
+| `project_name` | string | Human-readable project name |
+| `flg_version` | string | FLG version that last wrote this state |
+| `created_at` | string | ISO timestamp of project creation |
+| `updated_at` | string | ISO timestamp of last update |
+| `current_stage` | string | Current project stage |
+| `last_closeout_at` | string/null | Last closeout timestamp |
+| `pending_patches` | array | List of pending patch objects |
+| `next_actions` | array | List of next action strings |
+| `active_agent` | string/null | Currently active agent |
+| `dirty_files` | array | Files with uncommitted changes |
+| `last_snapshot_hash` | string/null | Hash of last snapshot |
+
+### Variant Field Map (legacy compatibility)
+
+The CLI reads these alternative key names from older or skill-written states. No forced rewrite — compatibility is handled at read time.
+
+| Canonical | Variants |
+|-----------|----------|
+| `project_name` | `name` |
+| `created_at` | `created`, `date_created` |
+| `updated_at` | `updated`, `last_updated` |
+| `current_stage` | `phase`, `current_phase`, `phase_status`, `status` |
+| `flg_version` | `version` |
+
+### Extension Fields
+
+Any key not in the core set is treated as a **project-specific extension**. The CLI preserves these fields but never depends on them. Examples from real projects: `linked_projects`, `platforms_tracked`, `database_path`, `decision_log_format`, `content_lines`.
+
+### Schema Health
+
+Run `flg state-schema` to see your project's state health:
+- **ok** — all core fields present, no variant mappings needed
+- **legacy** — variant field names detected, but all core fields can be resolved
+- **degraded** — some core fields are missing and cannot be autofilled
+
 ## Decision Log Protocol
 
 Decision logs are the most durable asset in a project. They record not just what was decided, but why — the context, alternatives considered, reasoning, and conditions under which the decision should be revisited.

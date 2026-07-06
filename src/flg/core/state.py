@@ -11,6 +11,52 @@ from .. import __version__
 STATE_FILE = ".flg/state.json"
 STATE_SCHEMA_VERSION = "1"
 
+# ── Core Schema ──────────────────────────────────────────────────────────
+# Fields that FLG CLI depends on. Must be present in every state.json.
+# When schema_version bumps, this set may grow — never shrinks without a
+# migration path.
+
+STATE_CORE_KEYS: frozenset[str] = frozenset({
+    "schema_version",
+    "project_id",
+    "project_name",
+    "flg_version",
+    "created_at",
+    "updated_at",
+    "current_stage",
+    "last_closeout_at",
+    "pending_patches",
+    "next_actions",
+    "active_agent",
+    "dirty_files",
+    "last_snapshot_hash",
+})
+
+# ── Variant Field Map ────────────────────────────────────────────────────
+# Maps core field names → alternative keys found in legacy/custom states.
+# normalize_state_dict() uses this to read older schemas without forcing a
+# rewrite.
+
+STATE_VARIANT_MAP: dict[str, list[str]] = {
+    "project_name": ["name"],
+    "created_at":   ["created", "date_created"],
+    "updated_at":   ["updated", "last_updated"],
+    "current_stage": ["phase", "current_phase", "phase_status", "status"],
+    "flg_version":  ["version"],
+}
+
+# Fields that are safe to auto-generate when missing (don't affect project
+# semantics).
+STATE_AUTOFILL_DEFAULTS: dict[str, object] = {
+    "schema_version": "1",
+    "last_closeout_at": None,
+    "pending_patches": [],
+    "next_actions": [],
+    "active_agent": None,
+    "dirty_files": [],
+    "last_snapshot_hash": None,
+}
+
 
 def create_initial_state(project_name: str, project_id: str = "") -> dict:
     """Create initial state dictionary."""
@@ -143,3 +189,56 @@ def add_pending_patch(
         "created_at": datetime.now().isoformat(timespec="seconds"),
     })
     save_state(root, state)
+
+
+def get_state_schema_info(state: dict) -> dict:
+    """Return schema classification for a state dict.
+
+    Returns a dict with:
+      - core_fields: keys that match STATE_CORE_KEYS
+      - extension_fields: keys not in core (project-specific)
+      - legacy_key_mappings: variant→canonical mappings used
+      - missing_core: core keys absent (after autofill)
+      - schema_health: "ok" | "legacy" | "degraded"
+    """
+    core = set(STATE_CORE_KEYS)
+    actual = set(state.keys())
+    extension = actual - core
+
+    # Detect variant mappings
+    legacy_mappings = {}
+    for canonical, variants in STATE_VARIANT_MAP.items():
+        for v in variants:
+            if v in state and canonical not in state:
+                legacy_mappings[v] = canonical
+
+    # Check missing core (accounting for variant fallback)
+    missing_core = set()
+    for ck in core:
+        if ck in state:
+            continue
+        # Check if any variant covers it
+        variants = STATE_VARIANT_MAP.get(ck, [])
+        if not (actual & set(variants)):
+            if ck in STATE_AUTOFILL_DEFAULTS:
+                continue  # autofill-safe
+            missing_core.add(ck)
+
+    if not missing_core and not legacy_mappings:
+        health = "ok"
+    elif not missing_core:
+        health = "legacy"
+    else:
+        health = "degraded"
+
+    return {
+        "core_fields": sorted(core & actual),
+        "extension_fields": sorted(extension),
+        "legacy_key_mappings": legacy_mappings,
+        "missing_core": sorted(missing_core),
+        "schema_health": health,
+        "schema_version": state.get("schema_version", "none"),
+        "total_fields": len(actual),
+        "core_count": len(core & actual),
+        "extension_count": len(extension),
+    }
