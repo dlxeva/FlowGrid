@@ -2,7 +2,7 @@
 
 ## Core Idea
 
-FlowGrid is not meant to replace Codex, Claude, OpenHands, Hermes, or any other AI agent work product.
+FlowGrid is not meant to replace Codex, Claude, OpenClaw, Hermes, or any other AI agent work product.
 
 It is meant to give those hosts a **local project state layer**.
 
@@ -36,7 +36,7 @@ FlowGrid currently fits best as a host-integrated workflow in:
 
 - Codex
 - Claude / Claude Code
-- OpenHands
+- OpenClaw
 - Hermes
 - any AI agent work product that can read files and run shell commands
 
@@ -180,7 +180,7 @@ The expected sequence is:
 
 ## Recommended First-Run Experience
 
-For a real first-time user inside Codex / Claude / OpenHands / Hermes:
+For a real first-time user inside Codex / Claude / OpenClaw / Hermes:
 
 1. Choose a new, real project
 2. Initialize with a role template
