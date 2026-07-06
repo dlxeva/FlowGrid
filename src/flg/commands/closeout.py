@@ -1033,8 +1033,83 @@ mode: {mode}
     console.print(f"  - Next Actions: {len(next_actions)}")
     console.print(f"  - Rationale Excerpts: {len(rationale_excerpts)}")
     console.print()
+    
+    # Refresh SNAPSHOT.md for Agent Startup Context Protocol
+    _refresh_snapshot(root, decisions, risks, next_actions, state)
+    
     console.print("Next steps:")
     console.print("  1. Review the patch file")
     console.print("  2. Confirm or reject candidate decisions")
     console.print("  3. Update project files as needed")
     console.print("  4. Mark patch as reviewed in state")
+
+
+def _refresh_snapshot(
+    root: Path,
+    decisions: list[dict],
+    risks: list[dict],
+    next_actions: list[str],
+    state: dict | None,
+) -> None:
+    """Refresh SNAPSHOT.md — a ~2KB file that gives an agent current project state.
+
+    Part of the Agent Startup Context Protocol: SNAPSHOT.md is the first of
+    three sources every agent must read on entry.
+    """
+    from ..templates import SNAPSHOT_MD
+
+    now = get_iso_now()
+    current_stage = state.get("current_stage", "unknown") if state else "unknown"
+
+    # Current goal: try FRAMING.md first, fall back to state
+    current_goal = _read_framing_goal(root)
+
+    # Judgments from latest decisions
+    if decisions:
+        judgment_lines = [f"- {d['content'][:100]}" for d in decisions[:3]]
+        judgments = "\n".join(judgment_lines)
+    else:
+        judgments = "- (no recent decisions)"
+
+    # Confirmed vs unconfirmed
+    confirmed = "- (review pending patches)"
+    unconfirmed = f"- {len(decisions)} candidate decisions pending review"
+
+    # Risks
+    if risks:
+        risk_lines = [f"- {r['content'][:120]}" for r in risks[:3]]
+        risks_text = "\n".join(risk_lines)
+    else:
+        risks_text = "- (none identified)"
+
+    # Next action
+    next_action = next_actions[0] if next_actions else "Review pending patches"
+
+    content = SNAPSHOT_MD.format(
+        updated_at=now,
+        current_stage=current_stage,
+        current_goal=current_goal,
+        judgments=judgments,
+        confirmed=confirmed,
+        unconfirmed=unconfirmed,
+        risks=risks_text,
+        next_action=next_action,
+    )
+    snapshot_path = root / "SNAPSHOT.md"
+    snapshot_path.write_text(content, encoding="utf-8")
+
+
+def _read_framing_goal(root: Path) -> str:
+    """Extract the current goal from FRAMING.md Goals section."""
+    framing_path = root / "FRAMING.md"
+    if not framing_path.exists():
+        return "(FRAMING.md not found)"
+    content = framing_path.read_text(encoding="utf-8")
+    # Look for ## Goals section
+    goal_match = re.search(r"## Goals?\n\n(.*?)(?=\n## |\Z)", content, re.DOTALL)
+    if goal_match:
+        goal_text = goal_match.group(1).strip()
+        # Take first 3 non-empty lines
+        lines = [l.strip("- ") for l in goal_text.split("\n") if l.strip() and not l.strip().startswith("<!--")]
+        return "; ".join(lines[:3])[:200] or "(goals section empty)"
+    return "(no goals defined)"

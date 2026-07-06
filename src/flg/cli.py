@@ -207,5 +207,92 @@ def show_state_schema() -> None:
         console.print("[dim]Tip: FLG reads legacy states safely via variant-key mapping. No forced rewrite — your custom fields are preserved. Run 'flg closeout' to normalize the state on next closeout.[/dim]")
 
 
+@app.command(name="context")
+def show_agent_context() -> None:
+    """Show the Agent Startup Context — exactly what an agent sees on project entry.
+
+    Displays the 3 sources of the Agent Startup Context Protocol:
+      1. SNAPSHOT.md   (~2KB) — current project state
+      2. DECISIONS.md  (~1KB) — most recent 1-2 decisions
+      3. state.json    (~0.5KB) — next_actions
+
+    Total payload: ~3-4KB. Every source is a plaintext file — auditable by the user.
+    """
+    from pathlib import Path
+    from rich.panel import Panel
+    from rich.markdown import Markdown
+    import re
+
+    root = Path.cwd()
+    state_path = root / ".flg" / "state.json"
+
+    if not state_path.exists():
+        console.print("[red]Not a FLG project. Run 'flg init' first.[/red]")
+        raise typer.Exit(1)
+
+    import json
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+
+    snapshot_text = ""
+    recent = ""
+    na_text = ""
+
+    console.print()
+    console.print("[bold]Agent Startup Context[/bold] [dim](~3-4KB total, 3 sources)[/dim]")
+    console.print()
+
+    # 1. SNAPSHOT.md
+    snapshot_path = root / "SNAPSHOT.md"
+    if snapshot_path.exists():
+        snapshot_text = snapshot_path.read_text(encoding="utf-8")
+        # Strip frontmatter if present
+        snapshot_text = re.sub(r'^---\n.*?\n---\n', '', snapshot_text, flags=re.DOTALL).strip()
+        console.print(Panel(snapshot_text[:2000], title="[bold cyan]1. SNAPSHOT.md[/bold cyan] — Current State (~2KB)", border_style="cyan"))
+    else:
+        console.print("[yellow]SNAPSHOT.md not found. Run 'flg closeout' to generate it.[/yellow]")
+    console.print()
+
+    # 2. Recent decisions
+    decisions_path = root / "DECISIONS.md"
+    if decisions_path.exists():
+        decisions_text = decisions_path.read_text(encoding="utf-8")
+        # Extract last 1-2 decision blocks (format: ## D-XXX｜title or ## D-XXX title)
+        blocks = re.split(r'\n## D-\d+', decisions_text)
+        recent = ""
+        for block in blocks[-2:]:
+            # Try multiple decision content patterns
+            # Pattern 1: - **决策**：content
+            dm = re.search(r'\*\*决策\*\*[：:]\s*(.+?)(?:\n|$)', block)
+            # Pattern 2: **最终决策** section
+            if not dm:
+                dm = re.search(r'最终决策\*\*\n(.+?)(?:\n|$)', block)
+            if dm:
+                recent += f"> {dm.group(1).strip()[:200]}\n\n"
+        if recent.strip():
+            console.print(Panel(recent.strip(), title="[bold green]2. DECISIONS.md[/bold green] — Recent Decisions (~1KB)", border_style="green"))
+        else:
+            console.print("[dim]No decisions found in DECISIONS.md[/dim]")
+    else:
+        console.print("[dim]DECISIONS.md not found[/dim]")
+    console.print()
+
+    # 3. next_actions from state.json
+    na = state.get("next_actions", [])
+    if na:
+        na_text = "\n".join(f"- {a}" for a in na[:5])
+        console.print(Panel(na_text, title="[bold yellow]3. state.json next_actions[/bold yellow] — Immediate Tasks (~0.5KB)", border_style="yellow"))
+    else:
+        console.print("[dim]No next_actions in state.json[/dim]")
+    console.print()
+
+    # Total estimate
+    snapshot_size = len(snapshot_text) if snapshot_path.exists() else 0
+    decisions_size = len(recent) if decisions_path.exists() else 0
+    na_size = len(na_text) if na else 0
+    total = snapshot_size + decisions_size + na_size
+    console.print(f"[dim]Estimated context payload: {total} chars (~{total//4} tokens)[/dim]")
+    console.print("[dim]Use 'flg closeout' to refresh SNAPSHOT.md with latest decisions and risks.[/dim]")
+
+
 if __name__ == "__main__":
     app()

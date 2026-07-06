@@ -308,13 +308,41 @@ CONTRACT_MD = f"""# FlowGrid Contract
     - Then continue from current state (including pending state)
     - Closeout before leaving
 
-## Reading Priority (when context is limited)
+## Agent Startup Context Protocol
 
-1. `.flg/CONTRACT.md`
-2. `SNAPSHOT.md`
-3. `FRAMING.md`
-4. `DECISIONS.md`
-5. `.flg/patches/` (all pending_review patches)
+When an agent enters a FLG project, it MUST read these three sources in order.
+Total payload: ~3-4KB. Every source is a plaintext file — the user can inspect,
+modify, and verify what the agent sees. No black-box memory.
+
+### 1. SNAPSHOT.md (~2KB) — Current State
+
+The project snapshot gives the agent immediate situational awareness:
+current stage, core goal, confirmed/unconfirmed judgments, risks, and the next
+highest-priority action. Always read first.
+
+### 2. Most Recent 1-2 Decisions from DECISIONS.md (~1KB) — Decision Boundary
+
+The agent must know what has already been decided (and why) before making new
+recommendations. Reading the most recent decisions prevents re-suggesting
+rejected alternatives and keeps the agent within the project's current judgment
+boundary.
+
+### 3. `next_actions` from `.flg/state.json` (~0.5KB) — Immediate Task
+
+The agent must know what the project considers the next concrete actions. This
+is the bridge between "understanding the project" and "doing something useful."
+
+### Why This Protocol
+
+Without this protocol, agents re-discover the project from scratch every session.
+They read arbitrary files, skip important ones, and the user has no visibility
+into what was loaded. This protocol makes agent startup:
+- **Predictable** — same 3 sources every time
+- **Auditable** — user can read the same files the agent reads
+- **Efficient** — 3-4KB instead of 40KB+ of history dump
+- **Host-agnostic** — works for Hermes, Codex, Claude Code, or any agent
+
+Run `flg context` to see exactly what an agent would get on startup.
 
 ## Write Risk Levels
 

@@ -129,6 +129,40 @@ def test_closeout_force_allows_structured_ledger_file(tmp_path):
         os.chdir(old_cwd)
 
 
+def test_closeout_refreshes_snapshot(tmp_path):
+    """Closeout should refresh SNAPSHOT.md with current state."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Snapshot Test"])
+        # Create a transcript with decisions and risks
+        transcript = tmp_path / "session.md"
+        transcript.write_text("""# Session
+
+我们确认了做A方案而不是B方案。不做C因为成本太高。
+风险是时间不够，可能导致延期。
+
+下一步：完成原型。
+""", encoding="utf-8")
+        result = runner.invoke(app, ["closeout", "--transcript", str(transcript)])
+        assert result.exit_code == 0
+        
+        # Verify SNAPSHOT.md was refreshed
+        snapshot_path = tmp_path / "SNAPSHOT.md"
+        assert snapshot_path.exists()
+        content = snapshot_path.read_text(encoding="utf-8")
+        assert "Current Stage" in content
+        assert "Current Core Goal" in content
+        assert "Current Core Judgments" in content
+        assert "Confirmed" in content
+        assert "Current Risks" in content
+        assert "Next Highest Priority Action" in content
+        # Should contain the decision content
+        assert "A方案" in content
+    finally:
+        os.chdir(old_cwd)
+
+
 def test_closeout_on_non_flg_project(tmp_path):
     """Test that flg closeout fails on non-FLG project."""
     old_cwd = os.getcwd()
