@@ -4,31 +4,31 @@
 
 FlowGrid is not meant to replace Codex, Claude, OpenClaw, Hermes, or any other AI agent work product.
 
-It is meant to give those hosts a **local project state layer**.
+It gives those hosts a **local project-state context layer** for rationale-heavy, non-coding business projects.
 
 The intended model is:
 
-- **Natural language is the user interface**
-- **FlowGrid CLI is the execution and state-write layer**
-
-In other words:
-
-- the user keeps talking naturally in the AI host they already use
+- natural language is the user interface
 - the AI host decides when to call `flg`
-- FlowGrid turns that work into durable local project state
+- FlowGrid writes durable reviewed project state
+- FlowGrid generates bounded startup context for later agents
+- FlowGrid preserves judgment status and evidence references
 
 ## What the User Should Feel
 
-The user should not feel:
-
-- “I am learning a new command-line tool”
-- “I must manually maintain a project accounting system”
-
 The user should feel:
 
-- “my project state is being kept in sync”
-- “I can come back later without re-explaining everything”
-- “important judgments are getting captured instead of disappearing into chat”
+- my project state is being kept in sync
+- I can come back later without re-explaining everything
+- important judgments are captured with reasons and status
+- rejected directions do not keep coming back without new evidence
+- a later agent can continue from the project state instead of reconstructing history
+
+The user should not feel:
+
+- I am learning a new command-line tool
+- I must manually maintain a project accounting system
+- every session starts from scratch
 
 ## Best-Fit Host Model
 
@@ -40,7 +40,105 @@ FlowGrid currently fits best as a host-integrated workflow in:
 - Hermes
 - any AI agent work product that can read files and run shell commands
 
-It is **not** optimized around the assumption that end users will operate the CLI directly all day.
+It is not optimized around the assumption that end users will operate the CLI directly all day.
+
+## Host Responsibilities
+
+An AI host integrating FlowGrid should do six things well.
+
+### 1. Preserve raw session input
+
+FlowGrid `closeout` should ingest:
+
+- raw meeting notes
+- raw transcripts
+- raw discussion logs
+- `.flg/sessions/` files
+
+The host should not feed interpreted ledger files back into closeout by default:
+
+- `PROGRESS.md`
+- `SNAPSHOT.md`
+- `DECISIONS.md`
+- `README.md`
+
+Those files already represent interpreted project state.
+
+### 2. Separate discussion from ledger
+
+The host may discuss broadly with the user, but should call `flg` when it is time to:
+
+- initialize
+- frame
+- close out
+- review
+- merge
+- generate context
+- retrieve evidence
+- resume
+
+### 3. Preserve review boundaries
+
+The host must not silently convert candidate judgments into formal truth.
+
+Expected sequence:
+
+```text
+raw session -> closeout -> review -> merge -> context
+```
+
+### 4. Respect judgment status
+
+The host should distinguish:
+
+- confirmed decisions
+- pending judgments
+- assumptions
+- rejected alternatives
+- superseded judgments
+- needs-recheck items
+
+The host should not treat pending judgments as confirmed decisions.
+
+The host should not revive rejected alternatives unless new evidence exists.
+
+### 5. Prefer bounded context over raw history
+
+When resuming a project, the host should prefer Context Pack over raw session replay.
+
+Target command:
+
+```bash
+flg context --mode resume --budget 4000
+```
+
+Target output:
+
+```text
+.flg/context/startup.md
+```
+
+The Context Pack should tell the receiving agent:
+
+- what the project is trying to prove
+- what has been confirmed
+- what is pending
+- what assumptions are active
+- what has been rejected
+- what has been superseded
+- what should happen next
+- where evidence can be retrieved
+
+### 6. Retrieve evidence when challenged
+
+When the user asks why a judgment was made, the host should retrieve evidence instead of inventing rationale.
+
+Future commands:
+
+```bash
+flg evidence <decision-id>
+flg trace <decision-id>
+```
 
 ## Natural Language to CLI Mapping
 
@@ -48,13 +146,14 @@ It is **not** optimized around the assumption that end users will operate the CL
 
 User says:
 
-- “Start a new strategy project with FLG.”
-- “Create a FlowGrid project for this proposal.”
+- “Start a new campaign project with FLG.”
+- “Create a FlowGrid project for this client proposal.”
+- “Set up FLG for this mechanism design project.”
 
 Host should call:
 
 ```bash
-flg init "Project Name" --template strategy
+flg init "Project Name" --template proposal
 ```
 
 ### Clarify framing
@@ -63,6 +162,7 @@ User says:
 
 - “Before we write the proposal, help me clarify the framing.”
 - “Check what this project is still missing.”
+- “What exactly does this plan need to prove?”
 
 Host should call:
 
@@ -70,12 +170,21 @@ Host should call:
 flg frame
 ```
 
+The host should pay special attention to:
+
+- review object
+- proof object
+- current deliverable
+- constraints
+- open questions
+
 ### Close out a work session
 
 User says:
 
 - “Close out this session.”
 - “Turn this meeting into a patch, don’t overwrite the ledger yet.”
+- “Extract what changed from this discussion.”
 
 Host should:
 
@@ -86,18 +195,25 @@ Host should:
 flg closeout --transcript .flg/sessions/<session-file>.md
 ```
 
-### Review candidate decisions
+### Review candidate judgments
 
 User says:
 
 - “Review the candidate decisions.”
 - “Accept the decisions from that patch.”
+- “Which of these should become formal project truth?”
 
 Host should call:
 
 ```bash
 flg review --patch <patch-file>
 ```
+
+The host should preserve status distinctions:
+
+- accepted items become confirmed
+- unaccepted items remain pending or rejected
+- assumptions should not be promoted to confirmed decisions without review
 
 ### Merge the rest of the patch
 
@@ -112,97 +228,119 @@ Host should call:
 flg merge --patch <patch-file>
 ```
 
-### Resume a project
+### Generate startup context
 
 User says:
 
 - “I’m back, help me pick this project up again.”
 - “Recover the current project state before we continue.”
+- “Give the next agent the right context.”
 
-Host should read:
+Host should call:
+
+```bash
+flg context --mode resume --budget 4000
+```
+
+Then the host should read:
+
+```text
+.flg/context/startup.md
+```
+
+If `flg context` is not available yet, the host should fall back to:
+
+```bash
+flg status
+flg handoff
+```
+
+and read:
 
 - `SNAPSHOT.md`
 - `FRAMING.md`
 - `DECISIONS.md`
 - `GOAL_EVOLUTION.md`
 - `ANCHORS.md`
+- active pending patches
 
-And may call:
+### Retrieve evidence
+
+User says:
+
+- “Why did we decide this?”
+- “Where did D-002 come from?”
+- “Show me the source behind that judgment.”
+
+Host should call, when available:
 
 ```bash
-flg status
-flg handoff
-flg export-handoff
+flg evidence D-002
+flg trace D-002
 ```
 
-## Host Responsibilities
+If evidence commands are not available yet, the host should inspect:
 
-An AI host integrating FlowGrid should do three things well:
-
-### 1. Keep session input raw
-
-FlowGrid `closeout` should ingest:
-
-- raw meeting notes
-- raw transcripts
-- raw discussion logs
-- `.flg/sessions/` files
-
-It should **not** feed:
-
-- `PROGRESS.md`
-- `SNAPSHOT.md`
 - `DECISIONS.md`
-- `README.md`
-
-back into `closeout`, because those files are already interpreted ledger state.
-
-### 2. Separate discussion from ledger
-
-The host may discuss broadly with the user, but only call `flg` when it is time to:
-
-- initialize
-- frame
-- close out
-- review
-- merge
-- resume
-
-### 3. Preserve review boundaries
-
-The host should not silently convert candidate decisions into formal truth.
-
-The expected sequence is:
-
-1. `closeout`
-2. `review`
-3. `merge`
+- source patch in `.flg/patches/`
+- source session in `.flg/sessions/`
+- merge logs when available
 
 ## Recommended First-Run Experience
 
 For a real first-time user inside Codex / Claude / OpenClaw / Hermes:
 
-1. Choose a new, real project
-2. Initialize with a role template
-3. Fill enough of `FRAMING.md` to move
-4. Work naturally in chat
-5. Save the session to `.flg/sessions/`
-6. Run `closeout`
-7. Run `review`
-8. Run `merge`
-9. Return later and try to resume from files alone
+1. Choose a real fuzzy business project.
+2. Initialize with a task-mode template.
+3. Clarify review object and proof object.
+4. Work naturally in chat.
+5. Save the session to `.flg/sessions/`.
+6. Run `closeout`.
+7. Review candidate judgments.
+8. Merge accepted project state.
+9. Generate Context Pack.
+10. Return later and resume from Context Pack.
+11. Retrieve evidence for at least one decision.
 
 If that flow works, the user has experienced FlowGrid as intended.
 
+## Host Failure Modes
+
+Hosts should avoid these failures:
+
+### Failure 1: Raw-history restart
+
+The host reads an entire transcript and starts summarizing instead of using reviewed project state.
+
+### Failure 2: Pending-as-confirmed
+
+The host treats candidate judgments from patches as formal decisions.
+
+### Failure 3: Rejected alternative revival
+
+The host re-suggests a direction that was already rejected without new evidence.
+
+### Failure 4: Superseded judgment reuse
+
+The host relies on an old judgment that a later decision replaced.
+
+### Failure 5: Evidence invention
+
+The host explains a decision with plausible reasoning that is not supported by project evidence.
+
 ## Product Framing
 
-So the product should be described less as:
+FlowGrid should be described as:
 
-> a CLI for non-coding work
+> a local project-state context engine for rationale-heavy, non-coding business projects
 
-and more as:
+The CLI is the execution surface.
 
-> an AI-native local project protocol for non-coding knowledge work
+The deeper product is the agent-state contract that different AI hosts can call into.
 
-The CLI is important.
-But the deeper product is the protocol that different AI hosts can call into.
+## Related Product Docs
+
+- [User Pain Model](./product/user-pain-model.md)
+- [Context Pack Contract](./product/context-pack-contract.md)
+- [Judgment Status Model](./product/judgment-status-model.md)
+- [Eval Set v0](./product/eval-set-v0.md)
