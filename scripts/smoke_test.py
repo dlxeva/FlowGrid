@@ -89,11 +89,11 @@ def main() -> int:
             env_overrides=env_overrides,
         )
 
-        patch_files = sorted((project_dir / ".flg" / "patches").glob("*.patch.md"))
-        if not patch_files:
+        closeout_patch_files = sorted((project_dir / ".flg" / "patches").glob("closeout-*.patch.md"))
+        if not closeout_patch_files:
             print("[FAIL] No closeout patch generated", file=sys.stderr)
             return 1
-        patch_name = patch_files[-1].name
+        patch_name = max(closeout_patch_files, key=lambda path: path.stat().st_mtime).name
 
         run_cmd(
             flg_cmd + ["review", "--patch", patch_name, "--accept-all"],
