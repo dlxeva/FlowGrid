@@ -40,9 +40,11 @@ resume-prompt.md
 scoring-notes.md
 ```
 
-## Current v0 Scenario
+## Current v0 Scenarios
 
 - `campaign-proposal/`: marketing campaign proposal with a rejected KOL-heavy plan and a later stakeholder request to revisit KOL.
+- `client-solution-proposal/`: client proposal narrowed from broad AI transformation to an operational pilot, then challenged by ambition pressure.
+- `operations-mechanism-design/`: activity mechanism simplified after execution review, then challenged by a request to restore points and ranking.
 
 ## Product Principle
 
