@@ -88,6 +88,24 @@ def main() -> int:
             cwd=project_dir,
             env_overrides=env_overrides,
         )
+
+        patch_files = sorted((project_dir / ".flg" / "patches").glob("*.patch.md"))
+        if not patch_files:
+            print("[FAIL] No closeout patch generated", file=sys.stderr)
+            return 1
+        patch_name = patch_files[-1].name
+
+        run_cmd(
+            flg_cmd + ["review", "--patch", patch_name, "--accept-all"],
+            cwd=project_dir,
+            env_overrides=env_overrides,
+        )
+        evidence_index = project_dir / ".flg" / "context" / "evidence_index.json"
+        if not evidence_index.exists():
+            print(f"[FAIL] Evidence index not generated: {evidence_index}", file=sys.stderr)
+            return 1
+        run_cmd(flg_cmd + ["evidence", "D-002"], cwd=project_dir, env_overrides=env_overrides)
+
         run_cmd(flg_cmd + ["context", "--mode", "resume", "--budget", "4000"], cwd=project_dir, env_overrides=env_overrides)
         context_pack = project_dir / ".flg" / "context" / "startup.md"
         if not context_pack.exists():
