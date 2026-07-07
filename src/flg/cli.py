@@ -14,6 +14,7 @@ from .commands.audit import audit_project
 from .commands.extract import extract_decisions_command
 from .commands.import_cmd import import_project
 from .commands.context import context_command
+from .commands.evidence import evidence_command
 from .core.state import load_state, get_state_schema_info
 
 console = Console()
@@ -36,6 +37,7 @@ app.command(name="audit", help="Audit existing project directory")(audit_project
 app.command(name="extract-decisions", help="Extract candidate decisions")(extract_decisions_command)
 app.command(name="import", help="Import existing project into FLG")(import_project)
 app.command(name="context", help="Generate bounded agent startup Context Pack")(context_command)
+app.command(name="evidence", help="Show evidence behind a reviewed decision")(evidence_command)
 
 
 @app.command(name="version")
