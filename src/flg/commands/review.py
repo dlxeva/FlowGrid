@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from datetime import datetime
 from pathlib import Path
@@ -15,6 +16,9 @@ from ..core.state import load_state, save_state
 from .handoff import parse_patch_for_handoff
 
 console = Console()
+
+
+EVIDENCE_INDEX_PATH = Path(".flg") / "context" / "evidence_index.json"
 
 
 def _next_decision_number(decisions_content: str) -> int:
@@ -69,6 +73,61 @@ A. {alternatives}
 """
 
 
+def _load_evidence_index(root: Path) -> dict:
+    index_path = root / EVIDENCE_INDEX_PATH
+    if not index_path.exists():
+        return {"version": 1, "items": {}}
+    try:
+        data = json.loads(index_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {"version": 1, "items": {}}
+    if not isinstance(data, dict):
+        return {"version": 1, "items": {}}
+    if "items" not in data or not isinstance(data["items"], dict):
+        data["items"] = {}
+    return data
+
+
+def _save_evidence_index(root: Path, index: dict) -> Path:
+    index_path = root / EVIDENCE_INDEX_PATH
+    index_path.parent.mkdir(parents=True, exist_ok=True)
+    index_path.write_text(json.dumps(index, ensure_ascii=False, indent=2), encoding="utf-8")
+    return index_path
+
+
+def _extract_source_session_from_patch(content: str) -> str:
+    for line in content.splitlines():
+        if line.startswith("source_file:") or line.startswith("source_transcript:") or line.startswith("transcript:"):
+            return line.split(":", 1)[1].strip()
+    return "unknown"
+
+
+def _evidence_entry(
+    decision_id: str,
+    decision: dict,
+    patch_path: Path,
+    patch_info: dict,
+    patch_content: str,
+    reviewed_at: str,
+) -> dict:
+    return {
+        "decision_id": decision_id,
+        "status": "confirmed",
+        "authority": "high",
+        "source_type": "review_action",
+        "source_patch": str(Path(".flg") / "patches" / patch_path.name),
+        "source_session": _extract_source_session_from_patch(patch_content),
+        "source_excerpt": decision.get("excerpt") or decision.get("what_decided") or "",
+        "patch_id": patch_info.get("patch_id", "unknown"),
+        "source_command": patch_info.get("source_command", "unknown"),
+        "reviewed_at": reviewed_at,
+        "title": decision.get("title") or "Accepted decision",
+        "rationale": decision.get("why") or "",
+        "rejected_alternatives": decision.get("rejected") or decision.get("alternatives") or "",
+        "reversal_conditions": decision.get("reversal") or "",
+    }
+
+
 def review_patch(
     patch_file: str = typer.Option(..., "--patch", "-p", help="Patch file to review"),
     accept_all: bool = typer.Option(False, "--accept-all", help="Accept all candidate decisions without prompting"),
@@ -101,6 +160,8 @@ def review_patch(
     decisions_content = read_file_safe(decisions_path) or "# Decision Log\n"
     next_number = _next_decision_number(decisions_content)
     accepted_entries = []
+    accepted_evidence_entries = []
+    reviewed_at = datetime.now().isoformat(timespec="seconds")
 
     console.print()
     console.print(f"[bold]Reviewing candidate decisions from[/bold] {patch_path.name}")
@@ -117,7 +178,18 @@ def review_patch(
 
         accepted = accept_all or Confirm.ask("Accept this decision into DECISIONS.md?", default=True)
         if accepted:
+            decision_id = f"D-{next_number:03d}"
             accepted_entries.append(_build_decision_entry(next_number, decision))
+            accepted_evidence_entries.append(
+                _evidence_entry(
+                    decision_id=decision_id,
+                    decision=decision,
+                    patch_path=patch_path,
+                    patch_info=patch_info,
+                    patch_content=content,
+                    reviewed_at=reviewed_at,
+                )
+            )
             next_number += 1
 
     if not accepted_entries:
@@ -127,15 +199,23 @@ def review_patch(
     decisions_content = decisions_content.rstrip() + "\n\n" + "\n\n---\n".join(accepted_entries) + "\n"
     decisions_path.write_text(decisions_content, encoding="utf-8")
 
+    evidence_index = _load_evidence_index(root)
+    for item in accepted_evidence_entries:
+        evidence_index["items"][item["decision_id"]] = item
+    evidence_index["updated_at"] = datetime.now().isoformat(timespec="seconds")
+    evidence_index_path = _save_evidence_index(root, evidence_index)
+
     state = load_state(root)
     if state and state.get("pending_patches"):
         for patch in state["pending_patches"]:
             if patch.get("patch_id") == patch_info.get("patch_id"):
-                patch["decision_reviewed_at"] = datetime.now().isoformat(timespec="seconds")
+                patch["decision_reviewed_at"] = reviewed_at
                 patch["decision_review_status"] = "accepted"
+                patch["evidence_index"] = str(EVIDENCE_INDEX_PATH)
                 break
         save_state(root, state)
 
     console.print()
     console.print(f"[bold green]✓ Accepted {len(accepted_entries)} decision(s) into DECISIONS.md[/bold green]")
+    console.print(f"[bold green]✓ Evidence index updated:[/bold green] {evidence_index_path}")
     console.print("[dim]Run `flg merge --patch <file>` next to merge progress/risk/open-question updates.[/dim]")
