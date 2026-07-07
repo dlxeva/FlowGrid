@@ -88,6 +88,11 @@ def main() -> int:
             cwd=project_dir,
             env_overrides=env_overrides,
         )
+        run_cmd(flg_cmd + ["context", "--mode", "resume", "--budget", "4000"], cwd=project_dir, env_overrides=env_overrides)
+        context_pack = project_dir / ".flg" / "context" / "startup.md"
+        if not context_pack.exists():
+            print(f"[FAIL] Context Pack not generated: {context_pack}", file=sys.stderr)
+            return 1
         run_cmd(flg_cmd + ["handoff"], cwd=project_dir, env_overrides=env_overrides)
         run_cmd(flg_cmd + ["status"], cwd=project_dir, env_overrides=env_overrides)
 
