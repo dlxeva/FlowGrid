@@ -1,0 +1,28 @@
+{
+  "eval_date": "2026-07-08",
+  "flg_version": "v0.2.3",
+  "model": "deepseek-v4-pro",
+  "mode": "llm-extraction (hermes-assisted)",
+  "scenarios": {
+    "campaign-proposal": {
+      "golden_count": 3,
+      "matched": 3,
+      "recall": "100%"
+    },
+    "client-solution-proposal": {
+      "golden_count": 3,
+      "matched": 3,
+      "recall": "100%"
+    },
+    "operations-mechanism-design": {
+      "golden_count": 3,
+      "matched": 3,
+      "recall": "100%"
+    }
+  },
+  "overall": {
+    "golden_total": 9,
+    "matched": 9,
+    "recall": "100%"
+  }
+}

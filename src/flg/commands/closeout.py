@@ -11,8 +11,8 @@ from rich.console import Console
 from ..core.files import is_flg_project, read_file_safe
 from ..core.patches import create_patch, generate_patch_id
 from ..core.state import add_pending_patch, load_state
-from ..templates import CLOSEOUT_PATCH_MD, DECISION_PROMPT_TEMPLATE, get_iso_now
-from ..llm_client import call_llm, parse_llm_response, get_llm_config
+from ..templates import CLOSEOUT_PATCH_MD, DECISION_PROMPT_TEMPLATE, CLOSEOUT_LLM_PROMPT_TEMPLATE, get_iso_now
+from ..llm_client import call_llm, parse_llm_response, get_llm_config, is_llm_available, VALID_PROVIDERS
 
 console = Console()
 
@@ -671,26 +671,43 @@ def why_this_is_a_decision(decision: dict) -> str:
 def closeout_session(
     transcript: Path = typer.Option(..., "--transcript", "-t", help="Path to transcript markdown"),
     mode: str = typer.Option("concise", "--mode", "-m", help="Output mode: concise, full, or prompt"),
-    prompt_only: bool = typer.Option(False, "--prompt", "-p", help="Generate LLM prompt for decision extraction (no keyword matching)"),
-    llm: bool = typer.Option(False, "--llm", "-l", help="Call LLM API directly for decision extraction (requires API key)"),
-    provider: Optional[str] = typer.Option(None, "--provider", help="LLM provider override (openai, anthropic, custom)"),
+    prompt_only: bool = typer.Option(False, "--prompt", "-p", help="Generate LLM prompt for decision extraction (no API call)"),
+    llm: Optional[str] = typer.Option(None, "--llm", "-l", help="LLM provider: openai, claude, custom, local, or 'hermes' to delegate to current AI session"),
+    no_llm: bool = typer.Option(False, "--no-llm", help="Force keyword-based extraction (skip LLM even if configured)"),
+    llm_write: Optional[Path] = typer.Option(None, "--llm-write", help="Write a JSON decision file (from Hermes-assisted extraction) into a closeout patch"),
     force: bool = typer.Option(False, "--force", help="Allow closeout on structured ledger files (not recommended)"),
 ) -> None:
     """Generate closeout patch from session transcript.
 
-    Modes:
-      - concise: keyword-based extraction, capped results (default)
-      - full: keyword-based extraction, all results
-      - prompt: generate LLM prompt for 9-field decision extraction (--prompt flag)
-      - llm: call LLM API directly for 9-field extraction (--llm flag)
+    Decision extraction modes (in priority order):
+      1. --prompt: generate a prompt file for external LLM use
+      2. --llm-write <json>: finalize a Hermes-assisted extraction
+      3. --llm <provider>: call LLM API (or delegate to current AI session if provider='hermes')
+      4. --no-llm: force keyword-based extraction
+      5. default: auto-detect — use LLM if API keys are configured, else keyword matching
+
+    Hermes-assisted mode (--llm hermes):
+      Saves the extraction prompt to .flg/sessions/ and asks the current AI
+      to process it. The AI writes decisions as JSON, then you run:
+        flg closeout --llm-write <result.json>
     """
     root = Path.cwd()
-    
+
+    # Validate --llm provider value
+    if llm is not None and llm.lower() not in VALID_PROVIDERS and llm.lower() != "hermes":
+        console.print(f"[red]Unknown provider: {llm}. Supported: hermes, {', '.join(sorted(VALID_PROVIDERS))}[/red]")
+        raise typer.Exit(1)
+
+    # ── --llm-write: finalize a Hermes-assisted extraction ──────────────
+    if llm_write is not None:
+        _finalize_llm_result(root, llm_write, transcript, force)
+        return
+
     # Check if this is a FLG project
     if not is_flg_project(root):
         console.print("[red]Not a FLG project. Run 'flg init' first.[/red]")
         raise typer.Exit(1)
-    
+
     # Check transcript exists
     if not transcript.exists():
         console.print(f"[red]Transcript not found: {transcript}[/red]")
@@ -703,70 +720,393 @@ def closeout_session(
         console.print("[dim]Use raw session notes, meeting transcripts, or files under .flg/sessions/ instead.[/dim]")
         console.print("[dim]If you intentionally want to process this file anyway, rerun with --force.[/dim]")
         raise typer.Exit(1)
-    
+
     # Load state
     state = load_state(root)
     project_name = state["project_name"] if state else "Unknown"
-    
+
     # Read transcript
     content = read_file_safe(transcript)
     if not content:
         console.print("[red]Transcript is empty.[/red]")
         raise typer.Exit(1)
 
-    # Prompt mode: generate LLM prompt instead of keyword extraction
-    if prompt_only:
-        prompt_content = DECISION_PROMPT_TEMPLATE.format(transcript=content)
-        prompt_path = root / ".flg" / "patches" / f"decision-prompt-{datetime.now().strftime('%Y%m%d-%H%M%S')}.md"
-        prompt_path.parent.mkdir(parents=True, exist_ok=True)
-        prompt_path.write_text(prompt_content, encoding="utf-8")
+    # ── Resolve extraction mode ────────────────────────────────────────
+    # Priority: --prompt > explicit --llm > --no-llm > auto-detect
 
-        console.print()
-        console.print("[bold green]✓ Decision extraction prompt generated[/bold green]")
-        console.print()
-        console.print(f"Transcript: {transcript}")
-        console.print(f"Prompt: {prompt_path}")
-        console.print()
-        console.print("Next steps:")
-        console.print("  1. Give this prompt to an LLM agent (Hermes, Claude, GPT, etc.)")
-        console.print("  2. Agent fills in the 9-field decision template")
-        console.print("  3. Save the agent's output as a .patch.md file in .flg/patches/")
-        console.print("  4. Run: flg merge --patch <file>")
+    use_llm = False
+    llm_provider: Optional[str] = None
+
+    if prompt_only:
+        # --prompt: generate prompt file only, no extraction
+        _do_prompt_only(root, transcript, content)
         return
 
-    # LLM mode: call LLM API directly for decision extraction
-    if llm:
-        prompt_content = DECISION_PROMPT_TEMPLATE.format(transcript=content)
-        
-        console.print()
-        console.print("[bold blue]Calling LLM for decision extraction...[/bold blue]")
-        console.print()
-        
-        try:
-            llm_response = call_llm(prompt_content, provider=provider)
-        except Exception as e:
-            console.print(f"[red]LLM extraction failed: {e}[/red]")
-            console.print("[yellow]Falling back to prompt mode...[/yellow]")
-            # Fall back to prompt mode
-            prompt_path = root / ".flg" / "patches" / f"decision-prompt-{datetime.now().strftime('%Y%m%d-%H%M%S')}.md"
-            prompt_path.parent.mkdir(parents=True, exist_ok=True)
-            prompt_path.write_text(prompt_content, encoding="utf-8")
-            console.print(f"Prompt saved to: {prompt_path}")
-            raise typer.Exit(1)
-        
-        # Parse LLM response
-        llm_decisions = parse_llm_response(llm_response)
-        
-        if not llm_decisions:
-            console.print("[yellow]LLM found no decisions in this conversation.[/yellow]")
-            console.print("[dim]If you believe there are decisions, try: flg closeout --transcript <file> --prompt[/dim]")
+    if llm is not None:
+        if llm.lower() == "hermes":
+            # Hermes-assisted: save prompt, let current AI process it
+            _delegate_to_hermes(root, transcript, content)
             return
-        
-        # Create patch with LLM extracted decisions
-        patch_id = generate_patch_id("closeout-llm")
+        # Explicit --llm <provider>
+        if not is_llm_available(llm.lower()):
+            console.print(f"[yellow]No API key found for {llm}. Trying Hermes-assisted mode instead.[/yellow]")
+            _delegate_to_hermes(root, transcript, content)
+            return
+        use_llm = True
+        llm_provider = llm.lower()
+    elif no_llm:
+        # Explicit --no-llm
+        use_llm = False
+    elif is_llm_available():
+        # Auto-detect: LLM configured → use it
+        use_llm = True
+        llm_provider = None  # let call_llm use default from config
+        console.print("[dim]LLM config detected, using LLM for decision extraction. Use --no-llm to force keyword mode.[/dim]")
+    else:
+        # No LLM config → keyword extraction
+        use_llm = False
+
+    # ── LLM extraction path (v0.2.3) ───────────────────────────────────
+    if use_llm:
+        _do_llm_closeout(root, transcript, content, project_name, state, llm_provider)
+        return
+
+    # ── Keyword extraction path (existing behavior) ────────────────────
+    _do_keyword_closeout(root, transcript, content, project_name, state, mode)
+
+
+def _do_prompt_only(root: Path, transcript: Path, content: str) -> None:
+    """Generate a prompt file for external LLM use."""
+    prompt_content = DECISION_PROMPT_TEMPLATE.format(transcript=content)
+    prompt_path = root / ".flg" / "patches" / f"decision-prompt-{datetime.now().strftime('%Y%m%d-%H%M%S')}.md"
+    prompt_path.parent.mkdir(parents=True, exist_ok=True)
+    prompt_path.write_text(prompt_content, encoding="utf-8")
+
+    console.print()
+    console.print("[bold green]✓ Decision extraction prompt generated[/bold green]")
+    console.print()
+    console.print(f"Transcript: {transcript}")
+    console.print(f"Prompt: {prompt_path}")
+    console.print()
+    console.print("Next steps:")
+    console.print("  1. Give this prompt to an LLM agent (Hermes, Claude, GPT, etc.)")
+    console.print("  2. Agent fills in the 9-field decision template")
+    console.print("  3. Save the agent's output as a .patch.md file in .flg/patches/")
+    console.print("  4. Run: flg merge --patch <file>")
+
+
+def _delegate_to_hermes(root: Path, transcript: Path, content: str) -> None:
+    """Hermes-assisted extraction: save prompt for the current AI session to process.
+
+    The current AI (Hermes/DeepSeek/etc.) reads the prompt file, extracts decisions
+    as JSON, writes them to a .json file, and the user runs:
+        flg closeout --llm-write <result.json>
+    """
+    sessions_dir = root / ".flg" / "sessions"
+    sessions_dir.mkdir(parents=True, exist_ok=True)
+
+    prompt_content = CLOSEOUT_LLM_PROMPT_TEMPLATE.format(transcript=content)
+    ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+    prompt_path = sessions_dir / f"llm-prompt-{ts}.md"
+    prompt_path.write_text(prompt_content, encoding="utf-8")
+
+    console.print()
+    console.print("[bold blue]🤖 Hermes-assisted extraction mode[/bold blue]")
+    console.print()
+    console.print(f"Transcript: {transcript}")
+    console.print(f"Prompt saved: {prompt_path}")
+    console.print()
+    console.print("[bold]交给当前AI处理:[/bold]")
+    console.print(f"  你的AI已经可以读取这个文件。告诉它:")
+    console.print(f"  [cyan]\"读取 {prompt_path}，按里面的JSON格式提取决策，结果写入 .flg/sessions/llm-result-{ts}.json\"[/cyan]")
+    console.print()
+    console.print("[bold]然后完成:[/bold]")
+    console.print(f"  [cyan]flg closeout --llm-write .flg/sessions/llm-result-{ts}.json[/cyan]")
+
+
+def _finalize_llm_result(root: Path, json_path: Path, transcript: Path, force: bool) -> None:
+    """Write a JSON decision file (from AI extraction) into a closeout patch.
+
+    The JSON file should be an array of objects with: what, type, confidence,
+    why, rejected, reverse_condition. Or an object with a "decisions" key.
+    """
+    import json as _json
+
+    if not json_path.exists():
+        console.print(f"[red]JSON result file not found: {json_path}[/red]")
+        raise typer.Exit(1)
+
+    # Load state
+    state = load_state(root)
+    if state is None:
+        console.print("[red]Not a FLG project. Run 'flg init' first.[/red]")
+        raise typer.Exit(1)
+    project_name = state["project_name"]
+
+    # Read and parse JSON
+    raw = json_path.read_text(encoding="utf-8")
+    try:
+        data = _json.loads(raw)
+    except _json.JSONDecodeError as e:
+        console.print(f"[red]Invalid JSON: {e}[/red]")
+        raise typer.Exit(1)
+
+    if isinstance(data, dict) and "decisions" in data:
+        decisions_raw = data["decisions"]
+    elif isinstance(data, list):
+        decisions_raw = data
+    else:
+        console.print("[red]JSON must be an array of decisions or object with 'decisions' key[/red]")
+        raise typer.Exit(1)
+
+    # Normalize to internal format
+    llm_decisions = []
+    for i, d in enumerate(decisions_raw):
+        if not isinstance(d, dict):
+            continue
+        llm_decisions.append({
+            "id": d.get("id", f"D-HERMES-{i+1:03d}"),
+            "content": d.get("what", str(d)),
+            "type": d.get("type", "llm_extracted"),
+            "confidence": d.get("confidence", "medium"),
+            "reasoning": d.get("why", ""),
+            "rejected_alternatives": d.get("rejected", ""),
+            "reversal_conditions": d.get("reverse_condition", ""),
+        })
+
+    if not llm_decisions:
+        console.print("[yellow]No decisions found in JSON.[/yellow]")
+        return
+
+    # Build patch (reuse _do_llm_closeout's patch format)
+    now = get_iso_now()
+    patch_id = generate_patch_id("closeout-hermes")
+
+    candidate_decisions = ""
+    for i, d in enumerate(llm_decisions, 1):
+        reasoning = d.get("reasoning", "")
+        rejected = d.get("rejected_alternatives", "")
+        reversal = d.get("reversal_conditions", "")
+        title = generate_decision_title(d["content"])
+        source_excerpt = d.get("content", "")[:120]
+
+        candidate_decisions += f"""### Candidate Decision {i}: {title}
+
+status: pending_review
+confidence: {d.get('confidence', 'medium')}
+decision_type: {d.get('type', 'llm_extracted')}
+why_this_is_a_decision: Hermes AI extracted (v0.2.3)
+**What was decided:** {d['content']}
+**Why:** {reasoning if reasoning else '(not provided by AI)'}
+**Alternatives mentioned:** {rejected if rejected else '(not provided by AI)'}
+**Rejected because:** {rejected if rejected else '(not provided by AI)'}
+**Could reverse if:** {reversal if reversal else '(not provided by AI)'}
+**Related goals:** (not analyzed)
+**Related docs:** (not analyzed)
+**Related assets:** (not analyzed)
+**Affected actions:** (not analyzed)
+**Supersedes:** (not analyzed)
+source_excerpt: > {source_excerpt}
+suggested_action: needs_review
+
+"""
+
+    summary = (
+        f"- Candidate decisions extracted by Hermes AI: {len(llm_decisions)}\n"
+        f"- Source: {json_path}\n"
+        f"- All decisions marked pending_review — human confirmation required"
+    )
+
+    patch_content = f"""# FLG Patch (Hermes AI Extracted — v0.2.3)
+
+patch_id: {patch_id}
+project: {project_name}
+generated_at: {now}
+source_command: flg closeout --llm-write
+source_json: {str(json_path)}
+risk_level: medium
+status: pending_review
+mode: llm-hermes
+
+---
+
+## 1. Session Summary
+
+{summary}
+
+## 2. Candidate Decisions (Hermes AI Extracted)
+
+{candidate_decisions}
+
+## 3. Suggested Next Actions
+
+(Hermes extraction mode — run 'flg closeout --no-llm' for keyword-based next-action analysis.)
+
+## 4. Risks
+
+(Hermes extraction mode — run 'flg closeout --no-llm' for keyword-based risk detection.)
+
+## 5. Open Questions
+
+(not analyzed in Hermes mode)
+
+## 6. Goal Evolution Signals
+
+(not analyzed in Hermes mode)
+
+## 7. Evidence Excerpts
+
+### Decisions
+
+"""
+    for d in llm_decisions:
+        patch_content += f"> {d['content'][:200]}\n\n"
+
+    patch_content += f"""
+## 8. Needs Human Review
+
+- [ ] Review ALL {len(llm_decisions)} AI-extracted candidate decisions
+- [ ] Confirm each decision is real (AI may hallucinate or over-extract)
+- [ ] Fill in missing fields where AI marked "not provided"
+- [ ] Reject any false positives
+
+---
+
+*Generated by flg closeout --llm-write v0.2.3*
+"""
+
+    patch_path = create_patch(root, patch_id, patch_content)
+    add_pending_patch(root, patch_id, str(patch_path), "medium", source_command="flg closeout --llm-write")
+
+    console.print()
+    console.print(f"[bold green]✓ Hermes AI extraction finalized[/bold green]")
+    console.print()
+    console.print(f"Source JSON: {json_path}")
+    console.print(f"Patch: {patch_path}")
+    console.print(f"Decisions written: {len(llm_decisions)}")
+    console.print()
+    console.print("Next steps:")
+    console.print("  1. Review the patch — AI decisions need human confirmation")
+    console.print("  2. Confirm or reject each candidate decision")
+    console.print("  3. Run: flg merge --patch <file>")
+
+
+def _do_llm_closeout(
+    root: Path,
+    transcript: Path,
+    content: str,
+    project_name: str,
+    state: dict | None,
+    llm_provider: Optional[str],
+) -> None:
+    """LLM-based closeout: call LLM API, parse JSON response, write structured patch.
+
+    On failure, falls back to keyword extraction (not prompt mode — v0.2.3 behavior).
+    """
+    prompt_content = CLOSEOUT_LLM_PROMPT_TEMPLATE.format(transcript=content)
+
+    console.print()
+    console.print("[bold blue]Calling LLM for decision extraction...[/bold blue]")
+    if llm_provider:
+        console.print(f"[dim]Provider: {llm_provider}[/dim]")
+    console.print()
+
+    try:
+        llm_response = call_llm(prompt_content, provider=llm_provider)
+    except Exception as e:
+        console.print(f"[red]LLM API call failed: {e}[/red]")
+        console.print("[yellow]Falling back to keyword-based extraction...[/yellow]")
+        _do_keyword_closeout(root, transcript, content, project_name, state, "concise")
+        return
+
+    # Parse LLM response (prefers JSON, falls back to markdown)
+    llm_decisions = parse_llm_response(llm_response)
+
+    if not llm_decisions:
+        console.print("[yellow]LLM found no decisions in this conversation.[/yellow]")
+        # Still generate a minimal patch (consistent behavior)
         now = get_iso_now()
-        
-        patch_content = f"""# FLG Patch (LLM Extracted)
+        patch_id = generate_patch_id("closeout-llm")
+        patch_content = f"""# FLG Patch (LLM — No Decisions Found)
+
+patch_id: {patch_id}
+project: {project_name}
+generated_at: {now}
+source_command: flg closeout --llm
+source_transcript: {str(transcript)}
+risk_level: low
+status: pending_review
+mode: llm
+
+---
+
+## LLM Extraction Result
+
+The LLM found no explicit decisions in this conversation.
+
+---
+
+## Needs Human Review
+
+- [ ] Review the transcript to confirm no decisions were missed
+
+---
+
+*Generated by flg closeout --llm*
+"""
+        patch_path = create_patch(root, patch_id, patch_content)
+        add_pending_patch(root, patch_id, str(patch_path), "low", source_command="flg closeout --llm")
+
+        console.print()
+        console.print(f"[bold green]✓ Patch generated (no decisions found)[/bold green]")
+        console.print(f"Patch: {patch_path}")
+        return
+
+    # ── Build patch with LLM-extracted decisions in unified keyword format ──
+    now = get_iso_now()
+    patch_id = generate_patch_id("closeout-llm")
+    llm_model = get_llm_config()["model"]
+
+    # Build candidate decisions section — same format as keyword extraction
+    candidate_decisions = ""
+    for i, d in enumerate(llm_decisions, 1):
+        reasoning = d.get("reasoning", "")
+        rejected = d.get("rejected_alternatives", "")
+        reversal = d.get("reversal_conditions", "")
+        title = generate_decision_title(d["content"])
+        source_excerpt = d.get("content", "")
+        # Truncate for display
+        if len(source_excerpt) > 120:
+            source_excerpt = source_excerpt[:117] + "..."
+
+        candidate_decisions += f"""### Candidate Decision {i}: {title}
+
+status: pending_review
+confidence: {d.get('confidence', 'medium')}
+decision_type: {d.get('type', 'llm_extracted')}
+why_this_is_a_decision: LLM extracted (v0.2.3)
+**What was decided:** {d['content']}
+**Why:** {reasoning if reasoning else '(not detected by LLM)'}
+**Alternatives mentioned:** {rejected if rejected else '(not detected by LLM)'}
+**Rejected because:** {rejected if rejected else '(not detected by LLM)'}
+**Could reverse if:** {reversal if reversal else '(not detected by LLM)'}
+**Related goals:** (not analyzed — LLM extraction only)
+**Related docs:** (not analyzed — LLM extraction only)
+**Related assets:** (not analyzed — LLM extraction only)
+**Affected actions:** (not analyzed — LLM extraction only)
+**Supersedes:** (not analyzed — LLM extraction only)
+source_excerpt: > {source_excerpt}
+suggested_action: needs_review
+
+"""
+
+    summary = (
+        f"- Candidate decisions extracted by LLM ({llm_model}): {len(llm_decisions)}\n"
+        f"- Source: {transcript}\n"
+        f"- All decisions marked pending_review — human confirmation required"
+    )
+
+    patch_content = f"""# FLG Patch (LLM Extracted — v0.2.3)
 
 patch_id: {patch_id}
 project: {project_name}
@@ -776,44 +1116,88 @@ source_transcript: {str(transcript)}
 risk_level: medium
 status: pending_review
 mode: llm
+llm_model: {llm_model}
 
 ---
 
-## LLM Extraction Result
+## 1. Session Summary
 
-The following decisions were extracted by LLM ({get_llm_config()['model']}).
+{summary}
 
-{llm_response}
+## 2. Candidate Decisions (LLM Extracted)
 
----
+{candidate_decisions}
 
-## Needs Human Review
+## 3. Suggested Next Actions
 
-- [ ] Review extracted decisions
-- [ ] Confirm each decision matches the 9-field template
-- [ ] Merge confirmed decisions to DECISIONS.md
+(LLM extraction mode does not analyze next actions. Run 'flg closeout --no-llm' for keyword-based extraction with next-action analysis.)
 
----
+## 4. Risks
 
-*Generated by flg closeout --llm*
+(LLM extraction mode does not analyze risks. Run 'flg closeout --no-llm' for keyword-based risk detection.)
+
+## 5. Open Questions
+
+(LLM extraction mode does not analyze questions.)
+
+## 6. Goal Evolution Signals
+
+(not analyzed in LLM mode)
+
+## 7. Evidence Excerpts
+
+### Decisions
+
 """
-        
-        patch_path = create_patch(root, patch_id, patch_content)
-        add_pending_patch(root, patch_id, str(patch_path), "medium", source_command="flg closeout --llm")
-        
-        console.print()
-        console.print(f"[bold green]✓ LLM extraction complete[/bold green]")
-        console.print()
-        console.print(f"Transcript: {transcript}")
-        console.print(f"Patch: {patch_path}")
-        console.print(f"Decisions found: {len(llm_decisions)}")
-        console.print()
-        console.print("Next steps:")
-        console.print("  1. Review the patch file")
-        console.print("  2. Confirm or reject extracted decisions")
-        console.print("  3. Run: flg merge --patch <file>")
-        return
+    for d in llm_decisions:
+        patch_content += f"> {d['content'][:200]}\n\n"
 
+    patch_content += f"""
+## 8. Needs Human Review
+
+- [ ] Review ALL {len(llm_decisions)} LLM-extracted candidate decisions
+- [ ] Confirm each decision is a real decision (LLM may hallucinate or over-extract)
+- [ ] Fill in reasoning, alternatives, and reversal conditions where LLM marked "not detected"
+- [ ] Reject any false positives
+- [ ] Consider running 'flg closeout --no-llm' for complementary keyword-based extraction
+
+---
+
+*Generated by flg closeout --llm v0.2.3*
+"""
+
+    patch_path = create_patch(root, patch_id, patch_content)
+    add_pending_patch(root, patch_id, str(patch_path), "medium", source_command="flg closeout --llm")
+
+    # Refresh snapshot with LLM decisions
+    llm_decisions_for_snapshot = [
+        {"content": d["content"][:100]} for d in llm_decisions
+    ]
+    _refresh_snapshot(root, llm_decisions_for_snapshot, [], [], state)
+
+    console.print()
+    console.print(f"[bold green]✓ LLM extraction complete (v0.2.3)[/bold green]")
+    console.print()
+    console.print(f"Transcript: {transcript}")
+    console.print(f"LLM: {llm_model}")
+    console.print(f"Patch: {patch_path}")
+    console.print(f"Decisions found: {len(llm_decisions)}")
+    console.print()
+    console.print("Next steps:")
+    console.print("  1. Review the patch — LLM decisions need human confirmation")
+    console.print("  2. Confirm or reject each candidate decision")
+    console.print("  3. Run: flg merge --patch <file>")
+
+
+def _do_keyword_closeout(
+    root: Path,
+    transcript: Path,
+    content: str,
+    project_name: str,
+    state: dict | None,
+    mode: str,
+) -> None:
+    """Keyword-based closeout: the original extraction pipeline."""
     # Extract content
     decisions = extract_decisions(content)
     risks = extract_risks(content)
@@ -822,7 +1206,7 @@ The following decisions were extracted by LLM ({get_llm_config()['model']}).
     rationale_excerpts = extract_rationale_excerpts(content)
     lessons_learned_signals = extract_lessons_learned_signals(content)
     goal_shifts = extract_goal_shifts(content)
-    
+
     # Apply limits for concise mode
     if mode == "concise":
         decisions = decisions[:5]
@@ -832,11 +1216,10 @@ The following decisions were extracted by LLM ({get_llm_config()['model']}).
         rationale_excerpts = rationale_excerpts[:5]
         lessons_learned_signals = lessons_learned_signals[:5]
         goal_shifts = goal_shifts[:3]
-    
+
     # Build sections
     now = get_iso_now()
-    date = datetime.now().strftime("%Y-%m-%d")
-    
+
     # Summary
     summary_lines = [
         f"- Candidate decisions pending review: {len(decisions)}",
@@ -847,7 +1230,7 @@ The following decisions were extracted by LLM ({get_llm_config()['model']}).
     if decisions:
         summary_lines.append(f"- Highest-confidence decision signal: {generate_decision_title(decisions[0]['content'])}")
     summary = "\n".join(summary_lines[:5])
-    
+
     # Build candidate decisions section
     candidate_decisions = ""
     if decisions:
@@ -892,7 +1275,7 @@ suggested_action: needs_review
             next_actions_text += f"- {action}\n"
     else:
         next_actions_text = "(none identified)\n"
-    
+
     # Build risks section
     risks_text = ""
     if risks:
@@ -900,7 +1283,7 @@ suggested_action: needs_review
             risks_text += f"- {r['content']} (type: {r['type']})\n"
     else:
         risks_text = "(none identified)\n"
-    
+
     # Build open questions section
     questions_text = ""
     if open_questions:
@@ -915,7 +1298,7 @@ suggested_action: needs_review
             goal_shifts_text += f"- {shift}\n"
     else:
         goal_shifts_text = "(none identified)\n"
-    
+
     # Build evidence section
     evidence = ""
     if decisions:
@@ -929,14 +1312,14 @@ suggested_action: needs_review
     if not evidence:
         evidence = "(no evidence extracted)\n"
 
-    # Build rationale excerpts section (low-risk, thinking process)
+    # Build rationale excerpts section
     rationale_text = ""
     if rationale_excerpts:
         for excerpt in rationale_excerpts:
             rationale_text += f"> {excerpt}\n\n"
     else:
         rationale_text = "(none identified)\n"
-    
+
     # Build lessons learned signals section
     lessons_text = ""
     if lessons_learned_signals:
@@ -945,10 +1328,10 @@ suggested_action: needs_review
             lessons_text += f"> {signal}\n\n"
     else:
         lessons_text = "(none identified)\n"
-    
+
     # Create patch
     patch_id = generate_patch_id("closeout")
-    
+
     patch_content = f"""# FLG Patch
 
 patch_id: {patch_id}
@@ -1012,12 +1395,12 @@ mode: {mode}
 
 *Generated by flg closeout*
 """
-    
+
     patch_path = create_patch(root, patch_id, patch_content)
-    
+
     # Update state
     add_pending_patch(root, patch_id, str(patch_path), "medium", source_command="flg closeout")
-    
+
     # Display results
     console.print()
     console.print(f"[bold green]✓ Closeout patch generated[/bold green]")
@@ -1033,10 +1416,10 @@ mode: {mode}
     console.print(f"  - Next Actions: {len(next_actions)}")
     console.print(f"  - Rationale Excerpts: {len(rationale_excerpts)}")
     console.print()
-    
+
     # Refresh SNAPSHOT.md for Agent Startup Context Protocol
     _refresh_snapshot(root, decisions, risks, next_actions, state)
-    
+
     console.print("Next steps:")
     console.print("  1. Review the patch file")
     console.print("  2. Confirm or reject candidate decisions")

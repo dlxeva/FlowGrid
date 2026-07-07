@@ -1,4 +1,7 @@
-"""LLM client for Framing Ledger - calls LLM API for decision extraction."""
+"""LLM client for Framing Ledger - calls LLM API for decision extraction.
+
+Supported providers: openai, anthropic, custom (OpenAI-compatible), local (OpenAI-compatible local).
+"""
 
 import json
 import os
@@ -11,11 +14,14 @@ console = Console()
 
 # Default LLM configuration
 DEFAULT_CONFIG = {
-    "provider": "openai",  # openai, anthropic, or custom
+    "provider": "openai",  # openai, anthropic, custom, or local
     "model": "gpt-4o-mini",
     "temperature": 0.3,
     "max_tokens": 4096,
 }
+
+# Supported provider values for --llm flag
+VALID_PROVIDERS = {"openai", "anthropic", "custom", "local"}
 
 
 def get_llm_config() -> dict:
@@ -53,8 +59,9 @@ def get_api_key(provider: str) -> Optional[str]:
         "openai": "OPENAI_API_KEY",
         "anthropic": "ANTHROPIC_API_KEY",
         "custom": "FLG_LLM_API_KEY",
+        "local": "FLG_LLM_API_KEY",  # local uses same env var as custom
     }
-    
+
     env_var = env_vars.get(provider, "FLG_LLM_API_KEY")
     return os.getenv(env_var)
 
@@ -64,13 +71,14 @@ def get_base_url(provider: str) -> str:
     # Check for custom base URL first
     if custom_url := os.getenv("FLG_LLM_BASE_URL"):
         return custom_url
-    
+
     # Default URLs
     urls = {
         "openai": "https://api.openai.com/v1",
         "anthropic": "https://api.anthropic.com",
+        "local": "http://localhost:11434/v1",  # Ollama default
     }
-    
+
     return urls.get(provider, "https://api.openai.com/v1")
 
 
@@ -178,36 +186,39 @@ def call_custom_api(prompt: str, config: dict) -> str:
 
 def call_llm(prompt: str, provider: Optional[str] = None) -> str:
     """Call LLM API with the given prompt.
-    
+
     Args:
         prompt: The prompt to send to the LLM
-        provider: Override provider (openai, anthropic, custom)
-        
+        provider: Override provider (openai, anthropic, custom, local)
+
     Returns:
         LLM response text
-        
+
     Raises:
         ValueError: If API key is not set
         httpx.HTTPStatusError: If API call fails
     """
     config = get_llm_config()
-    
+
     if provider:
-        config["provider"] = provider.lower()
-    
+        provider = provider.lower()
+        if provider not in VALID_PROVIDERS:
+            raise ValueError(f"Unknown provider: {provider}. Supported: {', '.join(sorted(VALID_PROVIDERS))}")
+        config["provider"] = provider
+
     provider = config["provider"]
-    
+
     console.print(f"[dim]Calling {provider} API ({config['model']})...[/dim]")
-    
+
     try:
         if provider == "openai":
             return call_openai(prompt, config)
         elif provider == "anthropic":
             return call_anthropic(prompt, config)
-        elif provider == "custom":
+        elif provider in ("custom", "local"):
             return call_custom_api(prompt, config)
         else:
-            raise ValueError(f"Unknown provider: {provider}. Supported: openai, anthropic, custom")
+            raise ValueError(f"Unknown provider: {provider}. Supported: {', '.join(sorted(VALID_PROVIDERS))}")
     except httpx.HTTPStatusError as e:
         console.print(f"[red]API Error: {e.response.status_code} - {e.response.text}[/red]")
         raise
@@ -216,16 +227,120 @@ def call_llm(prompt: str, provider: Optional[str] = None) -> str:
         raise
 
 
+def is_llm_available(provider: Optional[str] = None) -> bool:
+    """Check if any LLM provider is configured and available.
+
+    Args:
+        provider: Specific provider to check. If None, checks all.
+
+    Returns:
+        True if at least one provider has its API key set.
+    """
+    if provider:
+        return get_api_key(provider) is not None
+
+    # Check all providers
+    providers_to_check = ["openai", "anthropic", "custom", "local"]
+    for p in providers_to_check:
+        if get_api_key(p):
+            return True
+
+    # Also check if FLG_LLM_BASE_URL is set (custom endpoint might not need key)
+    if os.getenv("FLG_LLM_BASE_URL"):
+        return True
+
+    return False
+
+
 def parse_llm_response(response: str) -> list[dict]:
     """Parse LLM response into structured decisions.
-    
-    The LLM should return markdown with D-XXX sections.
-    This function extracts each decision as a dict.
+
+    Supports two formats:
+    1. JSON array of decisions with fields: content, type, confidence, reasoning,
+       rejected_alternatives, reversal_conditions
+    2. Markdown D-XXX sections (legacy format)
+
+    Returns:
+        List of decision dicts with keys: id, content (and other structured fields
+        if available from JSON parsing).
     """
+    # --- Try JSON first (preferred format) ---
+    json_found, decisions = _parse_json_decisions(response)
+    if json_found:
+        return decisions  # may be empty list if no decisions found
+
+    # --- Fallback to markdown D-XXX parsing ---
+    return _parse_markdown_decisions(response)
+
+
+def _parse_json_decisions(response: str) -> tuple[bool, list[dict]]:
+    """Try to parse JSON-format decisions from LLM response.
+
+    Returns:
+        (json_found, decisions) — json_found=True if valid JSON was detected
+        (even if empty), False if no JSON was found and caller should fallback.
+    """
+    json_text = response.strip()
+    try:
+        data = json.loads(json_text)
+        if isinstance(data, dict) and "decisions" in data:
+            data = data["decisions"]
+        if isinstance(data, list):
+            decisions = []
+            for i, d in enumerate(data):
+                if isinstance(d, dict) and "what" in d:
+                    decisions.append({
+                        "id": d.get("id", f"D-LLM-{i+1:03d}"),
+                        "content": d.get("what", ""),
+                        "type": d.get("type", "llm_extracted"),
+                        "confidence": d.get("confidence", "medium"),
+                        "reasoning": d.get("why", ""),
+                        "rejected_alternatives": d.get("rejected", ""),
+                        "reversal_conditions": d.get("reverse_condition", ""),
+                        "related_goals": d.get("related_goals", ""),
+                    })
+            # JSON was valid — return even if empty list
+            return True, decisions
+        # Valid JSON but not a list/decisions dict — treat as unfound
+        return False, []
+    except (json.JSONDecodeError, TypeError):
+        pass
+
+    # Try to extract JSON block from markdown
+    import re
+    json_match = re.search(r'```(?:json)?\s*\n(.*?)\n```', response, re.DOTALL)
+    if json_match:
+        try:
+            data = json.loads(json_match.group(1))
+            if isinstance(data, dict) and "decisions" in data:
+                data = data["decisions"]
+            if isinstance(data, list):
+                decisions = []
+                for i, d in enumerate(data):
+                    if isinstance(d, dict) and "what" in d:
+                        decisions.append({
+                            "id": d.get("id", f"D-LLM-{i+1:03d}"),
+                            "content": d.get("what", ""),
+                            "type": d.get("type", "llm_extracted"),
+                            "confidence": d.get("confidence", "medium"),
+                            "reasoning": d.get("why", ""),
+                            "rejected_alternatives": d.get("rejected", ""),
+                            "reversal_conditions": d.get("reverse_condition", ""),
+                            "related_goals": d.get("related_goals", ""),
+                        })
+                return True, decisions
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    return False, []
+
+
+def _parse_markdown_decisions(response: str) -> list[dict]:
+    """Parse markdown D-XXX format decisions (legacy)."""
     decisions = []
     current_decision = None
     current_content = []
-    
+
     for line in response.split("\n"):
         # Check for decision header (## D-XXX | title)
         if line.startswith("## D-") and "|" in line:
@@ -235,26 +350,26 @@ def parse_llm_response(response: str) -> list[dict]:
                     "id": current_decision,
                     "content": "\n".join(current_content).strip(),
                 })
-            
+
             # Start new decision
             parts = line.split("|", 1)
             current_decision = parts[0].strip().replace("## ", "")
             current_content = [line]
         elif current_decision:
             current_content.append(line)
-    
+
     # Save last decision
     if current_decision:
         decisions.append({
             "id": current_decision,
             "content": "\n".join(current_content).strip(),
         })
-    
+
     # If no D-XXX found, try to parse as single decision
-    if not decisions and response.strip() and "本轮对话无明确决策" not in response:
+    if not decisions and response.strip() and "本轮对话无明确决策" not in response and "no decision" not in response.lower():
         decisions.append({
             "id": "D-NEW",
             "content": response.strip(),
         })
-    
+
     return decisions

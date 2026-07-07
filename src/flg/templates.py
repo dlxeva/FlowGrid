@@ -648,6 +648,61 @@ C. (方案C)
 请按上述模板，输出所有识别到的决策。如果本轮无明确决策，输出"本轮对话无明确决策"。
 """
 
+# ── v0.2.3: Closeout-specific LLM prompt (JSON-structured output) ──────────
+# This prompt is used by flg closeout --llm to extract decisions with
+# structured fields that map to the keyword-extraction patch format.
+
+CLOSEOUT_LLM_PROMPT_TEMPLATE = """你是一个项目决策提取器。从以下会话记录中提取所有关键决策。
+
+## 什么是决策
+
+决策 = 做了选择、定了方向、拍了板、明确了取舍。不是讨论、不是问题、不是状态描述。
+
+特别注意以下类型的决策（它们往往不包含"确认/决定/优先"等明显触发词）：
+- 机制设计判断（如"审批触发条件应基于金额阈值而非角色层级"）
+- 架构取舍（如"用A方案而不用B，因为..."）
+- 范围界定（如"这个阶段只做X不做Y"）
+- 顺序决策（如"先做X，Y延后到下一阶段"）
+- 边界划分（如"这个不属于我们的scope"）
+
+## 输出格式
+
+严格输出一个JSON对象，包含一个 `decisions` 数组。每条决策包含以下字段：
+
+```json
+{{
+  "decisions": [
+    {{
+      "id": "D-LLM-001",
+      "what": "决定了什么（核心内容，一句话说清）",
+      "type": "explicit_confirmation | tradeoff | state_change | mechanism_design | scope_boundary",
+      "confidence": "high | medium | low",
+      "why": "为什么做这个决策（理由、依据、数据/经验/逻辑）",
+      "rejected": "放弃了什么替代方案（如果有）。没有则填\"对话中未提及其他方案\"",
+      "reverse_condition": "什么条件下这个决策可能需要推翻",
+      "source_excerpt": "对话中做出该判断的原句（直接引用）"
+    }}
+  ]
+}}
+```
+
+## 规则
+
+1. 每条决策的 `what` 必须是对决策内容的精确概括，保留原始措辞
+2. `why` 必须从对话中提取，如果对话中没说明理由，填"对话中未说明理由"
+3. 不要虚构字段内容——找不到就写"对话中未提及"
+4. 如果对话中没有明确决策，输出 `{{"decisions": []}}`
+5. 只输出JSON，不要额外文字解释
+
+## 会话记录
+
+{transcript}
+
+## 输出
+
+只输出JSON，无其他内容。
+"""
+
 FRAME_PATCH_MD = """# FLG Patch
 
 patch_id: {patch_id}
