@@ -2,17 +2,17 @@
 
 [English](./README.md) | [简体中文](./README.zh-CN.md)
 
-> An AI-native local project protocol for non-coding knowledge work.
-> Designed to work inside any AI agent work product, with natural language as the interface and local files as the source of truth.
+> A local project-state context engine for rationale-heavy, non-coding business projects.
+> Designed for AI agents to preserve reviewed judgments, project state, and reasoning chains in local files.
 
 ![Stage](https://img.shields.io/badge/stage-v0.2.1--alpha-4c6ef5)
 ![Runtime](https://img.shields.io/badge/runtime-local--first-2b8a3e)
 ![Interface](https://img.shields.io/badge/interface-CLI%20%2B%20project%20protocol-495057)
 ![Tests](https://img.shields.io/badge/tests-58%20passed-2f9e44)
 
-FlowGrid helps strategy, marketing, research, operations, and solution professionals turn vague business work into structured, auditable, and transferable project systems.
+FlowGrid helps business-project knowledge workers turn messy AI work sessions into reviewed, traceable, and resumable project context.
 
-It keeps project memory in plain-text files, lets any AI agent work product continue from the same directory, and treats decisions, progress, and pending patches as first-class project state.
+It is built for long-running work where the deliverable is not just a document, but a defensible judgment chain: why this proposal makes sense, why this direction was chosen, what alternatives were rejected, and when a past judgment should be revised.
 
 ## Quick Links
 
@@ -21,6 +21,7 @@ It keeps project memory in plain-text files, lets any AI agent work product cont
 - [Who it is for](#who-is-it-for)
 - [Quick start](#quick-start)
 - [CLI commands](#cli-commands)
+- [User pain model](./docs/product/user-pain-model.md)
 - [Protocol docs](./docs/protocol.md)
 - [Host usage](./docs/host-usage.md)
 - [Chinese README](./README.zh-CN.md)
@@ -28,11 +29,11 @@ It keeps project memory in plain-text files, lets any AI agent work product cont
 ## At a Glance
 
 - **Local-first:** project truth lives in files, not chat memory
-- **Host-agnostic:** works inside Codex, Hermes, OpenClaw, Claude, or any agent shell that can read files and run commands
-- **Continuity-first:** later agents and later sessions read the same ledger and pending patches
-- **Decision-aware:** decisions store why, rejected options, and reversal conditions
+- **Context-first:** agent startup should load reviewed project state, not raw history dumps
+- **Judgment-aware:** decisions store why, rejected options, assumptions, and reversal conditions
 - **Patch-first:** medium/high-risk updates stay reviewable before merge
-- **Non-coder oriented:** built for briefs, proposals, planning, and judgment work
+- **Host-agnostic:** works inside Codex, Hermes, OpenClaw, Claude, or any agent shell that can read files and run commands
+- **Business-project oriented:** built for proposals, campaigns, briefs, strategies, mechanisms, and retrospectives
 
 ## 30-Second Demo
 
@@ -55,16 +56,36 @@ You can run that flow from Codex, Hermes, OpenClaw, Claude, or any AI agent work
 
 ## What is FlowGrid?
 
-FlowGrid (FLG) is an AI-native local project protocol for strategy, marketing, operations, and solution professionals.
+FlowGrid (FLG) is a local project-state context engine for rationale-heavy, non-coding business projects.
 
-It helps you turn vague business problems into structured, auditable, and transferable project systems.
+It gives AI agents a durable local protocol for preserving project judgments, current state, pending changes, and handoff context across sessions.
+
+The core problem it addresses:
+
+> Long-running AI collaboration produces more history than an agent should reload, but less structure than a business project needs to stay trustworthy.
+
+FlowGrid separates raw discussion, candidate judgments, reviewed decisions, pending patches, and current project state.
 
 ## Who is it for?
 
-- **Strategy professionals** defining project direction and goals
-- **Marketing professionals** planning campaigns and content
-- **Operations professionals** designing systems and processes
-- **Solution professionals** translating client needs into deliverables
+FlowGrid is for business-project knowledge workers who own fuzzy projects and must repeatedly clarify, judge, revise, explain, and hand off project state.
+
+Typical roles include:
+
+- operations leads designing mechanisms, rhythms, and retrospectives
+- marketing leads planning campaigns, briefs, and content directions
+- strategy / growth leads making trade-offs and project recommendations
+- solution and proposal owners translating client needs into deliverable logic
+- creative or research-oriented operators building long-running judgment chains
+- independent consultants and small-team owners who do several of these at once
+
+FlowGrid serves a work structure, not a job title.
+
+Best-fit task modes:
+
+- **Proposal persuasion:** why this proposal, campaign, or deck makes sense
+- **Mechanism progression:** how the project keeps moving under real constraints
+- **Judgment revision:** why a previous judgment should change now
 
 ## How is it different from prompt workflows?
 
@@ -73,14 +94,14 @@ It helps you turn vague business problems into structured, auditable, and transf
 | Scope | Single conversation | Full project lifecycle |
 | Memory | AI memory (temporary) | Project files (persistent) |
 | Truth source | Scattered across conversations | Unified project ledger |
-| Auditability | Not auditable | Plain text, trackable |
+| Judgment chain | Easily buried | Reviewable and traceable |
 | Portability | Tied to specific AI | Any local agent can continue |
 
 ## Why Decision Logs Matter
 
-Your AI forgets your decisions every conversation. FLG doesn't.
+Your AI may lose the reasoning behind a decision every conversation. FLG keeps it in the project.
 
-`DECISIONS.md` doesn't just record *what* you decided — it captures *why* you decided, *what you rejected*, and *under what conditions you'd reverse the call*. This is the difference between a history log and a thinking tool.
+`DECISIONS.md` records *what* you decided, *why* you decided it, *what you rejected*, and *under what conditions you would reverse the call*. This is the difference between a history log and a judgment tool.
 
 Each decision entry uses a 9-field structure:
 
@@ -99,12 +120,12 @@ Each decision entry uses a 9-field structure:
 Over time, this creates three forms of value:
 
 - **Retrospective clarity** — revisit past decisions with full context, not just outcomes
-- **Agent relay continuity** — any agent picking up your project sees the full decision history, not just the current state
+- **Agent relay continuity** — any agent picking up your project sees the judgment chain, not only the current task
 - **Judgment compounding** — your reasoning patterns become explicit, transferable, and improvable
 
 ## Who is it NOT for?
 
-Be honest: there are tools that already serve these users better. If you fit one of these, use them.
+There are tools that already serve these users better:
 
 | Profile | Use this instead |
 |---|---|
@@ -113,9 +134,9 @@ Be honest: there are tools that already serve these users better. If you fit one
 | Team lead running self-driving project workspaces | [Taskade Genesis / Workspace DNA](https://www.taskade.com/blog/autonomous-project-management) — 100+ integrations, prompt → running project |
 | Solo non-coder wanting low-friction agent task execution | [Claude Cowork](https://www.scrum.org/resources/blog/claude-cowork-ai-agents-email-moment-non-coding-agile-practitioners) — packaging code-agent power for non-coders |
 
-**FlowGrid's niche:** single-operator, non-coding knowledge work (marketing, strategy, research, creative ideation) where the deliverable is *decisions, drafts, briefs* — not code, not sprints, not running apps. Local-first, plain-text ledger, resumable project state, no SaaS, no team coordination layer.
+**FlowGrid's niche:** single-operator, non-coding, rationale-heavy business project work where the deliverable is a proposal, strategy, brief, mechanism, campaign, retrospective, or defensible judgment chain.
 
-If your work is "figure out what to do" rather than "do it at scale", FLG is for you.
+If your work is to figure out what should be done and why it should be done, FLG is for you.
 
 ## Installation
 
@@ -282,7 +303,7 @@ FlowGrid keeps `FLG` as its technical shorthand, CLI prefix, and `.flg/` project
 
 ## Protocol
 
-FlowGrid is not just a Python CLI. It is a local project protocol:
+FlowGrid is not just a Python CLI. It is a local project-state protocol:
 
 - the filesystem is the source of truth
 - markdown files hold the durable project state
@@ -307,13 +328,13 @@ See [docs/host-usage.md](./docs/host-usage.md) for host-style usage.
 
 FLG is inspired by [Oh My Codex (OMX)](https://github.com/Yeachan-Heo/oh-my-codex), an orchestration layer that enhances Codex CLI for developers. OMX pioneered the idea that the project directory itself should be the source of truth — agents read rules, state persists across sessions, and the filesystem is the coordination layer.
 
-FLG takes this same engineering philosophy and applies it to non-coding knowledge work:
+FLG takes this same engineering philosophy and applies it to rationale-heavy, non-coding business project work:
 
 | | OMX | FLG |
 |---|---|---|
-| **Target user** | Developers | Strategy / Marketing / Ops / Solution professionals |
-| **Deliverable** | Code, PRs, running apps | Strategies, briefs, proposals, campaigns |
-| **Project structure** | Git repo + worktree | Plain-text ledger directory |
+| **Target user** | Developers | Business-project knowledge workers |
+| **Deliverable** | Code, PRs, running apps | Proposals, briefs, campaigns, mechanisms, judgments |
+| **Project structure** | Git repo + worktree | Plain-text project ledger directory |
 | **Agent coordination** | Multi-agent code pipeline | Single-operator agent relay |
 
 The core idea is the same: *make the project directory the single source of truth so any agent can pick up where the last one left off.* The difference is whose work it serves.
