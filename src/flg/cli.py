@@ -16,6 +16,7 @@ from .commands.import_cmd import import_project
 from .commands.context import context_command
 from .commands.evidence import evidence_command
 from .commands.capture import capture_add, capture_list, capture_show, capture_review
+from .commands.decision_cmd import decision_add
 from .core.state import load_state, get_state_schema_info
 
 console = Console()
@@ -47,6 +48,11 @@ capture_app.command(name="list", help="List captured judgment candidates")(captu
 capture_app.command(name="show", help="Show details of a captured judgment")(capture_show)
 capture_app.command(name="review", help="Review pending captures: accept into DECISIONS.md or reject")(capture_review)
 app.add_typer(capture_app, name="capture")
+
+# Decision subcommand group
+decision_app = typer.Typer(help="Direct decision recording (strong commitment only)", no_args_is_help=True)
+decision_app.command(name="add", help="Record a confirmed decision directly to DECISIONS.md")(decision_add)
+app.add_typer(decision_app, name="decision")
 
 
 @app.command(name="version")
