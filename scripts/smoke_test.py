@@ -106,6 +106,20 @@ def main() -> int:
             return 1
         run_cmd(flg_cmd + ["evidence", "D-002"], cwd=project_dir, env_overrides=env_overrides)
 
+        # Capture pipeline smoke test
+        run_cmd(
+            flg_cmd + ["capture", "add", "-c", "Focus on content marketing", "-r", "Budget limited, need organic growth first", "-t", "judgment", "-q", "Marketing strategy", "-e", "User: we should focus on content"],
+            cwd=project_dir,
+            env_overrides=env_overrides,
+        )
+        run_cmd(flg_cmd + ["capture", "list"], cwd=project_dir, env_overrides=env_overrides)
+        # Verify capture file was created
+        capture_files = list((project_dir / ".flg" / "captures").glob("cap-*.md"))
+        if not capture_files:
+            print("[FAIL] No capture file generated", file=sys.stderr)
+            return 1
+        run_cmd(flg_cmd + ["capture", "show", capture_files[0].stem], cwd=project_dir, env_overrides=env_overrides)
+
         run_cmd(flg_cmd + ["context", "--mode", "resume", "--budget", "4000"], cwd=project_dir, env_overrides=env_overrides)
         context_pack = project_dir / ".flg" / "context" / "startup.md"
         if not context_pack.exists():
