@@ -5,10 +5,10 @@
 > 面向推导密集型非代码业务项目的本地项目状态上下文引擎。
 > 设计目标是让 AI Agent 把经过审核的判断、项目状态和推导链稳定保存在本地文件中。
 
-![阶段](https://img.shields.io/badge/stage-v0.2.1--alpha-4c6ef5)
+![阶段](https://img.shields.io/badge/stage-v0.3.0-4c6ef5)
 ![运行方式](https://img.shields.io/badge/runtime-local--first-2b8a3e)
 ![接口](https://img.shields.io/badge/interface-CLI%20%2B%20project%20protocol-495057)
-![测试](https://img.shields.io/badge/tests-58%20passed-2f9e44)
+![测试](https://img.shields.io/badge/tests-77%20passed-2f9e44)
 
 FlowGrid 帮助业务项目型知识工作者，把混乱的 AI 协作过程转成经过审核、可追溯、可恢复的项目上下文。
 
@@ -254,6 +254,10 @@ Agent 开始工作时，必须读取两层状态：
 | `flg import <source>` | 导入已有项目 |
 | `flg status` | 查看项目状态 |
 | `flg version` | 查看 FLG 版本 |
+| `flg capture add -c <判断> -r <理由>` | 实时捕获候选判断 |
+| `flg capture list` | 列出候选判断（可按类型/状态筛选） |
+| `flg capture review` | 逐条审核候选→确认的写入 DECISIONS.md |
+| `flg decision add -d <决策> -r <理由>` | 强承诺决策直入（用户说\"定了/记一条\"时） |
 
 > `flg trace` 已规划，当前版本尚未实现。
 

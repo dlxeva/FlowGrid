@@ -5,10 +5,10 @@
 > A local project-state context engine for rationale-heavy, non-coding business projects.
 > Designed for AI agents to preserve reviewed judgments, project state, and reasoning chains in local files.
 
-![Stage](https://img.shields.io/badge/stage-v0.2.1--alpha-4c6ef5)
+![Stage](https://img.shields.io/badge/stage-v0.3.0-4c6ef5)
 ![Runtime](https://img.shields.io/badge/runtime-local--first-2b8a3e)
 ![Interface](https://img.shields.io/badge/interface-CLI%20%2B%20project%20protocol-495057)
-![Tests](https://img.shields.io/badge/tests-58%20passed-2f9e44)
+![Tests](https://img.shields.io/badge/tests-77%20passed-2f9e44)
 
 FlowGrid helps business-project knowledge workers turn messy AI work sessions into reviewed, traceable, and resumable project context.
 
@@ -264,6 +264,10 @@ This ensures multi-agent relay works correctly: Agent B can see Agent A's closeo
 | `flg import <source>` | Import existing project into FLG |
 | `flg status` | Show project status |
 | `flg version` | Show FLG version |
+| `flg capture add -c <claim> -r <reason>` | Capture a judgment candidate in real-time |
+| `flg capture list` | List judgment candidates (filter by type/status) |
+| `flg capture review` | Review candidates → accept into DECISIONS.md or reject |
+| `flg decision add -d <decision> -r <reason>` | Direct decision write (strong commitment only) |
 
 > `flg trace` is planned future work and is not implemented in the current CLI.
 
