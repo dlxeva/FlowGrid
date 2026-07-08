@@ -15,7 +15,7 @@ from .commands.extract import extract_decisions_command
 from .commands.import_cmd import import_project
 from .commands.context import context_command
 from .commands.evidence import evidence_command
-from .commands.capture import capture_add, capture_list, capture_show
+from .commands.capture import capture_add, capture_list, capture_show, capture_review
 from .core.state import load_state, get_state_schema_info
 
 console = Console()
@@ -45,6 +45,7 @@ capture_app = typer.Typer(help="Real-time judgment candidate capture", no_args_i
 capture_app.command(name="add", help="Capture a judgment candidate")(capture_add)
 capture_app.command(name="list", help="List captured judgment candidates")(capture_list)
 capture_app.command(name="show", help="Show details of a captured judgment")(capture_show)
+capture_app.command(name="review", help="Review pending captures: accept into DECISIONS.md or reject")(capture_review)
 app.add_typer(capture_app, name="capture")
 
 

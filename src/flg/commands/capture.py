@@ -1,8 +1,9 @@
-"""flg capture commands - Real-time judgment candidate capture."""
+"""flg capture commands - Real-time judgment candidate capture and review."""
 
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 from datetime import datetime
 from pathlib import Path
@@ -12,12 +13,14 @@ import typer
 import yaml
 from rich.console import Console
 from rich.panel import Panel
+from rich.prompt import Confirm
 from rich.table import Table
 
-from ..core.files import is_flg_project
+from ..core.files import is_flg_project, read_file_safe
 
 console = Console()
 CAPTURES_DIR = ".flg/captures"
+EVIDENCE_INDEX_PATH = Path(".flg") / "context" / "evidence_index.json"
 
 YAML_FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
 
@@ -301,3 +304,198 @@ def _read_frontmatter(filepath: Path) -> dict | None:
         return None
 
     return data
+
+
+def _write_frontmatter(filepath: Path, data: dict) -> None:
+    """Update YAML frontmatter in a capture file, preserving body."""
+    raw = filepath.read_text(encoding="utf-8")
+    body = YAML_FRONTMATTER_RE.sub("", raw).strip()
+    yaml_block = yaml.dump(data, allow_unicode=True, default_flow_style=False, sort_keys=False)
+    filepath.write_text(f"---\n{yaml_block}---\n\n{body}\n", encoding="utf-8")
+
+
+# ── Review helpers ──────────────────────────────────────────────────────
+
+def _next_decision_number(decisions_content: str) -> int:
+    numbers = [int(m) for m in re.findall(r"## D-(\d+)", decisions_content)]
+    return max(numbers, default=0) + 1
+
+
+def _build_decision_entry(number: int, meta: dict) -> str:
+    today = datetime.now().strftime("%Y-%m-%d")
+    claim = meta.get("claim", "")
+    rationale = meta.get("rationale", "")
+    question = meta.get("question", "项目推进中的关键判断")
+    alternatives = meta.get("alternatives", [])
+    alt_str = "、".join(alternatives) if alternatives else "未记录备选方案"
+    risks = meta.get("risks", "待结合项目上下文补充")
+    evidence = meta.get("raw_evidence", "")
+
+    return f"""## D-{number:03d} | {claim[:50]}
+
+### 决策时间
+{today}
+
+### 所属阶段
+执行
+
+### 决策背景
+由 `flg capture review` 从候选判断中确认写入。
+
+### 核心问题
+{question}
+
+### 备选方案
+A. {alt_str}
+
+### 最终决策
+{claim}
+
+### 决策理由
+{rationale}
+
+### 放弃理由
+选择了当前方案，放弃其他备选方案。
+
+### 风险判断
+{risks}
+
+### 后续验证
+通过后续执行结果和项目反馈验证。
+
+### 复盘入口
+如果关键前提变化或出现新的替代方案，需要重新评估。
+
+---
+
+*Source: {evidence if evidence else '用户判断'}*
+"""
+
+
+def _load_evidence_index(root: Path) -> dict:
+    path = root / EVIDENCE_INDEX_PATH
+    if not path.exists():
+        return {"version": 1, "items": {}}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {"version": 1, "items": {}}
+    if not isinstance(data, dict) or "items" not in data:
+        return {"version": 1, "items": {}}
+    return data
+
+
+def _save_evidence_index(root: Path, index: dict) -> Path:
+    path = root / EVIDENCE_INDEX_PATH
+    path.parent.mkdir(parents=True, exist_ok=True)
+    index["updated_at"] = datetime.now().isoformat(timespec="seconds")
+    path.write_text(json.dumps(index, ensure_ascii=False, indent=2), encoding="utf-8")
+    return path
+
+
+# ── capture review command ──────────────────────────────────────────────
+
+def capture_review(
+    auto_confirm: bool = typer.Option(
+        False, "--auto-confirm", help="Auto-confirm all pending captures (use with caution)"
+    ),
+) -> None:
+    """逐条审核候选判断，确认的写入 DECISIONS.md，拒绝的标记为 rejected。"""
+    root = Path.cwd()
+    if not is_flg_project(root):
+        console.print("[red]Not a FLG project. Run 'flg init' first.[/red]")
+        raise typer.Exit(1)
+
+    captures_dir = _captures_root(root)
+    if not captures_dir.exists():
+        console.print("[dim]No captures to review. Use 'flg capture add' first.[/dim]")
+        return
+
+    files = sorted(captures_dir.glob("cap-*.md"))
+    pending = []
+    for f in files:
+        meta = _read_frontmatter(f)
+        if meta and meta.get("status") == "pending_review":
+            pending.append((f, meta))
+
+    if not pending:
+        console.print("[green]No pending captures to review.[/green]")
+        return
+
+    decisions_path = root / "DECISIONS.md"
+    decisions_content = read_file_safe(decisions_path) or "# Decision Log\n"
+    next_num = _next_decision_number(decisions_content)
+    evidence_index = _load_evidence_index(root)
+    reviewed_at = datetime.now().isoformat(timespec="seconds")
+
+    accepted: list = []
+    rejected: list = []
+
+    console.print()
+    console.print(f"[bold]Reviewing {len(pending)} pending capture(s)[/bold]")
+    console.print()
+
+    for filepath, meta in pending:
+        capture_id = meta.get("id", filepath.stem)
+        console.print(f"[bold cyan]{capture_id}[/bold cyan]")
+        console.print(f"  Type: {meta.get('type', '?')}  |  Confidence: {meta.get('confidence', '?')}")
+        console.print(f"  Claim: [white]{meta.get('claim', '')}[/white]")
+        if meta.get("rationale"):
+            console.print(f"  Rationale: [dim]{meta['rationale'][:100]}[/dim]")
+        if meta.get("raw_evidence"):
+            console.print(f"  Evidence: [dim]{meta['raw_evidence'][:80]}[/dim]")
+        console.print()
+
+        if auto_confirm:
+            choice = "a"
+        else:
+            console.print("  [a]ccept  [r]eject  [s]kip")
+            choice = typer.prompt("  Choice", default="a", show_default=False).strip().lower()
+
+        if choice == "a":
+            decision_id = f"D-{next_num:03d}"
+            entry = _build_decision_entry(next_num, meta)
+            decisions_content = decisions_content.rstrip() + "\n\n" + entry
+            evidence_index["items"][decision_id] = {
+                "decision_id": decision_id,
+                "status": "confirmed",
+                "authority": "high",
+                "source_type": "capture_review",
+                "source_capture": str(filepath.relative_to(root)),
+                "source_excerpt": meta.get("raw_evidence", meta.get("claim", "")),
+                "reviewed_at": reviewed_at,
+                "title": meta.get("claim", "")[:60],
+                "rationale": meta.get("rationale", ""),
+                "rejected_alternatives": ", ".join(meta.get("alternatives", [])),
+            }
+            meta["status"] = "confirmed"
+            meta["reviewed_at"] = reviewed_at
+            _write_frontmatter(filepath, meta)
+            accepted.append((capture_id, decision_id))
+            next_num += 1
+            console.print(f"  [green]✓ Accepted → {decision_id}[/green]")
+        elif choice == "r":
+            meta["status"] = "rejected"
+            meta["reviewed_at"] = reviewed_at
+            _write_frontmatter(filepath, meta)
+            rejected.append(capture_id)
+            console.print(f"  [red]✗ Rejected[/red]")
+        else:
+            console.print(f"  [dim]⊙ Skipped[/dim]")
+        console.print()
+
+    if accepted:
+        decisions_path.write_text(decisions_content, encoding="utf-8")
+        _save_evidence_index(root, evidence_index)
+        console.print(f"[bold green]✓ {len(accepted)} decision(s) written to DECISIONS.md[/bold green]")
+        for cap_id, dec_id in accepted:
+            console.print(f"  {cap_id} → [cyan]{dec_id}[/cyan]")
+    if rejected:
+        console.print(f"[yellow]{len(rejected)} rejected[/yellow]")
+
+    remaining = len(pending) - len(accepted) - len(rejected)
+    if remaining:
+        console.print(f"[dim]{remaining} skipped[/dim]")
+    if not accepted and not rejected:
+        console.print("[dim]No changes made.[/dim]")
+    console.print()
