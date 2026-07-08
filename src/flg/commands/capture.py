@@ -43,7 +43,7 @@ def _generate_id() -> str:
 
 
 def _valid_types() -> list[str]:
-    return ["judgment", "decision", "principle"]
+    return ["judgment", "decision", "principle", "thought", "hypothesis"]
 
 
 def capture_add(
@@ -54,7 +54,7 @@ def capture_add(
         ..., "-r", "--rationale", help="判断理由（必填）"
     ),
     type_: Optional[str] = typer.Option(
-        "judgment", "-t", "--type", help="判断类型: judgment | decision | principle"
+        "judgment", "-t", "--type", help="判断类型: judgment | decision | principle | thought | hypothesis"
     ),
     question: Optional[str] = typer.Option(
         None, "-q", "--question", help="这条判断回答什么问题"
@@ -145,7 +145,7 @@ def capture_list(
         None, "--status", help="Filter by status: pending_review | confirmed | rejected"
     ),
     type_filter: Optional[str] = typer.Option(
-        None, "--type", help="Filter by type: judgment | decision | principle"
+        None, "--type", help="Filter by type: judgment | decision | principle | thought | hypothesis"
     ),
 ) -> None:
     """列出所有候选判断."""
@@ -499,3 +499,68 @@ def capture_review(
     if not accepted and not rejected:
         console.print("[dim]No changes made.[/dim]")
     console.print()
+
+
+# ── judgment profile command ────────────────────────────────────────────
+
+PROFILE_FILE = "_profile.yaml"
+
+
+def capture_profile(
+    add_phrase: str | None = typer.Option(
+        None, "--add", help="添加项目特有的判断触发词"
+    ),
+    remove_phrase: str | None = typer.Option(
+        None, "--remove", help="移除触发词"
+    ),
+) -> None:
+    """管理项目的判断语言特征（judgment profile），帮助 Agent 识别你的判断信号。"""
+    root = Path.cwd()
+    if not is_flg_project(root):
+        console.print("[red]Not a FLG project. Run 'flg init' first.[/red]")
+        raise typer.Exit(1)
+
+    captures_dir = _ensure_captures_dir(root)
+    profile_path = captures_dir / PROFILE_FILE
+    profile: dict = {"trigger_phrases": []}
+
+    if profile_path.exists():
+        try:
+            profile = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+        except yaml.YAMLError:
+            pass
+    if not isinstance(profile, dict):
+        profile = {"trigger_phrases": []}
+    profile.setdefault("trigger_phrases", [])
+
+    if add_phrase:
+        if add_phrase not in profile["trigger_phrases"]:
+            profile["trigger_phrases"].append(add_phrase)
+            console.print(f"[green]✓ Added:[/green] {add_phrase}")
+        else:
+            console.print(f"[dim]Already exists: {add_phrase}[/dim]")
+    elif remove_phrase:
+        if remove_phrase in profile["trigger_phrases"]:
+            profile["trigger_phrases"].remove(remove_phrase)
+            console.print(f"[yellow]Removed: {remove_phrase}[/yellow]")
+        else:
+            console.print(f"[dim]Not found: {remove_phrase}[/dim]")
+    else:
+        console.print()
+        console.print("[bold]Judgment Profile[/bold]")
+        console.print(f"  {profile_path}")
+        console.print()
+        if profile["trigger_phrases"]:
+            console.print("[bold cyan]Custom Trigger Phrases:[/bold cyan]")
+            for p in profile["trigger_phrases"]:
+                console.print(f"  • {p}")
+        else:
+            console.print("[dim]No custom trigger phrases.[/dim]")
+            console.print("Add: [cyan]flg capture profile --add \"你的惯用表达\"[/cyan]")
+        console.print()
+
+    if add_phrase or remove_phrase:
+        profile_path.write_text(
+            yaml.dump(profile, allow_unicode=True, default_flow_style=False, sort_keys=False),
+            encoding="utf-8",
+        )

@@ -1426,6 +1426,26 @@ mode: {mode}
     console.print("  3. Update project files as needed")
     console.print("  4. Mark patch as reviewed in state")
 
+    # Capture pipeline awareness: check for pending captures
+    captures_dir = root / ".flg" / "captures"
+    if captures_dir.exists():
+        import yaml as _yaml
+        pending = 0
+        for cf in captures_dir.glob("cap-*.md"):
+            try:
+                raw = cf.read_text(encoding="utf-8")
+                m = re.match(r"^---\s*\n(.*?)\n---", raw, re.DOTALL)
+                if m:
+                    meta = _yaml.safe_load(m.group(1))
+                    if isinstance(meta, dict) and meta.get("status") == "pending_review":
+                        pending += 1
+            except Exception:
+                pass
+        if pending:
+            console.print()
+            console.print(f"[yellow]⚠ {pending} pending capture(s) await review.[/yellow]")
+            console.print("[dim]Run 'flg capture review' to confirm or reject them.[/dim]")
+
 
 def _refresh_snapshot(
     root: Path,
