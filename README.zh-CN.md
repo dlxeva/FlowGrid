@@ -245,6 +245,8 @@ Agent 开始工作时，必须读取两层状态：
 | `flg frame` | 检查 framing 完整度 |
 | `flg closeout --transcript <file>` | 生成 closeout patch |
 | `flg review --patch <file>` | 审核候选决策并写入 DECISIONS.md |
+| `flg context --mode resume` | 生成 Agent 启动上下文包 |
+| `flg evidence <decision-id>` | 查看决策背后的证据来源 |
 | `flg merge --patch <file>` | 将 patch 合并到正式账本 |
 | `flg handoff` | 生成 Agent 接力摘要 |
 | `flg audit <path>` | 审计已有项目目录 |
@@ -252,6 +254,8 @@ Agent 开始工作时，必须读取两层状态：
 | `flg import <source>` | 导入已有项目 |
 | `flg status` | 查看项目状态 |
 | `flg version` | 查看 FLG 版本 |
+
+> `flg trace` 已规划，当前版本尚未实现。
 
 ## Smoke Test
 
@@ -262,7 +266,7 @@ python scripts/smoke_test.py
 pytest -q
 ```
 
-smoke test 会在临时目录里创建 demo 项目，依次运行 `init`、`frame`、`closeout`、`handoff`、`status`，最后打印生成的文件。
+smoke test 会在临时目录里创建 demo 项目，依次运行 `init`、`frame`、`closeout`、`review`、`evidence`、`context`、`handoff`、`status`，最后打印生成的文件。
 
 ## 历史与命名
 

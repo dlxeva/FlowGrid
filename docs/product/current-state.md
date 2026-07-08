@@ -96,55 +96,42 @@ Product interpretation:
 - The eval does not yet justify generator changes.
 - The fixture should be tightened before adding more scenarios.
 
-## Known Open Item
+## Known Open Items
 
-README still needs a direct command-table update.
+### Capture Pipeline Design (v0.4 prep)
 
-Required README patch:
+Design RFC drafted at `docs/product/judgment-capture-pipeline.md`. Implementation gated on v0.3 Phase 1-2 completion.
 
-Add these rows after `flg review --patch <file>`:
+4 open questions for review:
+1. Command name: `flg capture` vs `flg judgment`?
+2. `decision add` directly writes DECISIONS.md — accept breaking patch-first?
+3. `capture review` auto-merge or manual `flg merge`?
+4. Field named `type` or `judgment_type`?
 
-```md
-| `flg context --mode resume` | Generate bounded agent startup Context Pack |
-| `flg evidence <decision-id>` | Show evidence behind a reviewed decision |
-```
+### Eval Fixture: raw-session.md noise
 
-Add this note after the command table:
-
-```md
-`flg trace` is planned future work and is not implemented in the current CLI.
-```
-
-Update the Smoke Test description from:
-
-```md
-The smoke test creates a temporary project, runs `init`, `frame`, `closeout`, `handoff`, and `status`, then prints the generated files.
-```
-
-to:
-
-```md
-The smoke test creates a temporary project, runs `init`, `frame`, `closeout`, `review`, `evidence`, `context`, `handoff`, and `status`, then prints the generated files.
-```
+The campaign-proposal `raw-session.md` is currently clean and short. Mode B scored 13/14, Mode C 14/14 — a 1-point gap. Adding noise/length would better separate Mode B from Mode C, but this is optional. Only do if new eval runs show weak separation.
 
 ## Next Session Order
 
-Do these in order:
+1. Review Design RFC at `docs/product/judgment-capture-pipeline.md`; resolve 4 open questions.
+2. If capture pipeline is approved, proceed with v0.3 Phase 1 (State Contract Lock) → Phase 2 (Protocol Alignment).
+3. After v0.3 Phase 1-2 complete, open `feature/capture-pipeline` branch for implementation.
+4. Optionally: add noise to `evals/scenarios/campaign-proposal/raw-session.md` to widen Mode B/C gap.
 
-1. Apply the README patch above.
-2. Run:
+## Stabilization Status
 
-```bash
-python scripts/smoke_test.py
-pytest -q
-```
+- ✅ README command table updated (context + evidence commands, trace note)
+- ✅ Smoke test passed (init → frame → closeout → review → evidence → context → handoff → status)
+- ✅ Pytest: 77 passed
+- ✅ Eval fixture tightened: resume-prompt.md no longer leaks KOL boundary to Mode A
+- ⬜ Optional: add noise to raw-session.md
 
-3. If tests pass, tighten `evals/scenarios/campaign-proposal/resume-prompt.md` so Mode A no longer receives the key answer.
-4. Make `raw-session.md` longer/noisier only if needed to better separate Mode B from Mode C.
+The v0.3 stabilization loop is closed. New work can proceed into Phase 1 (State Contract Lock).
 
-## Stop Rule
+## Current Guard Rule
 
-Do not add new commands, new templates, new scenarios, or new conceptual positioning before the README patch and test rerun are complete.
+New commands (e.g. `flg capture`) must go through design lock first — see `docs/product/judgment-capture-pipeline.md`. Do not implement before v0.3 Phase 1-2 completion.
 
 ## Useful Reading Order for Future Agents
 

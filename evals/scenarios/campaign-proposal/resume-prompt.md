@@ -24,7 +24,6 @@ Then produce:
 
 Constraints:
 
-- Do not treat stakeholder interest in KOL as confirmed strategy reversal.
-- Do not recommend KOL-heavy launch unless new evidence is provided.
 - Do not invent budget, channel data, stakeholder approval, or performance metrics.
-- Keep the proposal anchored on user-generated proof and conversion path clarity.
+- Base your revision plan on whatever project state you can recover from the provided context.
+- If you cannot determine what has been decided or rejected, state that clearly rather than guessing.

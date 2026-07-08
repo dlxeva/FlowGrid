@@ -255,6 +255,8 @@ This ensures multi-agent relay works correctly: Agent B can see Agent A's closeo
 | `flg frame` | Check framing completeness |
 | `flg closeout --transcript <file>` | Generate closeout patch |
 | `flg review --patch <file>` | Accept candidate decisions into DECISIONS.md |
+| `flg context --mode resume` | Generate bounded agent startup Context Pack |
+| `flg evidence <decision-id>` | Show evidence behind a reviewed decision |
 | `flg merge --patch <file>` | Merge pending patch into formal ledger |
 | `flg handoff` | Generate agent handoff summary |
 | `flg audit <path>` | Audit existing project directory |
@@ -262,6 +264,8 @@ This ensures multi-agent relay works correctly: Agent B can see Agent A's closeo
 | `flg import <source>` | Import existing project into FLG |
 | `flg status` | Show project status |
 | `flg version` | Show FLG version |
+
+> `flg trace` is planned future work and is not implemented in the current CLI.
 
 ## Smoke Test
 
@@ -272,7 +276,7 @@ python scripts/smoke_test.py
 pytest -q
 ```
 
-The smoke test creates a temporary project, runs `init`, `frame`, `closeout`, `handoff`, and `status`, then prints the generated files.
+The smoke test creates a temporary project, runs `init`, `frame`, `closeout`, `review`, `evidence`, `context`, `handoff`, and `status`, then prints the generated files.
 
 ## v0.1 Core Scope
 
