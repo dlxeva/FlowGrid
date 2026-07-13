@@ -88,20 +88,28 @@ def _detect_multi_version_conflicts(root: Path, anchors: list[dict]) -> list[dic
     """Detect potential multi-version conflicts based on file naming patterns."""
     conflicts = []
     
-    # Collect all doc files (exclude .flg internal)
+    # Collect all doc files (exclude .flg internal and docs/ materials zone)
+    # docs/ is the user's free zone for project materials (见 CONTRACT.md Rule 13).
+    # FLG does not audit docs/ — materials there are reference, not truth.
     all_docs = []
     for f in root.rglob("*.md"):
         rel = f.relative_to(root)
-        if not str(rel).startswith(".flg"):
-            all_docs.append(rel)
+        rel_str = str(rel)
+        if rel_str.startswith(".flg") or rel_str.startswith("docs"):
+            continue
+        all_docs.append(rel)
     for f in root.rglob("*.docx"):
         rel = f.relative_to(root)
-        if not str(rel).startswith(".flg"):
-            all_docs.append(rel)
+        rel_str = str(rel)
+        if rel_str.startswith(".flg") or rel_str.startswith("docs"):
+            continue
+        all_docs.append(rel)
     for f in root.rglob("*.html"):
         rel = f.relative_to(root)
-        if not str(rel).startswith(".flg"):
-            all_docs.append(rel)
+        rel_str = str(rel)
+        if rel_str.startswith(".flg") or rel_str.startswith("docs"):
+            continue
+        all_docs.append(rel)
     
     # Group by similar names (fuzzy match on base name)
     from collections import defaultdict

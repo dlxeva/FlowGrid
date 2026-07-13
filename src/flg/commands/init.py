@@ -16,6 +16,7 @@ from ..templates import (
     CONSTRAINTS_MD,
     CONTRACT_MD,
     DECISIONS_MD,
+    DOCS_README_MD,
     FRAMING_MD,
     GOAL_EVOLUTION_MD,
     LESSONS_LEARNED_MD,
@@ -185,6 +186,12 @@ def init_project(
     anchors_content = ANCHORS_MD.format(created_at=now, updated_at=now)
     written = safe_write(root / "ANCHORS.md", anchors_content)
     results.append(("ANCHORS.md", "created" if written else "skipped"))
+
+    # Create docs/ directory with README index (发现 6: project materials zone)
+    ensure_dir(root / "docs")
+    results.append(("docs/", "created"))
+    written = safe_write(root / "docs" / "README.md", DOCS_README_MD)
+    results.append(("docs/README.md", "created" if written else "skipped"))
     
     # Create .flg/state.json
     state = create_initial_state(project_name)

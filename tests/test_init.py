@@ -259,3 +259,23 @@ def test_init_existing_project_shows_location(tmp_path):
         assert "Location:" in result.output
     finally:
         os.chdir(old_cwd)
+
+
+# --- 发现 6: docs/ materials zone ---
+
+def test_init_creates_docs_directory(tmp_dir):
+    """init should create docs/ for project materials (发现 6)."""
+    result = runner.invoke(app, ["init", "Docs Test"])
+    assert result.exit_code == 0
+    assert (tmp_dir / "docs").is_dir()
+
+
+def test_init_creates_docs_readme(tmp_dir):
+    """docs/README.md should exist as the materials index."""
+    result = runner.invoke(app, ["init", "Docs README Test"])
+    assert result.exit_code == 0
+    readme = tmp_dir / "docs" / "README.md"
+    assert readme.exists()
+    content = readme.read_text()
+    assert "素材" in content or "materials" in content.lower()
+    assert "索引" in content or "index" in content.lower()
