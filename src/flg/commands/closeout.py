@@ -924,12 +924,21 @@ def _finalize_llm_result(root: Path, json_path: Path, transcript: Path, force: b
         title = generate_decision_title(d["content"])
         source_excerpt = d.get("content", "")[:120]
 
+        # Quality gate (same as keyword / LLM paths): flag shell decisions.
+        why_label = "Hermes AI extracted (v0.2.3)"
+        confidence = d.get("confidence", "medium")
+        suggested_action = "needs_review"
+        if is_shell_decision(reasoning, rejected, reversal):
+            confidence = "low"
+            why_label = f"{why_label}; low_confidence_shell (no reasoning/alternatives/reversal detected)"
+            suggested_action = "needs_review_blocked_accept_all"
+
         candidate_decisions += f"""### Candidate Decision {i}: {title}
 
 status: pending_review
-confidence: {d.get('confidence', 'medium')}
+confidence: {confidence}
 decision_type: {d.get('type', 'llm_extracted')}
-why_this_is_a_decision: Hermes AI extracted (v0.2.3)
+why_this_is_a_decision: {why_label}
 **What was decided:** {d['content']}
 **Why:** {reasoning if reasoning else '(not provided by AI)'}
 **Alternatives mentioned:** {rejected if rejected else '(not provided by AI)'}
@@ -941,7 +950,7 @@ why_this_is_a_decision: Hermes AI extracted (v0.2.3)
 **Affected actions:** (not analyzed)
 **Supersedes:** (not analyzed)
 source_excerpt: > {source_excerpt}
-suggested_action: needs_review
+suggested_action: {suggested_action}
 
 """
 
@@ -1113,12 +1122,22 @@ The LLM found no explicit decisions in this conversation.
         if len(source_excerpt) > 120:
             source_excerpt = source_excerpt[:117] + "..."
 
+        # Quality gate (same as keyword path): flag shell decisions so
+        # review --accept-all won't silently write them into DECISIONS.md.
+        why_label = "LLM extracted (v0.2.3)"
+        confidence = d.get("confidence", "medium")
+        suggested_action = "needs_review"
+        if is_shell_decision(reasoning, rejected, reversal):
+            confidence = "low"
+            why_label = f"{why_label}; low_confidence_shell (no reasoning/alternatives/reversal detected)"
+            suggested_action = "needs_review_blocked_accept_all"
+
         candidate_decisions += f"""### Candidate Decision {i}: {title}
 
 status: pending_review
-confidence: {d.get('confidence', 'medium')}
+confidence: {confidence}
 decision_type: {d.get('type', 'llm_extracted')}
-why_this_is_a_decision: LLM extracted (v0.2.3)
+why_this_is_a_decision: {why_label}
 **What was decided:** {d['content']}
 **Why:** {reasoning if reasoning else '(not detected by LLM)'}
 **Alternatives mentioned:** {rejected if rejected else '(not detected by LLM)'}
@@ -1130,7 +1149,7 @@ why_this_is_a_decision: LLM extracted (v0.2.3)
 **Affected actions:** (not analyzed — LLM extraction only)
 **Supersedes:** (not analyzed — LLM extraction only)
 source_excerpt: > {source_excerpt}
-suggested_action: needs_review
+suggested_action: {suggested_action}
 
 """
 

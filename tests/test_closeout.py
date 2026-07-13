@@ -746,3 +746,61 @@ def test_closeout_does_not_flag_rich_decision_as_shell(tmp_path):
         assert "low_confidence_shell" not in decision_section
     finally:
         os.chdir(old_cwd)
+
+
+def test_closeout_llm_write_flags_shell_decision(tmp_path):
+    """--llm-write (Hermes/LLM JSON) path must also flag shell decisions.
+
+    Regression: the shell gate was first added only to the keyword path.
+    The LLM and Hermes paths (_do_llm_closeout / _finalize_llm_result)
+    build candidate decisions without going through extract_decisions, so
+    they need the same is_shell_decision check applied at patch-build time.
+    """
+    import json
+
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "LLM Shell Test"])
+        transcript = tmp_path / "session.md"
+        transcript.write_text("# Session\n\nSome context.\n", encoding="utf-8")
+
+        # JSON with a shell decision (empty why/rejected/reverse_condition)
+        # and a rich decision (all fields filled).
+        llm_result = [
+            {
+                "id": "D-HERMES-001",
+                "what": "第一优先级：完成落地页",
+                "type": "tradeoff",
+                "confidence": "high",
+                "why": "",
+                "rejected": "",
+                "reverse_condition": "",
+            },
+            {
+                "id": "D-HERMES-002",
+                "what": "采用方案A",
+                "type": "confirmation",
+                "confidence": "high",
+                "why": "方案A ROI更高",
+                "rejected": "方案B成本太高",
+                "reverse_condition": "如果三个月无效果则回退",
+            },
+        ]
+        json_path = tmp_path / "llm-result.json"
+        json_path.write_text(json.dumps(llm_result, ensure_ascii=False), encoding="utf-8")
+
+        result = runner.invoke(app, ["closeout", "--llm-write", str(json_path), "--transcript", str(transcript)])
+        assert result.exit_code == 0
+
+        patch = next((tmp_path / ".flg" / "patches").glob("closeout-hermes-*.patch.md"))
+        content = patch.read_text()
+
+        # Shell decision should be flagged
+        assert "low_confidence_shell" in content
+        assert "needs_review_blocked_accept_all" in content
+        # Rich decision should NOT be flagged
+        # Count: exactly one shell flag (the rich one must not trigger it)
+        assert content.count("low_confidence_shell") == 1
+    finally:
+        os.chdir(old_cwd)
