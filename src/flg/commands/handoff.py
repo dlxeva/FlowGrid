@@ -418,10 +418,11 @@ def generate_handoff_summary(root: Path, format: str = "markdown") -> str:
 # ---------------------------------------------------------------------------
 
 # Mirror of frame.py REQUIRED_FIELDS, kept here to avoid circular import.
+# Accept H2 or H3 for Explicit Requirements / Real Needs Hypothesis (见 frame.py 注释).
 _FRAMING_REQUIRED_PATTERNS = [
     ("Problem Statement", r"##\s+Problem\s+Statement"),
-    ("Explicit Requirements", r"###\s+Explicit\s+Requirements"),
-    ("Real Needs Hypothesis", r"###\s+Real\s+Needs\s+Hypothesis"),
+    ("Explicit Requirements", r"#{2,3}\s+Explicit\s+Requirements"),
+    ("Real Needs Hypothesis", r"#{2,3}\s+Real\s+Needs\s+Hypothesis"),
     ("Goals", r"##\s+Goals"),
     ("Non-Goals", r"##\s+Non-Goals"),
     ("User Objects", r"##\s+User\s+Objects"),

@@ -688,3 +688,119 @@ The goal is now to validate continuity instead of multi-agent relay.
         assert "目标变化" in goal_section or "goal is now" in goal_section.lower()
     finally:
         os.chdir(old_cwd)
+
+
+# --- Shell decision detection (发现 14) ---
+
+def test_closeout_flags_shell_decision_low_confidence(tmp_path):
+    """A candidate decision with no reasoning/alternatives/reversal must be flagged low_confidence.
+
+    Regression for 发现 14: closeout's trade-off trigger words ('优先','边界'...)
+    fire on work-plan priority lists that carry no real decision context.
+    These shells should stay in the patch but be marked so review can block them.
+    """
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Shell Flag Test"])
+        # "优先" triggers tradeoff detection, but the sentence is a bare
+        # priority list item with no why/alternatives/reversal anywhere nearby.
+        transcript = tmp_path / "workplan.md"
+        transcript.write_text("""# Session
+
+第一优先级：完成落地页。
+第二优先级：对接支付。
+""", encoding="utf-8")
+        result = runner.invoke(app, ["closeout", "--transcript", str(transcript)])
+        assert result.exit_code == 0
+        patch = next((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
+        content = patch.read_text()
+
+        decision_section = content.split("## 2. Candidate Decisions")[1].split("## 3.")[0]
+        assert "low_confidence_shell" in decision_section
+        assert "confidence: low" in decision_section
+        assert "needs_review_blocked_accept_all" in decision_section
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_closeout_does_not_flag_rich_decision_as_shell(tmp_path):
+    """A decision with reasoning extracted must NOT be flagged as shell."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Rich Decision Test"])
+        transcript = tmp_path / "rich.md"
+        transcript.write_text("""# Session
+
+我们确认采用方案A。
+因为方案A的ROI更高，预算也在可控范围内。
+放弃方案B，因为成本太高不可控。
+""")
+        result = runner.invoke(app, ["closeout", "--transcript", str(transcript)])
+        assert result.exit_code == 0
+        patch = next((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
+        content = patch.read_text()
+
+        decision_section = content.split("## 2. Candidate Decisions")[1].split("## 3.")[0]
+        assert "low_confidence_shell" not in decision_section
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_closeout_llm_write_flags_shell_decision(tmp_path):
+    """--llm-write (Hermes/LLM JSON) path must also flag shell decisions.
+
+    Regression: the shell gate was first added only to the keyword path.
+    The LLM and Hermes paths (_do_llm_closeout / _finalize_llm_result)
+    build candidate decisions without going through extract_decisions, so
+    they need the same is_shell_decision check applied at patch-build time.
+    """
+    import json
+
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "LLM Shell Test"])
+        transcript = tmp_path / "session.md"
+        transcript.write_text("# Session\n\nSome context.\n", encoding="utf-8")
+
+        # JSON with a shell decision (empty why/rejected/reverse_condition)
+        # and a rich decision (all fields filled).
+        llm_result = [
+            {
+                "id": "D-HERMES-001",
+                "what": "第一优先级：完成落地页",
+                "type": "tradeoff",
+                "confidence": "high",
+                "why": "",
+                "rejected": "",
+                "reverse_condition": "",
+            },
+            {
+                "id": "D-HERMES-002",
+                "what": "采用方案A",
+                "type": "confirmation",
+                "confidence": "high",
+                "why": "方案A ROI更高",
+                "rejected": "方案B成本太高",
+                "reverse_condition": "如果三个月无效果则回退",
+            },
+        ]
+        json_path = tmp_path / "llm-result.json"
+        json_path.write_text(json.dumps(llm_result, ensure_ascii=False), encoding="utf-8")
+
+        result = runner.invoke(app, ["closeout", "--llm-write", str(json_path), "--transcript", str(transcript)])
+        assert result.exit_code == 0
+
+        patch = next((tmp_path / ".flg" / "patches").glob("closeout-hermes-*.patch.md"))
+        content = patch.read_text()
+
+        # Shell decision should be flagged
+        assert "low_confidence_shell" in content
+        assert "needs_review_blocked_accept_all" in content
+        # Rich decision should NOT be flagged
+        # Count: exactly one shell flag (the rich one must not trigger it)
+        assert content.count("low_confidence_shell") == 1
+    finally:
+        os.chdir(old_cwd)

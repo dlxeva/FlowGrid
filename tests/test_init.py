@@ -187,3 +187,95 @@ def test_init_strategy_template_seeds_role_specific_content(tmp_dir):
     assert "评审逻辑" in framing_content
     assert "strategy lead" in constraints_content
     assert "Clarify business goal" in goal_evolution_content
+
+
+# --- 发现 8: --dir option + path display ---
+
+def test_init_with_dir_option_creates_in_target(tmp_path):
+    """--dir should create the project in the specified directory, not cwd.
+
+    Regression for 发现 8: init used to always use cwd. Running
+    `cd flg-repo && flg init NAME` polluted the flg source tree because
+    the user expected the NAME argument to also determine the target dir.
+    """
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        target = tmp_path / "my-project"
+        result = runner.invoke(app, ["init", "Dir Test", "--dir", str(target)])
+        assert result.exit_code == 0
+        assert "FlowGrid project initialized" in result.output
+
+        # Files must be in the target dir, NOT in cwd (tmp_path)
+        assert (target / "PROJECT.md").exists()
+        assert (target / ".flg" / "state.json").exists()
+        # cwd should NOT have project files
+        assert not (tmp_path / "PROJECT.md").exists()
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_init_with_dir_creates_missing_directory(tmp_path):
+    """--dir should create the target directory if it does not exist."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        target = tmp_path / "nested" / "deep" / "project"
+        result = runner.invoke(app, ["init", "Nested Test", "--dir", str(target)])
+        assert result.exit_code == 0
+        assert (target / "PROJECT.md").exists()
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_init_output_shows_creation_path(tmp_path):
+    """Success output must show where files were created.
+
+    Regression for 发现 9: init said 'success' without showing the path,
+    so users couldn't tell if files landed in the right place.
+    """
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        result = runner.invoke(app, ["init", "Path Display Test"])
+        assert result.exit_code == 0
+        assert "Created in:" in result.output
+        # Rich may truncate long paths in terminal output, so check the
+        # path directory name appears rather than the full absolute path.
+        assert tmp_path.name in result.output
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_init_existing_project_shows_location(tmp_path):
+    """When init hits an existing FLG project, show its path."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "First"])
+        result = runner.invoke(app, ["init", "Second"])
+        assert result.exit_code == 0
+        assert "already a FLG project" in result.output
+        assert "Location:" in result.output
+    finally:
+        os.chdir(old_cwd)
+
+
+# --- 发现 6: docs/ materials zone ---
+
+def test_init_creates_docs_directory(tmp_dir):
+    """init should create docs/ for project materials (发现 6)."""
+    result = runner.invoke(app, ["init", "Docs Test"])
+    assert result.exit_code == 0
+    assert (tmp_dir / "docs").is_dir()
+
+
+def test_init_creates_docs_readme(tmp_dir):
+    """docs/README.md should exist as the materials index."""
+    result = runner.invoke(app, ["init", "Docs README Test"])
+    assert result.exit_code == 0
+    readme = tmp_dir / "docs" / "README.md"
+    assert readme.exists()
+    content = readme.read_text()
+    assert "素材" in content or "materials" in content.lower()
+    assert "索引" in content or "index" in content.lower()

@@ -668,6 +668,40 @@ def why_this_is_a_decision(decision: dict) -> str:
     return "Decision keyword detected"
 
 
+# Placeholder markers used to detect empty/shell decision fields.
+# A candidate decision whose reasoning + alternatives + reversal all come back
+# as these placeholders is a "shell" — it matched a keyword but carries no
+# real decision context, so downstream review should not silently accept it.
+_SHELL_PLACEHOLDERS = (
+    "(not detected in context)",
+    "(not detected by llm)",
+    "(not provided by ai)",
+    "(none detected)",
+)
+
+
+def is_shell_decision(reasoning: str, rejected: str, reversal: str) -> bool:
+    """Return True when reasoning + alternatives + reversal are all empty/placeholder.
+
+    These "shell" decisions matched a trigger keyword but carry no real context
+    (no why, no alternatives, no reversal conditions). They are the most common
+    source of noise when closeout misfires on work-plans or priority lists.
+    They stay in the patch (the match may be real), but get flagged low_confidence
+    so review does not silently write them into DECISIONS.md.
+    """
+    fields = (reasoning or "", rejected or "", reversal or "")
+    normalized = tuple(f.strip().lower() for f in fields)
+    # All three empty
+    if all(not f for f in normalized):
+        return True
+    # All three are either empty or a known placeholder
+    def _is_empty_or_placeholder(v: str) -> bool:
+        if not v:
+            return True
+        return any(p in v for p in _SHELL_PLACEHOLDERS)
+    return all(_is_empty_or_placeholder(f) for f in normalized)
+
+
 def closeout_session(
     transcript: Path = typer.Option(..., "--transcript", "-t", help="Path to transcript markdown"),
     mode: str = typer.Option("concise", "--mode", "-m", help="Output mode: concise, full, or prompt"),
@@ -890,12 +924,21 @@ def _finalize_llm_result(root: Path, json_path: Path, transcript: Path, force: b
         title = generate_decision_title(d["content"])
         source_excerpt = d.get("content", "")[:120]
 
+        # Quality gate (same as keyword / LLM paths): flag shell decisions.
+        why_label = "Hermes AI extracted (v0.2.3)"
+        confidence = d.get("confidence", "medium")
+        suggested_action = "needs_review"
+        if is_shell_decision(reasoning, rejected, reversal):
+            confidence = "low"
+            why_label = f"{why_label}; low_confidence_shell (no reasoning/alternatives/reversal detected)"
+            suggested_action = "needs_review_blocked_accept_all"
+
         candidate_decisions += f"""### Candidate Decision {i}: {title}
 
 status: pending_review
-confidence: {d.get('confidence', 'medium')}
+confidence: {confidence}
 decision_type: {d.get('type', 'llm_extracted')}
-why_this_is_a_decision: Hermes AI extracted (v0.2.3)
+why_this_is_a_decision: {why_label}
 **What was decided:** {d['content']}
 **Why:** {reasoning if reasoning else '(not provided by AI)'}
 **Alternatives mentioned:** {rejected if rejected else '(not provided by AI)'}
@@ -907,7 +950,7 @@ why_this_is_a_decision: Hermes AI extracted (v0.2.3)
 **Affected actions:** (not analyzed)
 **Supersedes:** (not analyzed)
 source_excerpt: > {source_excerpt}
-suggested_action: needs_review
+suggested_action: {suggested_action}
 
 """
 
@@ -1079,12 +1122,22 @@ The LLM found no explicit decisions in this conversation.
         if len(source_excerpt) > 120:
             source_excerpt = source_excerpt[:117] + "..."
 
+        # Quality gate (same as keyword path): flag shell decisions so
+        # review --accept-all won't silently write them into DECISIONS.md.
+        why_label = "LLM extracted (v0.2.3)"
+        confidence = d.get("confidence", "medium")
+        suggested_action = "needs_review"
+        if is_shell_decision(reasoning, rejected, reversal):
+            confidence = "low"
+            why_label = f"{why_label}; low_confidence_shell (no reasoning/alternatives/reversal detected)"
+            suggested_action = "needs_review_blocked_accept_all"
+
         candidate_decisions += f"""### Candidate Decision {i}: {title}
 
 status: pending_review
-confidence: {d.get('confidence', 'medium')}
+confidence: {confidence}
 decision_type: {d.get('type', 'llm_extracted')}
-why_this_is_a_decision: LLM extracted (v0.2.3)
+why_this_is_a_decision: {why_label}
 **What was decided:** {d['content']}
 **Why:** {reasoning if reasoning else '(not detected by LLM)'}
 **Alternatives mentioned:** {rejected if rejected else '(not detected by LLM)'}
@@ -1096,7 +1149,7 @@ why_this_is_a_decision: LLM extracted (v0.2.3)
 **Affected actions:** (not analyzed — LLM extraction only)
 **Supersedes:** (not analyzed — LLM extraction only)
 source_excerpt: > {source_excerpt}
-suggested_action: needs_review
+suggested_action: {suggested_action}
 
 """
 
@@ -1244,13 +1297,25 @@ def _do_keyword_closeout(
             related_docs = "; ".join(relations["related_docs"])
             related_assets = "; ".join(relations["related_assets"])
             affected_actions = "; ".join(relations["affected_actions"])
+
+            # Quality gate: flag shell decisions (no reasoning/alternatives/reversal).
+            # These stay in the patch but get low_confidence so review won't
+            # silently accept them into DECISIONS.md via --accept-all.
+            why_label = why_this_is_a_decision(d)
+            confidence = d["confidence"]
+            suggested_action = "needs_review"
+            if is_shell_decision(reasoning, rejected, reversal):
+                confidence = "low"
+                why_label = f"{why_label}; low_confidence_shell (no reasoning/alternatives/reversal detected)"
+                suggested_action = "needs_review_blocked_accept_all"
+
             candidate_decisions += f"""
 ### Candidate Decision {i}: {title}
 
 status: pending_review
-confidence: {d['confidence']}
+confidence: {confidence}
 decision_type: {d['type']}
-why_this_is_a_decision: {why_this_is_a_decision(d)}
+why_this_is_a_decision: {why_label}
 **What was decided:** {d['content']}
 **Why:** {reasoning if reasoning else '(not detected in context)'}
 **Alternatives mentioned:** {rejected if rejected else '(not detected in context)'}
@@ -1262,7 +1327,7 @@ why_this_is_a_decision: {why_this_is_a_decision(d)}
 **Affected actions:** {affected_actions}
 **Supersedes:** {relations['supersedes']}
 source_excerpt: > {d['content']}
-suggested_action: needs_review
+suggested_action: {suggested_action}
 
 """
     else:
