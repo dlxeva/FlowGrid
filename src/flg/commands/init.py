@@ -36,13 +36,24 @@ def init_project(
     client: str = typer.Option("", "--client", "-c", help="Client or sponsor"),
     background: str = typer.Option("", "--background", "-b", help="Project background"),
     template: Optional[str] = typer.Option(None, "--template", help="Optional role template: strategy, marketing, operations, solution"),
+    directory: Optional[str] = typer.Option(None, "--dir", "-d", help="Target directory for the project (default: current working directory)"),
 ) -> None:
-    """Initialize a new FlowGrid project in the current directory."""
-    root = Path.cwd()
-    
+    """Initialize a new FlowGrid project.
+
+    Files are created in the current working directory by default. Use
+    --dir <path> to target a specific directory (created if it does not exist).
+    This avoids the common pitfall of initializing in the wrong cwd.
+    """
+    if directory:
+        root = Path(directory).expanduser().resolve()
+        root.mkdir(parents=True, exist_ok=True)
+    else:
+        root = Path.cwd()
+
     # Check if already a FLG project
     if is_flg_project(root):
         console.print("[yellow]This directory is already a FLG project.[/yellow]")
+        console.print(f"[dim]Location: {root}[/dim]")
         console.print("Use 'flg frame' or 'flg closeout' to continue.")
         raise typer.Exit(0)
     
@@ -190,15 +201,16 @@ def init_project(
     # Display results
     console.print()
     console.print(f"[bold green]✓ FlowGrid project initialized: {project_name}[/bold green]")
+    console.print(f"[dim]Created in: {root}[/dim]")
     console.print()
-    
+
     table = Table(title="Files Created")
     table.add_column("File", style="cyan")
     table.add_column("Status", style="green")
-    
+
     for filename, status in results:
         table.add_row(filename, status)
-    
+
     console.print(table)
     console.print()
     console.print("Next steps:")
