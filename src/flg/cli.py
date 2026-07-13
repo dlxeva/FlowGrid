@@ -17,6 +17,7 @@ from .commands.context import context_command
 from .commands.evidence import evidence_command
 from .commands.capture import capture_add, capture_list, capture_show, capture_review, capture_profile
 from .commands.decision_cmd import decision_add
+from .commands.patch_cmd import patch_supersede, patch_discard
 from .core.state import load_state, get_state_schema_info
 
 console = Console()
@@ -54,6 +55,12 @@ app.add_typer(capture_app, name="capture")
 decision_app = typer.Typer(help="Direct decision recording (strong commitment only)", no_args_is_help=True)
 decision_app.command(name="add", help="Record a confirmed decision directly to DECISIONS.md")(decision_add)
 app.add_typer(decision_app, name="decision")
+
+# Patch lifecycle subcommand group (发现 2)
+patch_app = typer.Typer(help="Manage patch lifecycle: supersede or discard stale patches", no_args_is_help=True)
+patch_app.command(name="supersede", help="Mark a patch as superseded (replaced by a newer patch)")(patch_supersede)
+patch_app.command(name="discard", help="Mark a patch as discarded (rejected / no longer relevant)")(patch_discard)
+app.add_typer(patch_app, name="patch")
 
 
 @app.command(name="version")
