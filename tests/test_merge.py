@@ -137,6 +137,8 @@ def test_merge_does_not_rewarn_after_review(tmp_path):
         transcript.write_text("""# Session
 
 We decided to focus on content marketing.
+Because content marketing has higher long-term ROI for our stage.
+We ruled out paid ads because the budget is too tight this quarter.
 There is a risk that KOLs are too expensive.
 Next step is to confirm budget.
 """, encoding="utf-8")

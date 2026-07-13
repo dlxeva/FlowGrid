@@ -17,10 +17,13 @@ from ..templates import FRAME_PATCH_MD, get_iso_now
 console = Console()
 
 # Required fields in FRAMING.md
+# Explicit Requirements and Real Needs Hypothesis ship as H3 (###) under
+# "## Requirements" in the default template, but users often write them as
+# H2 (##). Accept either level so frame doesn't false-positive on H2 usage.
 REQUIRED_FIELDS = [
     ("Problem Statement", r"##\s+Problem\s+Statement"),
-    ("Explicit Requirements", r"###\s+Explicit\s+Requirements"),
-    ("Real Needs Hypothesis", r"###\s+Real\s+Needs\s+Hypothesis"),
+    ("Explicit Requirements", r"#{2,3}\s+Explicit\s+Requirements"),
+    ("Real Needs Hypothesis", r"#{2,3}\s+Real\s+Needs\s+Hypothesis"),
     ("Goals", r"##\s+Goals"),
     ("Non-Goals", r"##\s+Non-Goals"),
     ("User Objects", r"##\s+User\s+Objects"),

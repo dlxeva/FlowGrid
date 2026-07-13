@@ -67,16 +67,76 @@ def test_frame_with_complete_framing(flg_project):
     # Fill in FRAMING.md with real content
     framing_path = flg_project / "FRAMING.md"
     content = framing_path.read_text()
-    
+
     # Replace placeholders with real content
     content = content.replace("(to be defined)", "Real content here")
     content = content.replace("(to be filled)", "Real content here")
     content = content.replace("(to be hypothesized)", "Real hypothesis")
     content = content.replace("(to be identified)", "- Question 1")
     content = content.replace("(none yet)", "- Risk 1")
-    
+
     framing_path.write_text(content)
-    
+
     result = runner.invoke(app, ["frame"])
     assert result.exit_code == 0
     # Should either say complete or generate a lighter patch
+
+
+def test_frame_accepts_h2_for_requirements_subfields(flg_project):
+    """Explicit Requirements / Real Needs Hypothesis written as H2 (##) must be detected as filled.
+
+    Regression for 发现 1: these two fields ship as H3 (###) in the default
+    template, but users naturally write them as H2. frame used to false-positive
+    '0/10 fields filled' on a complete Chinese FRAMING.md that used H2.
+    """
+    framing_path = flg_project / "FRAMING.md"
+    # Rewrite FRAMING.md using H2 for ALL fields (the user-natural style).
+    content = """# Problem Definition
+
+## Problem Statement
+
+Real problem description here.
+
+## Explicit Requirements
+
+Client asked for X, Y, Z.
+
+## Real Needs Hypothesis
+
+The real need is likely faster onboarding.
+
+## Goals
+
+- Goal one
+
+## Non-Goals
+
+- Out of scope: feature Q
+
+## User Objects
+
+End user is the ops team.
+
+## Review Objects
+
+CTO reviews the final deliverable.
+
+## Success Criteria
+
+Metric: 50% reduction in onboarding time.
+
+## Constraints
+
+Budget is 50k, timeline is 8 weeks.
+
+## Open Questions
+
+- Which stack to use?
+"""
+    framing_path.write_text(content, encoding="utf-8")
+
+    result = runner.invoke(app, ["frame"])
+    assert result.exit_code == 0
+    # With all fields filled (using H2), frame should report complete —
+    # NOT report Explicit Requirements / Real Needs Hypothesis as missing.
+    assert "complete" in result.output.lower() or "0 missing" in result.output.lower()

@@ -89,67 +89,95 @@ def show_status() -> None:
     
     # Check pending patches from state
     pending_patches = state.get("pending_patches", [])
-    
+
     # Also scan .flg/patches/ directory for actual patch files
     patches_dir = root / ".flg" / "patches"
     patch_files = list(patches_dir.glob("*.patch.md")) if patches_dir.exists() else []
-    
-    if pending_patches or patch_files:
+
+    # Collect all patches (from state + orphan files on disk) into a unified list,
+    # then split by status. Only pending_review (or unknown) patches trigger the
+    # "⚠ pending" warning. merged/rejected/superseded patches are shown as a
+    # count-only summary so they don't cry wolf on every status run.
+    # (发现 16/4: previously any patch file in .flg/patches/ triggered the warning,
+    #  even after it was merged or rejected.)
+    all_patches = []
+    state_patch_ids = set()
+
+    for p in pending_patches:
+        all_patches.append({
+            "patch_id": p.get("patch_id", "unknown"),
+            "risk_level": p.get("risk_level", "unknown"),
+            "source_command": p.get("source_command", "unknown"),
+            "created_at": p.get("created_at", "unknown"),
+            "status": p.get("status", "unknown"),
+        })
+        state_patch_ids.add(p.get("patch_id"))
+
+    for pf in patch_files:
+        filename = pf.stem.replace(".patch", "")
+        if filename in state_patch_ids:
+            continue
+        content = pf.read_text(encoding="utf-8")
+        patch_info = {"patch_id": filename, "risk_level": "unknown", "source_command": "unknown", "created_at": "unknown", "status": "unknown"}
+        for line in content.split("\n"):
+            if line.startswith("patch_id:"):
+                patch_info["patch_id"] = line.split(":", 1)[1].strip()
+            elif line.startswith("risk_level:"):
+                patch_info["risk_level"] = line.split(":", 1)[1].strip()
+            elif line.startswith("source_command:"):
+                patch_info["source_command"] = line.split(":", 1)[1].strip()
+            elif line.startswith("generated_at:"):
+                patch_info["created_at"] = line.split(":", 1)[1].strip()
+            elif line.startswith("status:"):
+                patch_info["status"] = line.split(":", 1)[1].strip()
+        all_patches.append(patch_info)
+
+    # Split: pending_review (action needed) vs closed (merged/rejected/superseded)
+    _CLOSED_STATUSES = {"merged", "rejected", "superseded"}
+    pending_review_patches = []
+    closed_patches = []
+    for p in all_patches:
+        status = (p.get("status") or "unknown").lower()
+        if status in _CLOSED_STATUSES:
+            closed_patches.append(p)
+        else:
+            pending_review_patches.append(p)
+
+    if pending_review_patches:
         console.print()
-        console.print(f"[yellow]⚠ This project has pending patches. Agents should read them before continuing.[/yellow]")
+        console.print(f"[yellow]⚠ This project has {len(pending_review_patches)} pending patch(es) needing review. Agents should read them before continuing.[/yellow]")
         console.print()
-        
-        # Create table for patches
+
         table = Table(title="Pending Patches")
         table.add_column("Patch ID", style="cyan")
         table.add_column("Risk Level", style="yellow")
         table.add_column("Source Command", style="green")
         table.add_column("Generated At", style="dim")
         table.add_column("Status", style="bold")
-        
-        # Add patches from state
-        for p in pending_patches:
+
+        for p in pending_review_patches:
             table.add_row(
-                p.get("patch_id", "unknown"),
-                p.get("risk_level", "unknown"),
-                p.get("source_command", "unknown"),
-                p.get("created_at", "unknown"),
-                p.get("status", "unknown"),
+                p["patch_id"],
+                p["risk_level"],
+                p["source_command"],
+                p["created_at"],
+                p["status"],
             )
-        
-        # Also add any patch files not in state
-        state_patch_ids = {p.get("patch_id") for p in pending_patches}
-        for pf in patch_files:
-            # Try to extract patch_id from filename
-            filename = pf.stem.replace(".patch", "")
-            if filename not in state_patch_ids:
-                # Read patch to get info
-                content = pf.read_text(encoding="utf-8")
-                patch_info = {"patch_id": filename, "risk_level": "unknown", "source_command": "unknown", "created_at": "unknown", "status": "unknown"}
-                for line in content.split("\n"):
-                    if line.startswith("patch_id:"):
-                        patch_info["patch_id"] = line.split(":", 1)[1].strip()
-                    elif line.startswith("risk_level:"):
-                        patch_info["risk_level"] = line.split(":", 1)[1].strip()
-                    elif line.startswith("source_command:"):
-                        patch_info["source_command"] = line.split(":", 1)[1].strip()
-                    elif line.startswith("generated_at:"):
-                        patch_info["created_at"] = line.split(":", 1)[1].strip()
-                    elif line.startswith("status:"):
-                        patch_info["status"] = line.split(":", 1)[1].strip()
-                table.add_row(
-                    patch_info["patch_id"],
-                    patch_info["risk_level"],
-                    patch_info["source_command"],
-                    patch_info["created_at"],
-                    patch_info["status"],
-                )
-        
+
         console.print(table)
         console.print()
         console.print("[dim]Agents should read these patches to understand pending project state.[/dim]")
     else:
-        console.print("\n[green]No pending patches[/green]")
+        console.print("\n[green]No pending patches needing review[/green]")
+
+    if closed_patches:
+        console.print()
+        closed_counts = {}
+        for p in closed_patches:
+            s = p["status"]
+            closed_counts[s] = closed_counts.get(s, 0) + 1
+        summary_parts = [f"{count} {status}" for status, count in closed_counts.items()]
+        console.print(f"[dim]Closed patches (kept for audit): {', '.join(summary_parts)}[/dim]")
     
     console.print()
 

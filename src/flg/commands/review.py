@@ -21,6 +21,46 @@ console = Console()
 EVIDENCE_INDEX_PATH = Path(".flg") / "context" / "evidence_index.json"
 
 
+# Placeholder markers that indicate a field was never filled in.
+# If what_decided is empty OR why/alternatives/rejected/reversal are all
+# placeholders, the candidate is a "shell" and --accept-all must skip it.
+_PLACEHOLDER_VALUES = {
+    "(not detected in context)",
+    "(not detected by llm)",
+    "(not provided by ai)",
+    "(none detected)",
+}
+
+
+def _is_shell_decision_for_review(decision: dict) -> bool:
+    """Detect a shell candidate decision that has no real context.
+
+    A shell is either:
+    - no what_decided content at all, or
+    - why + alternatives + rejected + reversal all placeholder/empty.
+
+    --accept-all skips these to keep DECISIONS.md trustworthy. Interactive
+    review still allows a human to force-accept after seeing the warning.
+    """
+    what = (decision.get("what_decided") or "").strip()
+    if not what:
+        return True
+
+    context_fields = (
+        (decision.get("why") or "").strip().lower(),
+        (decision.get("alternatives") or "").strip().lower(),
+        (decision.get("rejected") or "").strip().lower(),
+        (decision.get("reversal") or "").strip().lower(),
+    )
+
+    def _is_empty_or_placeholder(v: str) -> bool:
+        if not v:
+            return True
+        return any(p in v for p in _PLACEHOLDER_VALUES)
+
+    return all(_is_empty_or_placeholder(f) for f in context_fields)
+
+
 def _next_decision_number(decisions_content: str) -> int:
     numbers = [int(match) for match in re.findall(r"## D-(\d+)", decisions_content)]
     return max(numbers, default=0) + 1
@@ -161,6 +201,7 @@ def review_patch(
     next_number = _next_decision_number(decisions_content)
     accepted_entries = []
     accepted_evidence_entries = []
+    skipped_shells = 0
     reviewed_at = datetime.now().isoformat(timespec="seconds")
 
     console.print()
@@ -176,7 +217,21 @@ def review_patch(
         if decision.get("excerpt"):
             console.print(f"  Excerpt: {decision['excerpt']}")
 
-        accepted = accept_all or Confirm.ask("Accept this decision into DECISIONS.md?", default=True)
+        # Quality gate: shell decisions (no reasoning/alternatives/reversal)
+        # must not be silently accepted via --accept-all. They pollute
+        # DECISIONS.md with empty entries that look like real decisions.
+        is_shell = _is_shell_decision_for_review(decision)
+        if is_shell and accept_all:
+            console.print("  [yellow]⚠ Skipped (shell decision: no reasoning/alternatives/reversal).[/yellow]")
+            console.print("  [dim]--accept-all will not write shell decisions. Run without --accept-all to force-accept after review.[/dim]")
+            skipped_shells += 1
+            continue
+        elif is_shell:
+            console.print("  [yellow]⚠ Shell decision: no reasoning/alternatives/reversal detected.[/yellow]")
+            console.print("  [dim]Recommended: reject and re-extract with more context, or fill in the why before accepting.[/dim]")
+
+        default_accept = True if not is_shell else False
+        accepted = accept_all or Confirm.ask("Accept this decision into DECISIONS.md?", default=default_accept)
         if accepted:
             decision_id = f"D-{next_number:03d}"
             accepted_entries.append(_build_decision_entry(next_number, decision))
@@ -193,7 +248,11 @@ def review_patch(
             next_number += 1
 
     if not accepted_entries:
-        console.print("[yellow]No decisions accepted.[/yellow]")
+        if skipped_shells:
+            console.print(f"[yellow]No decisions accepted. {skipped_shells} shell decision(s) skipped by --accept-all.[/yellow]")
+            console.print("[dim]Re-run without --accept-all to force-accept shells after manual review, or re-extract with more context.[/dim]")
+        else:
+            console.print("[yellow]No decisions accepted.[/yellow]")
         raise typer.Exit(0)
 
     decisions_content = decisions_content.rstrip() + "\n\n" + "\n\n---\n".join(accepted_entries) + "\n"
@@ -217,5 +276,7 @@ def review_patch(
 
     console.print()
     console.print(f"[bold green]✓ Accepted {len(accepted_entries)} decision(s) into DECISIONS.md[/bold green]")
+    if skipped_shells:
+        console.print(f"[yellow]  {skipped_shells} shell decision(s) skipped (no reasoning/alternatives/reversal).[/yellow]")
     console.print(f"[bold green]✓ Evidence index updated:[/bold green] {evidence_index_path}")
     console.print("[dim]Run `flg merge --patch <file>` next to merge progress/risk/open-question updates.[/dim]")

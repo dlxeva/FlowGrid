@@ -52,6 +52,8 @@ def test_review_marks_patch_state(tmp_path):
         transcript.write_text("""# Session
 
 We decided to focus on lifecycle email.
+Because lifecycle email has higher retention impact for our stage.
+We ruled out paid ads because the budget is too tight this quarter.
 """, encoding="utf-8")
         runner.invoke(app, ["closeout", "--transcript", str(transcript)])
 
@@ -64,5 +66,70 @@ We decided to focus on lifecycle email.
         assert reviewed
         assert reviewed[0]["decision_review_status"] == "accepted"
         assert "decision_reviewed_at" in reviewed[0]
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_review_accept_all_skips_shell_decisions(tmp_path):
+    """--accept-all must NOT write shell decisions (no reasoning/alternatives/reversal) into DECISIONS.md.
+
+    Regression for 发现 14: closeout can extract priority-list items as candidate
+    decisions. When all context fields are empty, --accept-all used to write
+    empty 'D-0xx' entries into DECISIONS.md, polluting the ledger.
+    """
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Shell Skip Test"])
+        # Bare priority list — triggers tradeoff keyword but has no decision context.
+        transcript = tmp_path / "workplan.md"
+        transcript.write_text("""# Session
+
+第一优先级：完成落地页。
+第二优先级：对接支付。
+""", encoding="utf-8")
+        runner.invoke(app, ["closeout", "--transcript", str(transcript)])
+
+        patch = next((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
+        result = runner.invoke(app, ["review", "--patch", patch.name, "--accept-all"])
+        # exit_code 0 means it finished (may have skipped all shells)
+        assert result.exit_code == 0
+        assert "shell" in result.output.lower() or "skipped" in result.output.lower()
+
+        decisions_content = (tmp_path / "DECISIONS.md").read_text(encoding="utf-8")
+        # The shell decision content must NOT have been written into DECISIONS.md.
+        # (The init template ships with a "## D-001 | 标题" placeholder, so we
+        # check for the shell content rather than absence of any D- entry.)
+        assert "完成落地页" not in decisions_content
+        assert "对接支付" not in decisions_content
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_review_accept_all_writes_rich_decisions(tmp_path):
+    """--accept-all must still write decisions that HAVE real context.
+
+    Ensures the shell gate doesn't over-block legitimate decisions.
+    """
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Rich Accept Test"])
+        transcript = tmp_path / "rich.md"
+        transcript.write_text("""# Session
+
+我们确认采用方案A。
+因为方案A的ROI更高，预算也在可控范围内。
+放弃方案B，因为成本太高不可控。
+""", encoding="utf-8")
+        runner.invoke(app, ["closeout", "--transcript", str(transcript)])
+
+        patch = next((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
+        result = runner.invoke(app, ["review", "--patch", patch.name, "--accept-all"])
+        assert result.exit_code == 0
+        assert "Accepted" in result.output
+
+        decisions_content = (tmp_path / "DECISIONS.md").read_text(encoding="utf-8")
+        assert "方案A" in decisions_content
     finally:
         os.chdir(old_cwd)
