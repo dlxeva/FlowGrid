@@ -417,6 +417,33 @@ FLG takes this same engineering philosophy and applies it to rationale-heavy, no
 
 The core idea is the same: *make the project directory the single source of truth so any agent can pick up where the last one left off.* The difference is whose work it serves.
 
+## Open Core Boundary
+
+FlowGrid Core is a local-first, auditable, host-agnostic open-source core.
+
+- **User project data always belongs to the user.** Nothing is uploaded to any
+  official service. All project state lives in your local files.
+- **The public repository does not contain real user training data.** All tests
+  and examples use synthetic data.
+- **Advanced hosted features, team collaboration, industry templates, and
+  research data** may be offered in other versions, but the core protocol and
+  CLI remain open and independently usable.
+- **The protocol is designed for portability.** Your project state is plain-text
+  markdown — you can read it, edit it, and migrate it without lock-in.
+
+See [docs/governance/OPEN_SOURCE_BOUNDARY.md](./docs/governance/OPEN_SOURCE_BOUNDARY.md)
+for the full boundary definition.
+
+## Governance
+
+- [LICENSE](./LICENSE) — MIT
+- [CONTRIBUTING.md](./CONTRIBUTING.md) — contribution guidelines
+- [SECURITY.md](./SECURITY.md) — security reporting policy
+- [TRADEMARK.md](./TRADEMARK.md) — name and branding usage
+- [Open-Source Audit](./docs/governance/OPEN_SOURCE_AUDIT.md) — file classification report
+- [Open-Source Boundary](./docs/governance/OPEN_SOURCE_BOUNDARY.md) — public/private boundary definition
+- [Future Direction](./docs/product/future-direction.md) — product roadmap insights
+
 ## License
 
 MIT
