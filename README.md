@@ -421,8 +421,10 @@ The core idea is the same: *make the project directory the single source of trut
 
 FlowGrid Core is a local-first, auditable, host-agnostic open-source core.
 
-- **User project data always belongs to the user.** Nothing is uploaded to any
-  official service. All project state lives in your local files.
+- **User project data always belongs to the user.** FlowGrid has no mandatory
+  hosted backend. Project state is stored in local files. If you enable a remote
+  LLM provider, selected transcript content may be sent to that provider under
+  its terms. Use `--no-llm` or a local provider for fully local processing.
 - **The public repository does not contain real user training data.** All tests
   and examples use synthetic data.
 - **Advanced hosted features, team collaboration, industry templates, and

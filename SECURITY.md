@@ -25,5 +25,7 @@ state, including:
 - `.flg/state.json` — project metadata
 - `.flg/context/` — generated context packs
 
-Never commit `.flg/` contents to a public repository. The default `.gitignore`
-blocks these paths, but verify your own `.gitignore` if you fork or copy.
+Never commit `.flg/` contents to a public repository. This repository's
+`.gitignore` blocks these paths. FlowGrid projects initialized elsewhere do
+not currently receive a generated `.gitignore`; add equivalent rules before
+committing project files.

@@ -2,7 +2,7 @@
 
 - **Status:** draft
 - **Created:** 2026-07-08
-- **Author:** Hermes Agent (板子终审)
+- **Author:** FlowGrid maintainers
 - **Scope:** v0.4 前置设计，不等 v0.3 全部完成即可开始设计讨论
 
 ---
