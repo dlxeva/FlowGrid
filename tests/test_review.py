@@ -81,12 +81,12 @@ def test_review_accept_all_skips_shell_decisions(tmp_path):
     os.chdir(tmp_path)
     try:
         runner.invoke(app, ["init", "Shell Skip Test"])
-        # Bare priority list — triggers tradeoff keyword but has no decision context.
+        # Bare "不做" statements — triggers tradeoff keyword but has no decision context.
         transcript = tmp_path / "workplan.md"
         transcript.write_text("""# Session
 
-第一优先级：完成落地页。
-第二优先级：对接支付。
+这个功能本期不做，留到下个版本。
+那个支付模块暂时也不做。
 """, encoding="utf-8")
         runner.invoke(app, ["closeout", "--transcript", str(transcript)])
 
@@ -100,8 +100,8 @@ def test_review_accept_all_skips_shell_decisions(tmp_path):
         # The shell decision content must NOT have been written into DECISIONS.md.
         # (The init template ships with a "## D-001 | 标题" placeholder, so we
         # check for the shell content rather than absence of any D- entry.)
-        assert "完成落地页" not in decisions_content
-        assert "对接支付" not in decisions_content
+        assert "这个功能本期不做" not in decisions_content
+        assert "那个支付模块暂时也不做" not in decisions_content
     finally:
         os.chdir(old_cwd)
 

@@ -37,26 +37,42 @@ DECISION_KEYWORDS = {
     "confirmation": [
         "定了", "确认", "就按这个", "采用", "就这个", "拍板",
         "decided", "confirmed", "approved", "finalized",
+        # Common spoken-English commitment phrases
+        "we'll go with", "let's go with", "going with",
+        "let's do", "we're doing", "settled on", "locked in",
+        "that's the plan", "that's final",
     ],
-    # Explicit trade-off
+    # Explicit trade-off — strong exclusion/commitment actions only.
+    # Weak signals like "优先" "边界" "选择" removed (发现 14: they fire on
+    # work-plan priority lists, not real decisions).
     "tradeoff": [
-        "不做", "放弃", "改成", "取代", "优先", "延后",
-        "先做", "后做", "暂停", "进入下一阶段", "不是重点",
-        "放弃", "选择", "取舍", "边界",
+        "不做", "放弃", "改成", "取代", "延后",
+        "暂停", "进入下一阶段", "不是重点",
+        "取舍",
         "不做.*选", "先做.*延后", "这个不是重点",
-        "not doing", "deprioritize", "trade-off", "choose A over B",
+        # English: strong exclusion / sequencing verbs
+        "not doing", "not going to", "we're dropping", "drop",
+        "cut", "skip", "shelve", "park", "rule out", "ruled out",
+        "descope", "defer", "push back", "put on hold",
+        "instead of", "rather than", "trade-off", "choose a over b",
+        "going with.*over", "a over b",
     ],
     # Project state change
     "state_change": [
         "目标变化", "边界变化", "版本范围", "试点对象",
         "下一步动作", "责任对象",
         "goal changed", "scope changed", "priority shifted",
+        "pivoted", "changed direction", "new scope",
+        "redefined the goal", "shifted focus",
     ],
     # Human confirmation signal
     "human_signal": [
         "用户确认", "用户拍板", "用户同意", "用户要求写入",
         "用户要求调整", "用户决定", "用户选择",
         "user confirmed", "user approved", "user decided",
+        "stakeholder approved", "client signed off",
+        "client confirmed", "client approved",
+        "signed off", "gave the green light",
     ],
 }
 
@@ -189,6 +205,25 @@ RISK_SENTENCE_PATTERNS = [
 ]
 
 
+def strip_inline_code(text: str) -> str:
+    """Remove inline code spans and fenced code blocks from text.
+
+    发现 24: code backticks cause keyword false-positives. A sentence like
+    "读编译器源码确认：`inferDuration`" hits the "确认" confirmation
+    keyword because the code span is not stripped before matching.
+
+    This replaces inline `code` with a placeholder and removes fenced
+    ```blocks``` entirely, so keyword matching only sees natural-language
+    text. The original text is still used for context-window reasoning
+    extraction (where seeing the code is fine).
+    """
+    # Remove fenced code blocks (```...```)
+    text = re.sub(r"```[\s\S]*?```", " ", text)
+    # Replace inline code (`...`) with a space — keep word boundaries clean
+    text = re.sub(r"`[^`]+`", " ", text)
+    return text
+
+
 def iter_segments(content: str) -> list[str]:
     """Split transcript into sentence-like segments while keeping questions."""
     segments = []
@@ -227,19 +262,29 @@ def extract_decisions(content: str) -> list[dict]:
     """Extract candidate decisions with strict criteria and enriched context."""
     decisions = []
 
-    for sentence in iter_segments(content):
+    # Strip code spans from the entire content BEFORE segmentation (发现 24).
+    # This prevents backtick-internal punctuation (e.g. the period in
+    # `decided-to-skip-auth.md`) from splitting sentences mid-code, and
+    # prevents backtick-internal keywords from triggering false matches.
+    clean_content = strip_inline_code(content)
+
+    for sentence in iter_segments(clean_content):
         if not sentence or len(sentence) < 10:
             continue
 
+        # match_text equals sentence here since clean_content already stripped code.
+        # (Kept as a variable for readability and future hooks.)
+        match_text = sentence
+
         # Guard: skip sentences that describe risks (e.g. "KOLs we confirmed might cancel").
         # These contain confirmation words but the sentence is about a risk, not a decision.
-        if match_pattern(sentence, RISK_SENTENCE_PATTERNS):
+        if match_pattern(match_text, RISK_SENTENCE_PATTERNS):
             continue
 
         # Check for explicit confirmation
-        keyword = match_pattern(sentence, DECISION_KEYWORDS["confirmation"])
+        keyword = match_pattern(match_text, DECISION_KEYWORDS["confirmation"])
         if keyword:
-            ctx = _get_context_window(content, sentence)
+            ctx = _get_context_window(clean_content, sentence)
             context_info = extract_decision_context(ctx)
             decisions.append({
                 "content": sentence,
@@ -253,9 +298,9 @@ def extract_decisions(content: str) -> list[dict]:
             continue
 
         # Check for trade-off
-        keyword = match_pattern(sentence, DECISION_KEYWORDS["tradeoff"])
+        keyword = match_pattern(match_text, DECISION_KEYWORDS["tradeoff"])
         if keyword:
-            ctx = _get_context_window(content, sentence)
+            ctx = _get_context_window(clean_content, sentence)
             context_info = extract_decision_context(ctx)
             decisions.append({
                 "content": sentence,
@@ -269,9 +314,9 @@ def extract_decisions(content: str) -> list[dict]:
             continue
 
         # Check for state change
-        keyword = match_pattern(sentence, DECISION_KEYWORDS["state_change"])
+        keyword = match_pattern(match_text, DECISION_KEYWORDS["state_change"])
         if keyword:
-            ctx = _get_context_window(content, sentence)
+            ctx = _get_context_window(clean_content, sentence)
             context_info = extract_decision_context(ctx)
             decisions.append({
                 "content": sentence,
@@ -285,9 +330,9 @@ def extract_decisions(content: str) -> list[dict]:
             continue
 
         # Check for human signal
-        keyword = match_pattern(sentence, DECISION_KEYWORDS["human_signal"])
+        keyword = match_pattern(match_text, DECISION_KEYWORDS["human_signal"])
         if keyword:
-            ctx = _get_context_window(content, sentence)
+            ctx = _get_context_window(clean_content, sentence)
             context_info = extract_decision_context(ctx)
             decisions.append({
                 "content": sentence,
@@ -574,6 +619,14 @@ REASONING_PATTERNS = [
     r"考虑到",
     r"基于.*考虑",
     r"出于.*原因",
+    # English spoken reasoning
+    r"so that\b",
+    r"that's why\b",
+    r"the thinking was\b",
+    r"the idea is\b",
+    r"this way\b",
+    r"makes sense because\b",
+    r"it comes down to\b",
 ]
 
 # Rejection patterns - what alternatives were rejected
@@ -586,12 +639,17 @@ REJECTION_PATTERNS = [
     r"不采用",
     r"否定",
     r"排除了",
-    r"不做.*",
-    r"放弃.*",
+    r"放弃",
     r"instead of\b",
     r"rather than\b",
     r"not choosing\b",
     r"ruled out\b",
+    # English spoken rejection
+    r"we (dropped|cut|skipped|shelved|nixed|abandoned)\b",
+    r"we're (dropping|cutting|skipping|shelving)\b",
+    r"decided against\b",
+    r"didn't go with\b",
+    r"passed on\b",
 ]
 
 # Reversal patterns - conditions under which to reverse
@@ -605,6 +663,12 @@ REVERSAL_PATTERNS = [
     r"if.*(?:doesn't work|fails|goes wrong)",
     r"回退到",
     r"退回.*方案",
+    # English spoken reversal
+    r"if that doesn't work",
+    r"we can always (go back|revert|switch back)",
+    r"fall back to\b",
+    r"worst case\b",
+    r"plan b\b",
 ]
 
 
