@@ -191,21 +191,45 @@ multiple projects. Target: v0.4+.
 
 ## Priority Summary
 
-| Direction | Feasibility | Impact | Target |
+Revised 2026-07-15 based on epistemic state governance review (发现 37-41).
+Core principle: **stop adding abstraction layers; prioritize entry reliability
+and real-world closed-loop.**
+
+### Immediate engineering (v0.4 core)
+
+| Direction | Feasibility | Impact | Finding |
 |---|---|---|---|
-| Trigger standardization (skill rules) | ✅ shipped | High | Done (v0.3.0) |
-| Trigger enforcement | Medium design | High | v0.4 |
-| Cognitive account (decision field expansion) | Medium | High | v0.4 |
-| Quadrant tags (capture --quadrant) | Low complexity | Medium | v0.4 |
-| Quadrant protocol routing | High complexity | High | v0.5+ |
-| Migration records | Medium | Medium | v0.4+ |
-| Context pack layering | Medium design | Medium | v0.4+ |
+| **Index rebuild from ledger** (`flg doctor` / `flg reindex`) | Low complexity | **Critical** | 37 |
+| **Entry reliability** (sessions empty in real projects) | Medium design | **Critical** | 38 |
+| **Real-project evaluation** (long, dirty, contradictory histories) | Medium | High | 40 |
+
+### Near-term (v0.4 if capacity allows)
+
+| Direction | Feasibility | Impact | Finding |
+|---|---|---|---|
+| Frame inference (derive from SNAPSHOT, not blank template) | Medium | Medium | 39 |
+| Context pack layering (Raw/Model/Memory) | Medium design | Medium | 18/30 |
+
+### Deferred — do NOT add to v0.4 (发现 41 product discipline)
+
+| Direction | Why deferred |
+|---|---|
+| Cognitive account (decision field expansion: signals/assumptions/unknowns) | Valid direction but adds complexity before entry reliability is solved |
+| Quadrant tags (`capture --quadrant`) | Low complexity but premature before P0/P1 land |
+| Quadrant protocol routing (Execute/Research/Elicit/Audit) | High complexity, needs semantic classification that keyword matching can't deliver |
+| Migration records (quadrant transitions) | Depends on quadrant tags |
+| Blindspot pass (Q4 discovery) | Wait until entry + index + eval are solid (P3) |
+
+> The system is already increasingly rigorous internally. The real risk is
+> that real user judgments may not be reliably entering the system. Next phase
+> priority: **entry reliability and real-world closed-loop.**
 
 ---
 
 ## References
 
-- `FLG_COGNITIVE_QUADRANTS_AND_UNKNOWN_MANAGEMENT.md` (Vault) — full discussion archive
-- ITERATION_LOG 发现 27/28/30/32/34/35/36 — related findings
+- `FLG_COGNITIVE_QUADRANTS_AND_UNKNOWN_MANAGEMENT.md` (Vault) — cognitive quadrants discussion
+- `FLG_EPISTEMIC_STATE_GOVERNANCE_REVIEW.md` (Vault) — governance review with risk analysis
+- ITERATION_LOG 发现 27/28/30/32/34-41 — related findings
 - `docs/product/v0.3-plan.md` — current execution plan
 - Anthropic "Finding Your Unknowns" (Thariq Shihipar, 2026-07) — external convergence
