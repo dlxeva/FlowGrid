@@ -9,11 +9,25 @@ Usage:
 Reports per-scenario and overall recall rate.
 """
 import json, re, sys
+import os
+import subprocess
+import tempfile
 from pathlib import Path
 from typing import Optional
 
+REPO_ROOT = Path(__file__).resolve().parent.parent
 EVALS_DIR = Path(__file__).resolve().parent.parent / "evals" / "scenarios"
 SCENARIOS = ["campaign-proposal", "client-solution-proposal", "operations-mechanism-design"]
+
+
+def resolve_flg_command() -> tuple[list[str], dict[str, str]]:
+    """Use the current repository runtime instead of a stale machine path."""
+    env = os.environ.copy()
+    sibling = Path(sys.executable).with_name("flg")
+    if sibling.exists():
+        return [str(sibling)], env
+    env["PYTHONPATH"] = str(REPO_ROOT / "src")
+    return [sys.executable, "-m", "flg.cli"], env
 
 
 def parse_golden(scenario_dir: Path) -> list[str]:
@@ -39,21 +53,20 @@ def fuzzy_match(extracted: str, goldens: list[str]) -> bool:
 
 def run_keyword_baseline() -> dict:
     """Run flg closeout --no-llm on each scenario and extract decisions."""
-    import subprocess, tempfile
-
     results = {}
+    flg_cmd, env = resolve_flg_command()
     for scenario in SCENARIOS:
         raw = EVALS_DIR / scenario / "raw-session.md"
         with tempfile.TemporaryDirectory() as tmp:
             # Init FLG project
             subprocess.run(
-                ["/root/FlowGrid/.venv/bin/flg", "init", "bench"],
-                cwd=tmp, capture_output=True,
+                flg_cmd + ["init", "bench"],
+                cwd=tmp, env=env, capture_output=True, check=True,
             )
             # Run closeout
             r = subprocess.run(
-                ["/root/FlowGrid/.venv/bin/flg", "closeout", "-t", str(raw), "--no-llm"],
-                cwd=tmp, capture_output=True, text=True,
+                flg_cmd + ["closeout", "-t", str(raw), "--no-llm"],
+                cwd=tmp, env=env, capture_output=True, text=True, check=True,
             )
             # Extract decisions from patches
             patches_dir = Path(tmp) / ".flg" / "patches"

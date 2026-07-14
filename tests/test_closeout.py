@@ -856,6 +856,28 @@ We can always go back to it if Q3 budget opens up.
         os.chdir(old_cwd)
 
 
+def test_closeout_english_revisit_request_is_not_a_decision(tmp_path):
+    """A request to reconsider a path belongs in discussion, not decisions."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "EN Revisit Test"])
+        transcript = tmp_path / "en-revisit.md"
+        transcript.write_text(
+            "A stakeholder asked whether we should reconsider the KOL direction.\\n"
+            "This is a request to revisit the path, not a confirmed scope change.\\n",
+            encoding="utf-8",
+        )
+        result = runner.invoke(app, ["closeout", "--transcript", str(transcript), "--no-llm"])
+        assert result.exit_code == 0
+        patch = next((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
+        content = patch.read_text()
+        decision_section = content.split("## 2. Candidate Decisions")[1].split("## 3.")[0]
+        assert "(no candidate decisions extracted)" in decision_section
+    finally:
+        os.chdir(old_cwd)
+
+
 def test_closeout_strips_code_backticks_before_matching(tmp_path):
     """Code spans inside backticks must NOT trigger decision keywords (发现 24).
 

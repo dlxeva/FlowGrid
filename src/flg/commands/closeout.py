@@ -13,6 +13,7 @@ from ..core.patches import create_patch, generate_patch_id
 from ..core.state import add_pending_patch, load_state
 from ..templates import CLOSEOUT_PATCH_MD, DECISION_PROMPT_TEMPLATE, CLOSEOUT_LLM_PROMPT_TEMPLATE, get_iso_now
 from ..llm_client import call_llm, parse_llm_response, get_llm_config, is_llm_available, VALID_PROVIDERS
+from .session import archive_session
 
 console = Console()
 
@@ -56,6 +57,7 @@ DECISION_KEYWORDS = {
         "descope", "defer", "push back", "put on hold",
         "instead of", "rather than", "trade-off", "choose a over b",
         "going with.*over", "a over b",
+        "move away from", "move toward", "shift from", "shift to",
     ],
     # Project state change
     "state_change": [
@@ -199,6 +201,8 @@ RISK_SENTENCE_PATTERNS = [
     r"\b(might|could|may)\b.*\b(affect|impact|delay|cancel|fail|miss|exceed|slip)\b",
     r"\bisn't (clear|certain|confirmed|ready)\b",
     r"\b(not|isn't) (clear|certain|confirmed|ready|enough)\b",
+    r"\b(do not|don't) want\b.*\b(revive|reconsider|revisit)\b",
+    r"\bnot\b.*\bas if\b.*\bconfirmed\b",
     r"\brisk\b",
     r"\b(problem|issue|concern|blocker|threat)\b",
     r"(风险|问题|隐患|可能影响|不够明确|不清楚)",
@@ -234,6 +238,23 @@ def iter_segments(content: str) -> list[str]:
     return segments
 
 
+def is_revisit_or_question(segment: str) -> bool:
+    """Return True for requests to reconsider a path, not a committed choice."""
+    normalized = segment.strip().lower()
+    return any(
+        marker in normalized
+        for marker in (
+            "asked whether",
+            "whether we should",
+            "should we ",
+            "reconsider",
+            "revisit",
+            "the question is",
+            "what if we",
+        )
+    )
+
+
 def match_pattern(segment: str, patterns: list[str]) -> str | None:
     """Return the first regex pattern that matches the segment."""
     for pattern in patterns:
@@ -242,12 +263,17 @@ def match_pattern(segment: str, patterns: list[str]) -> str | None:
     return None
 
 
-def _get_context_window(full_text: str, target_sentence: str, window: int = 5) -> str:
+def _get_context_window(
+    full_text: str,
+    target_sentence: str,
+    window: int = 5,
+    all_segments: list[str] | None = None,
+) -> str:
     """Return a window of ±N sentences around a target sentence in the full text.
 
     Falls back to the target sentence alone if segmentation doesn't recover it.
     """
-    all_segments = iter_segments(full_text)
+    all_segments = all_segments if all_segments is not None else iter_segments(full_text)
     try:
         idx = all_segments.index(target_sentence)
     except ValueError:
@@ -258,7 +284,10 @@ def _get_context_window(full_text: str, target_sentence: str, window: int = 5) -
     return " ".join(all_segments[start:end])
 
 
-def extract_decisions(content: str) -> list[dict]:
+def extract_decisions(
+    content: str,
+    clean_segments: list[str] | None = None,
+) -> list[dict]:
     """Extract candidate decisions with strict criteria and enriched context."""
     decisions = []
 
@@ -267,8 +296,9 @@ def extract_decisions(content: str) -> list[dict]:
     # `decided-to-skip-auth.md`) from splitting sentences mid-code, and
     # prevents backtick-internal keywords from triggering false matches.
     clean_content = strip_inline_code(content)
+    clean_segments = clean_segments if clean_segments is not None else iter_segments(clean_content)
 
-    for sentence in iter_segments(clean_content):
+    for sentence in clean_segments:
         if not sentence or len(sentence) < 10:
             continue
 
@@ -276,15 +306,15 @@ def extract_decisions(content: str) -> list[dict]:
         # (Kept as a variable for readability and future hooks.)
         match_text = sentence
 
-        # Guard: skip sentences that describe risks (e.g. "KOLs we confirmed might cancel").
-        # These contain confirmation words but the sentence is about a risk, not a decision.
-        if match_pattern(match_text, RISK_SENTENCE_PATTERNS):
+        # Guard: skip sentences that describe risks or reopen a path for discussion.
+        # These contain decision vocabulary but do not commit the project to a choice.
+        if match_pattern(match_text, RISK_SENTENCE_PATTERNS) or is_revisit_or_question(match_text):
             continue
 
         # Check for explicit confirmation
         keyword = match_pattern(match_text, DECISION_KEYWORDS["confirmation"])
         if keyword:
-            ctx = _get_context_window(clean_content, sentence)
+            ctx = _get_context_window(clean_content, sentence, all_segments=clean_segments)
             context_info = extract_decision_context(ctx)
             decisions.append({
                 "content": sentence,
@@ -300,7 +330,7 @@ def extract_decisions(content: str) -> list[dict]:
         # Check for trade-off
         keyword = match_pattern(match_text, DECISION_KEYWORDS["tradeoff"])
         if keyword:
-            ctx = _get_context_window(clean_content, sentence)
+            ctx = _get_context_window(clean_content, sentence, all_segments=clean_segments)
             context_info = extract_decision_context(ctx)
             decisions.append({
                 "content": sentence,
@@ -316,7 +346,7 @@ def extract_decisions(content: str) -> list[dict]:
         # Check for state change
         keyword = match_pattern(match_text, DECISION_KEYWORDS["state_change"])
         if keyword:
-            ctx = _get_context_window(clean_content, sentence)
+            ctx = _get_context_window(clean_content, sentence, all_segments=clean_segments)
             context_info = extract_decision_context(ctx)
             decisions.append({
                 "content": sentence,
@@ -332,7 +362,7 @@ def extract_decisions(content: str) -> list[dict]:
         # Check for human signal
         keyword = match_pattern(match_text, DECISION_KEYWORDS["human_signal"])
         if keyword:
-            ctx = _get_context_window(clean_content, sentence)
+            ctx = _get_context_window(clean_content, sentence, all_segments=clean_segments)
             context_info = extract_decision_context(ctx)
             decisions.append({
                 "content": sentence,
@@ -355,11 +385,15 @@ def extract_decisions(content: str) -> list[dict]:
     return unique_decisions
 
 
-def extract_risks(content: str) -> list[dict]:
+def extract_risks(
+    content: str,
+    segments: list[str] | None = None,
+) -> list[dict]:
     """Extract risks with strict criteria - only high-impact risks."""
     risks = []
+    segments = segments if segments is not None else iter_segments(content)
     
-    for sentence in iter_segments(content):
+    for sentence in segments:
         if not sentence or len(sentence) < 10:
             continue
         
@@ -433,11 +467,15 @@ def extract_risks(content: str) -> list[dict]:
     return unique_risks
 
 
-def extract_open_questions(content: str) -> list[str]:
+def extract_open_questions(
+    content: str,
+    segments: list[str] | None = None,
+) -> list[str]:
     """Extract open questions."""
     questions = []
+    segments = segments if segments is not None else iter_segments(content)
     
-    for sentence in iter_segments(content):
+    for sentence in segments:
         if not sentence or len(sentence) < 10:
             continue
         # Skip section headers
@@ -456,7 +494,10 @@ def extract_open_questions(content: str) -> list[str]:
     return list(set(questions))
 
 
-def extract_next_actions(content: str) -> list[str]:
+def extract_next_actions(
+    content: str,
+    segments: list[str] | None = None,
+) -> list[str]:
     """Extract concrete executable next actions only.
 
     Excludes:
@@ -467,8 +508,9 @@ def extract_next_actions(content: str) -> list[str]:
     - Discussion prompts (e.g. "should we focus on")
     """
     actions = []
+    segments = segments if segments is not None else iter_segments(content)
 
-    for sentence in iter_segments(content):
+    for sentence in segments:
         if not sentence or len(sentence) < 10:
             continue
         normalized = sentence.strip().rstrip(".。")
@@ -512,11 +554,15 @@ def extract_next_actions(content: str) -> list[str]:
     return unique_actions
 
 
-def extract_goal_shifts(content: str) -> list[str]:
+def extract_goal_shifts(
+    content: str,
+    segments: list[str] | None = None,
+) -> list[str]:
     """Extract sentences that signal goal evolution."""
     shifts = []
     seen = set()
-    for sentence in iter_segments(content):
+    segments = segments if segments is not None else iter_segments(content)
+    for sentence in segments:
         if not sentence or len(sentence) < 10:
             continue
         if match_pattern(sentence, GOAL_SHIFT_PATTERNS):
@@ -536,14 +582,20 @@ def extract_related_docs_and_assets(content: str) -> tuple[list[str], list[str]]
     return docs, assets
 
 
-def infer_decision_relations(decision: dict, next_actions: list[str], content: str) -> dict:
+def infer_decision_relations(
+    decision: dict,
+    next_actions: list[str],
+    content: str,
+    segments: list[str] | None = None,
+) -> dict:
     """Infer lightweight decision relations for patch review."""
     related_docs, related_assets = extract_related_docs_and_assets(content)
+    segments = segments if segments is not None else iter_segments(content)
     related_goals = []
     affected_actions = []
     supersedes = "(none detected)"
 
-    for sentence in iter_segments(content):
+    for sentence in segments:
         lower = sentence.lower()
         if "goal" in lower or "目标" in sentence:
             related_goals.append(sentence.strip())
@@ -568,7 +620,10 @@ def infer_decision_relations(decision: dict, next_actions: list[str], content: s
     }
 
 
-def extract_rationale_excerpts(content: str) -> list[str]:
+def extract_rationale_excerpts(
+    content: str,
+    segments: list[str] | None = None,
+) -> list[str]:
     """Extract thinking-process excerpts from conversation.
 
     Captures moments of deliberation, hesitation, inspiration shifts,
@@ -576,7 +631,8 @@ def extract_rationale_excerpts(content: str) -> list[str]:
     """
     excerpts = []
     seen = set()
-    for sentence in iter_segments(content):
+    segments = segments if segments is not None else iter_segments(content)
+    for sentence in segments:
         if not sentence or len(sentence) < 10:
             continue
         keyword = match_pattern(sentence, RATIONALE_KEYWORDS)
@@ -586,7 +642,10 @@ def extract_rationale_excerpts(content: str) -> list[str]:
     return excerpts
 
 
-def extract_lessons_learned_signals(content: str) -> list[str]:
+def extract_lessons_learned_signals(
+    content: str,
+    segments: list[str] | None = None,
+) -> list[str]:
     """Extract lessons-learned signal sentences from conversation.
 
     Captures moments where someone reflects on outcomes, validates past
@@ -594,7 +653,8 @@ def extract_lessons_learned_signals(content: str) -> list[str]:
     """
     excerpts = []
     seen = set()
-    for sentence in iter_segments(content):
+    segments = segments if segments is not None else iter_segments(content)
+    for sentence in segments:
         if not sentence or len(sentence) < 10:
             continue
         keyword = match_pattern(sentence, LESSONS_LEARNED_KEYWORDS)
@@ -818,6 +878,12 @@ def closeout_session(
         console.print("[dim]Use raw session notes, meeting transcripts, or files under .flg/sessions/ instead.[/dim]")
         console.print("[dim]If you intentionally want to process this file anyway, rerun with --force.[/dim]")
         raise typer.Exit(1)
+
+    try:
+        transcript = archive_session(root, transcript, force=force)
+    except (FileNotFoundError, ValueError, FileExistsError) as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1) from exc
 
     # Load state
     state = load_state(root)
@@ -1315,14 +1381,18 @@ def _do_keyword_closeout(
     mode: str,
 ) -> None:
     """Keyword-based closeout: the original extraction pipeline."""
+    # Segment once per closeout and share the results across extractors.
+    segments = iter_segments(content)
+    clean_segments = iter_segments(strip_inline_code(content))
+
     # Extract content
-    decisions = extract_decisions(content)
-    risks = extract_risks(content)
-    open_questions = extract_open_questions(content)
-    next_actions = extract_next_actions(content)
-    rationale_excerpts = extract_rationale_excerpts(content)
-    lessons_learned_signals = extract_lessons_learned_signals(content)
-    goal_shifts = extract_goal_shifts(content)
+    decisions = extract_decisions(content, clean_segments=clean_segments)
+    risks = extract_risks(content, segments=segments)
+    open_questions = extract_open_questions(content, segments=segments)
+    next_actions = extract_next_actions(content, segments=segments)
+    rationale_excerpts = extract_rationale_excerpts(content, segments=segments)
+    lessons_learned_signals = extract_lessons_learned_signals(content, segments=segments)
+    goal_shifts = extract_goal_shifts(content, segments=segments)
 
     # Apply limits for concise mode
     if mode == "concise":
@@ -1356,7 +1426,7 @@ def _do_keyword_closeout(
             reasoning = d.get("reasoning", "")
             rejected = d.get("rejected_alternatives", "")
             reversal = d.get("reversal_conditions", "")
-            relations = infer_decision_relations(d, next_actions, content)
+            relations = infer_decision_relations(d, next_actions, content, segments=segments)
             related_goals = "; ".join(relations["related_goals"])
             related_docs = "; ".join(relations["related_docs"])
             related_assets = "; ".join(relations["related_assets"])

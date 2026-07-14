@@ -12,6 +12,7 @@ import typer
 from rich.console import Console
 
 from ..core.files import is_flg_project, read_file_safe
+from ..core.i18n import localize_ledger_entry, project_language
 
 console = Console()
 EVIDENCE_INDEX_PATH = Path(".flg") / "context" / "evidence_index.json"
@@ -19,19 +20,19 @@ EVIDENCE_INDEX_PATH = Path(".flg") / "context" / "evidence_index.json"
 
 def decision_add(
     decision: str = typer.Option(
-        ..., "-d", "--decision", help="决策内容（必填）"
+        ..., "-d", "--decision", help="Decision content (required)"
     ),
     rationale: str = typer.Option(
-        ..., "-r", "--rationale", help="决策理由（必填）"
+        ..., "-r", "--rationale", help="Decision rationale (required)"
     ),
     principle: bool = typer.Option(
-        False, "--principle", help="标记为工作原则"
+        False, "--principle", help="Mark this as a working principle"
     ),
     question: Optional[str] = typer.Option(
-        None, "-q", "--question", help="这条决策回答什么问题"
+        None, "-q", "--question", help="Question answered by this decision"
     ),
     alternatives: Optional[str] = typer.Option(
-        None, "-a", "--alternatives", help="备选方案（逗号分隔）"
+        None, "-a", "--alternatives", help="Alternatives, comma-separated"
     ),
     risks: Optional[str] = typer.Option(
         None, "-k", "--risks", help="风险判断"
@@ -59,7 +60,8 @@ def decision_add(
     today = datetime.now().strftime("%Y-%m-%d")
     reviewed_at = datetime.now().isoformat(timespec="seconds")
 
-    type_label = "原则" if principle else "决策"
+    language = project_language(root)
+    type_label = ("principle" if principle else "decision") if language == "en" else ("原则" if principle else "决策")
     alt_list = [a.strip() for a in alternatives.split(",") if a.strip()] if alternatives else []
     alt_str = "、".join(alt_list) if alt_list else "未记录备选方案"
 
@@ -75,7 +77,7 @@ def decision_add(
 用户明确指令：直接写入决策日志（`flg decision add`）。
 
 ### 核心问题
-{question or '项目推进中的关键判断'}
+{question or ('Key judgment in the current project' if language == "en" else '项目推进中的关键判断')}
 
 ### 备选方案
 A. {alt_str}
@@ -90,7 +92,7 @@ A. {alt_str}
 选择了当前方案，放弃其他备选方案。
 
 ### 风险判断
-{risks or '待结合项目上下文补充'}
+{risks or ('To be completed from project context' if language == "en" else '待结合项目上下文补充')}
 
 ### 后续验证
 通过后续执行结果和项目反馈验证。
@@ -100,9 +102,10 @@ A. {alt_str}
 
 ---
 
-*{type_label} | Source: {evidence if evidence else '用户明确指令'}*
+*{type_label} | Source: {evidence if evidence else ('user explicit instruction' if language == "en" else '用户明确指令')}*
 """
 
+    entry = localize_ledger_entry(entry, project_language(root))
     decisions_content = decisions_content.rstrip() + "\n\n" + entry
     decisions_path.write_text(decisions_content, encoding="utf-8")
 

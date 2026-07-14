@@ -17,6 +17,7 @@ from rich.prompt import Confirm
 from rich.table import Table
 
 from ..core.files import is_flg_project, read_file_safe
+from ..core.i18n import localize_ledger_entry, project_language
 
 console = Console()
 CAPTURES_DIR = ".flg/captures"
@@ -48,25 +49,25 @@ def _valid_types() -> list[str]:
 
 def capture_add(
     claim: str = typer.Option(
-        ..., "-c", "--claim", help="判断主张（必填）"
+        ..., "-c", "--claim", help="Judgment claim (required)"
     ),
     rationale: str = typer.Option(
-        ..., "-r", "--rationale", help="判断理由（必填）"
+        ..., "-r", "--rationale", help="Judgment rationale (required)"
     ),
     type_: Optional[str] = typer.Option(
-        "judgment", "-t", "--type", help="判断类型: judgment | decision | principle | thought | hypothesis"
+        "judgment", "-t", "--type", help="Judgment type: judgment | decision | principle | thought | hypothesis"
     ),
     question: Optional[str] = typer.Option(
-        None, "-q", "--question", help="这条判断回答什么问题"
+        None, "-q", "--question", help="Question answered by this judgment"
     ),
     evidence: Optional[str] = typer.Option(
-        None, "-e", "--evidence", help="用户原话引用"
+        None, "-e", "--evidence", help="Quote from the user"
     ),
     alternatives: Optional[str] = typer.Option(
-        None, "-a", "--alternatives", help="备选方案（逗号分隔）"
+        None, "-a", "--alternatives", help="Alternatives, comma-separated"
     ),
     risks: Optional[str] = typer.Option(
-        None, "-k", "--risks", help="风险判断"
+        None, "-k", "--risks", help="Risk assessment"
     ),
     confidence: str = typer.Option(
         "inferred", "--confidence", help="inferred | confirmed"
@@ -323,12 +324,13 @@ def _next_decision_number(decisions_content: str) -> int:
 
 def _build_decision_entry(number: int, meta: dict) -> str:
     today = datetime.now().strftime("%Y-%m-%d")
+    language = project_language(Path.cwd())
     claim = meta.get("claim", "")
     rationale = meta.get("rationale", "")
-    question = meta.get("question", "项目推进中的关键判断")
+    question = meta.get("question") or ("Key judgment in the current project" if language == "en" else "项目推进中的关键判断")
     alternatives = meta.get("alternatives", [])
-    alt_str = "、".join(alternatives) if alternatives else "未记录备选方案"
-    risks = meta.get("risks", "待结合项目上下文补充")
+    alt_str = "、".join(alternatives) if alternatives else ("No alternatives recorded" if language == "en" else "未记录备选方案")
+    risks = meta.get("risks") or ("To be completed from project context" if language == "en" else "待结合项目上下文补充")
     evidence = meta.get("raw_evidence", "")
 
     return f"""## D-{number:03d} | {claim[:50]}
@@ -368,7 +370,7 @@ A. {alt_str}
 
 ---
 
-*Source: {evidence if evidence else '用户判断'}*
+*Source: {evidence if evidence else ('user judgment' if language == "en" else '用户判断')}*
 """
 
 
@@ -455,6 +457,7 @@ def capture_review(
         if choice == "a":
             decision_id = f"D-{next_num:03d}"
             entry = _build_decision_entry(next_num, meta)
+            entry = localize_ledger_entry(entry, project_language(root))
             decisions_content = decisions_content.rstrip() + "\n\n" + entry
             evidence_index["items"][decision_id] = {
                 "decision_id": decision_id,
@@ -508,10 +511,10 @@ PROFILE_FILE = "_profile.yaml"
 
 def capture_profile(
     add_phrase: str | None = typer.Option(
-        None, "--add", help="添加项目特有的判断触发词"
+        None, "--add", help="Add a project-specific judgment trigger phrase"
     ),
     remove_phrase: str | None = typer.Option(
-        None, "--remove", help="移除触发词"
+        None, "--remove", help="Remove a trigger phrase"
     ),
 ) -> None:
     """管理项目的判断语言特征（judgment profile），帮助 Agent 识别你的判断信号。"""

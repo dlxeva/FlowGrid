@@ -158,7 +158,7 @@ python -m flg.cli version
 
 ```bash
 mkdir my-project && cd my-project
-flg init "My Project" --type proposal --client "Client Name"
+flg init "My Project" --type proposal --client "Client Name"\n# 英语优先账本：追加 --language en
 ```
 
 会创建这些核心文件：
@@ -188,6 +188,20 @@ flg closeout --transcript path/to/transcript.md
 
 推荐输入原始会议纪要、原始对话记录，或 `.flg/sessions/` 下的 session 文件。
 不要直接拿 `PROGRESS.md`、`SNAPSHOT.md`、`DECISIONS.md` 这类结构化账本文件做 closeout，除非你明确知道自己在做什么，并显式加 `--force`。
+
+外部原始会话会在 closeout 时自动复制到 `.flg/sessions/`；只有需要固定归档文件名时，才先手动归档：
+
+```bash
+flg session save path/to/transcript.md --name 20260715-topic
+flg closeout --transcript .flg/sessions/20260715-topic.md
+```
+
+检查跨文件状态一致性或重建证据索引：
+
+```bash
+flg doctor
+flg reindex
+```
 
 ## 项目结构
 

@@ -58,13 +58,14 @@ STATE_AUTOFILL_DEFAULTS: dict[str, object] = {
 }
 
 
-def create_initial_state(project_name: str, project_id: str = "") -> dict:
+def create_initial_state(project_name: str, project_id: str = "", language: str = "zh") -> dict:
     """Create initial state dictionary."""
     now = datetime.now().isoformat(timespec="seconds")
     return {
         "schema_version": STATE_SCHEMA_VERSION,
         "project_id": project_id or project_name.lower().replace(" ", "-"),
         "project_name": project_name,
+        "language": language,
         "flg_version": __version__,
         "created_at": now,
         "updated_at": now,
