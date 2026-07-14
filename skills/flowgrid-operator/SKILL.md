@@ -1,0 +1,144 @@
+---
+name: flowgrid-operator
+description: >-
+  Operate FlowGrid (FLG) as a durable project-state layer through natural-language
+  conversation. Use when the user asks to start, manage, resume, close out, audit,
+  hand off, or recover a rationale-heavy business, strategy, operations, marketing,
+  or solution project; when they mention FLG, FlowGrid, project decisions, decision
+  log, or project state; or when a project needs durable decisions, evidence, next
+  actions, and cross-session continuity.
+---
+
+# FlowGrid Operator
+
+Use FlowGrid as a background protocol. The user talks in natural language; you
+decide and execute the CLI calls. Do not tell the user to operate `flg` manually.
+
+## Command and scope
+
+Run `flg` from the target project root. The global command should be available
+on PATH. If command lookup fails, use the venv directly:
+
+```bash
+flg version          # verify install
+flg onboard          # first-run setup: env check + demo + skill install
+```
+
+Never initialize a project outside the user-requested project directory. Use
+`--dir` to target a specific location:
+
+```bash
+flg init "Project Name" --type solution --dir /path/to/project
+```
+
+## Operating loop
+
+### Start or adopt a project
+
+For a request to run a project in FlowGrid:
+
+1. Locate the project root and inspect its current state.
+2. If `.flg/` is absent, audit then initialize:
+
+   ```bash
+   flg audit --report-only .
+   flg init "Project Name" --type solution --background "concise factual background"
+   ```
+
+3. Run `flg frame`, report the material gaps, and maintain the framing with the user.
+
+### Continue an FLG project
+
+At the start of a new work segment in a project containing `.flg/`:
+
+1. Run `flg status` — see pending patches and closed-patch summary.
+2. Generate bounded startup state:
+
+   ```bash
+   flg context --mode resume --budget 4000
+   ```
+
+3. Read `.flg/context/startup.md` and active pending patches before proposing work.
+4. Use `flg evidence <decision-id>` when the user challenges a recorded decision.
+
+### Capture a work segment
+
+When a meaningful discussion changes direction, constraints, decisions, evidence,
+or next actions, preserve the raw discussion in `.flg/sessions/` and run:
+
+```bash
+flg closeout --transcript .flg/sessions/<timestamp>-<topic>.md
+```
+
+Use raw conversation notes. Do **not** feed `PROGRESS.md`, `SNAPSHOT.md`,
+`DECISIONS.md`, or `README.md` into `closeout` — those are already-structured
+ledger files (closeout will refuse them unless you pass `--force`).
+
+If no LLM API keys are configured, add `--no-llm` to force keyword-based extraction.
+
+### Review and merge
+
+Treat `closeout` output as candidate state only.
+
+1. Run `flg review --patch <patch-file>`.
+2. Summarize candidate decisions for the user — note which are rich (have reasoning)
+   and which are shells (flagged `low_confidence_shell`, skipped by `--accept-all`).
+3. Run `flg merge --patch <patch-file>` only after the user explicitly approves.
+
+Never silently convert a pending judgment into a confirmed decision. Do not
+reintroduce rejected or superseded directions without new evidence.
+
+### Retire stale patches
+
+When a patch is outdated (e.g. a frame patch generated before FRAMING.md was
+rewritten by hand), retire it officially:
+
+```bash
+flg patch supersede <patch_id> --reason "replaced by newer framing"
+flg patch discard  <patch_id> --reason "false positive"
+```
+
+These update both state.json and the patch file's status line. Retired patches
+no longer trigger the `⚠ pending` warning in `flg status` and are excluded from
+the Context Pack.
+
+## What counts as a decision worth recording
+
+Not every statement with a decision keyword is a real decision. Use this filter:
+
+**Record (via closeout or capture):**
+- Architecture-level choices (A vs B, picked one with a reason)
+- Product mechanism discoveries (new interaction paradigm, core capability)
+- Explicitly rejected directions (the rejection itself is high-value information)
+- Design constraints that affect multiple components
+- Inferred-but-unverified judgments (record as `inferred`, not `confirmed`)
+
+**Do NOT record:**
+- Routine bug fixes (unless the root cause is broadly representative)
+- Single-file edits
+- Temporary debugging steps
+- Work-plan priority lists ("first priority: X, second priority: Y")
+
+When unsure, prefer `flg capture add` (candidate, `inferred`) over
+`flg decision add` (confirmed). Promote to confirmed only after user sign-off
+or strong evidence.
+
+## Natural-language mapping
+
+| User intent | Action |
+| --- | --- |
+| "用 FLG 管理这个项目" / "start in FLG" | Audit, initialize/adopt, then frame. |
+| "继续这个项目" / "resume" | `flg status`, `flg context`, then continue from reviewed state. |
+| "这个项目还缺什么" / "what's missing" | `flg frame`; surface proof object, constraints, open questions. |
+| "收口这次讨论" / "close out" | Save raw session, run `flg closeout`. |
+| "审核这轮判断" / "review" | `flg review --patch ...`; preserve status distinctions. |
+| "合并这次变更" / "merge" | `flg merge --patch ...` after approval. |
+| "这个 patch 作废了" / "stale patch" | `flg patch supersede` or `flg patch discard`. |
+| "给下一个人交接" / "hand off" | `flg handoff` or `flg export-handoff`. |
+| "为什么当时这么决定" / "why this decision" | `flg evidence <decision-id>` and source inspection. |
+
+## Report back
+
+Report the project state in plain language: confirmed decisions, pending review,
+newly created patch, material risks, and next action. Mention FLG only when it
+helps the user understand project state or review a decision.

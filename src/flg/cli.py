@@ -18,6 +18,7 @@ from .commands.evidence import evidence_command
 from .commands.capture import capture_add, capture_list, capture_show, capture_review, capture_profile
 from .commands.decision_cmd import decision_add
 from .commands.patch_cmd import patch_supersede, patch_discard
+from .commands.onboard import onboard
 from .core.state import load_state, get_state_schema_info
 
 console = Console()
@@ -41,6 +42,7 @@ app.command(name="extract-decisions", help="Extract candidate decisions")(extrac
 app.command(name="import", help="Import existing project into FLG")(import_project)
 app.command(name="context", help="Generate bounded agent startup Context Pack")(context_command)
 app.command(name="evidence", help="Show evidence behind a reviewed decision")(evidence_command)
+app.command(name="onboard", help="First-run setup: env check, guided demo, and skill installation")(onboard)
 
 # Capture subcommand group
 capture_app = typer.Typer(help="Real-time judgment candidate capture", no_args_is_help=True)
