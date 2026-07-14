@@ -145,6 +145,21 @@ pip install -e .
 flg version
 ```
 
+## First Run
+
+After installation, run onboarding to check your environment, try a guided demo of the core loop, and install the FLG skill into your AI host:
+
+```bash
+flg onboard
+```
+
+This will:
+1. **Check your environment** — FLG version, PATH status, detected AI hosts (Codex, Hermes, ZCode, Claude), and whether the FLG skill is installed in each.
+2. **Run a guided demo** — a 5-minute walkthrough of `init → closeout → review → merge → context` using a built-in sample transcript. Skip with `--skip-demo`.
+3. **Install the skill** — symlinks `skills/flowgrid-operator/` into each detected host's skills directory so your AI agent knows when and how to call `flg`.
+
+Use `flg onboard --yes` for non-interactive mode (CI, scripts).
+
 ## Development Mode
 
 Run through the editable-installed console script:
