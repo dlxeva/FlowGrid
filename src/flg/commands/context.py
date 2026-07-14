@@ -36,6 +36,21 @@ PLACEHOLDER_MARKERS = {
     "(none yet)",
     "(none identified)",
     "none",
+    # PROGRESS.md / CONSTRAINTS.md / GOAL_EVOLUTION.md template placeholders (发现 19)
+    "(文件路径)",
+    "(文档职责，自由填写)",
+    "(创建日期)",
+    '(被替代的文件路径，无则写\u201c无\u201d)',
+    "(为什么生成这份文档？解决了什么问题？)",
+    "(触发条件)",
+    "(应采取的动作 / 判断)",
+    "(例外条件；没有就写 none)",
+    "(负责确认的人或角色)",
+    "(什么情况下必须重新检查这条约束)",
+    "(之前的目标)",
+    "(现在的目标)",
+    "(触发变化的事件 / 信息 / 约束)",
+    "(影响了哪些文档 / 动作 / 边界)",
 }
 
 
@@ -83,7 +98,14 @@ def _list_items(text: str, limit: int = 8) -> list[str]:
         if not line.startswith("- "):
             continue
         item = line[2:].strip()
-        if not item or item.lower() in PLACEHOLDER_MARKERS:
+        if not item:
+            continue
+        # Skip if the item IS a placeholder, or ENDS with one (发现 19:
+        # GOAL_EVOLUTION template items like '**When:** (日期)' leaked through)
+        item_lower = item.lower()
+        if item_lower in PLACEHOLDER_MARKERS:
+            continue
+        if any(item_lower.endswith(m.lower()) for m in PLACEHOLDER_MARKERS):
             continue
         items.append(item)
         if len(items) >= limit:
@@ -155,18 +177,76 @@ def _parse_confirmed_decisions(decisions_content: str, limit: int = 5) -> list[d
     return decisions[-limit:]
 
 
+def _is_template_noise(line: str) -> bool:
+    """Return True if a line is init-template boilerplate, not real content (发现 19).
+
+    Filters out: blockquote instructions (*/), HTML comments, placeholder
+    headings like '### [文档名称]', horizontal rules, timestamps, and lines
+    whose only content is a known placeholder marker.
+    """
+    stripped = line.strip()
+    if not stripped:
+        return True
+    if stripped.startswith(">"):
+        return True
+    if stripped.startswith("<!--"):
+        return True
+    if stripped.startswith("---"):
+        return True
+    if stripped.startswith("*Created:") or stripped.startswith("*Last Updated"):
+        return True
+    # Placeholder headings like '### [文档名称]' or '### Constraint 001'
+    if re.match(r"^#+\s*(\[|Constraint \d+|Goal Shift \d+)", stripped):
+        return True
+    # Lines that are entirely a placeholder marker
+    if stripped in PLACEHOLDER_MARKERS:
+        return True
+    # Lines like '- **File:** (文件路径)' where value is a placeholder
+    if any(stripped.endswith(m) for m in PLACEHOLDER_MARKERS):
+        return True
+    return False
+
+
 def _compact_lines(text: str, limit_chars: int = 360) -> str:
-    compact = " ".join(line.strip() for line in text.splitlines() if line.strip())
+    """Compact a file's content into one line, skipping template noise."""
+    meaningful = [
+        line.strip()
+        for line in text.splitlines()
+        if line.strip() and not _is_template_noise(line)
+    ]
+    compact = " ".join(meaningful)
     compact = re.sub(r"\s+", " ", compact).strip()
+    if not compact:
+        return ""
     if len(compact) > limit_chars:
         return compact[: limit_chars - 1].rstrip() + "…"
     return compact
 
 
 def _pending_patch_summaries(root: Path, limit: int = 5) -> list[dict]:
+    """Summarize patches that are still pending review.
+
+    Filters out merged/rejected/superseded patches (发现 25) and patches
+    whose decisions were already accepted via `flg review` (发现 20) —
+    those decisions already appear in Confirmed Decisions, showing them
+    again in Pending Judgments is redundant.
+    """
     patches_dir = root / ".flg" / "patches"
     if not patches_dir.exists():
         return []
+
+    # Build a set of patch_ids whose decisions were already reviewed+accepted
+    # in state.json, so we can skip them here (发现 20).
+    reviewed_accepted_ids: set[str] = set()
+    state = load_state(root)
+    if state:
+        for p in state.get("pending_patches", []):
+            if p.get("decision_review_status") == "accepted":
+                pid = p.get("patch_id")
+                if pid:
+                    reviewed_accepted_ids.add(pid)
+
+    _CLOSED_STATUSES = {"merged", "rejected", "superseded"}
 
     patches: list[dict] = []
     for patch_file in sorted(patches_dir.glob("*.patch.md"), key=lambda p: p.stat().st_mtime, reverse=True):
@@ -174,8 +254,18 @@ def _pending_patch_summaries(root: Path, limit: int = 5) -> list[dict]:
         if not content:
             continue
         patch_info = parse_patch_for_handoff(content)
-        status = patch_info.get("status") or "unknown"
-        # Keep unknown status because older patch files may not parse cleanly but still represent pending state.
+        status = (patch_info.get("status") or "unknown").lower()
+
+        # Skip closed patches (发现 25)
+        if status in _CLOSED_STATUSES:
+            continue
+
+        # Skip patches already reviewed+accepted — their decisions are in
+        # Confirmed Decisions already (发现 20)
+        patch_id = patch_info.get("patch_id", "")
+        if patch_id in reviewed_accepted_ids:
+            continue
+
         patches.append(
             {
                 "filename": patch_file.name,

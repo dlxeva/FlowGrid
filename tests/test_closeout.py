@@ -695,21 +695,21 @@ The goal is now to validate continuity instead of multi-agent relay.
 def test_closeout_flags_shell_decision_low_confidence(tmp_path):
     """A candidate decision with no reasoning/alternatives/reversal must be flagged low_confidence.
 
-    Regression for 发现 14: closeout's trade-off trigger words ('优先','边界'...)
-    fire on work-plan priority lists that carry no real decision context.
-    These shells should stay in the patch but be marked so review can block them.
+    Regression for 发现 14: closeout's trade-off trigger words fire on
+    bare statements that carry no real decision context. These shells
+    should stay in the patch but be marked so review can block them.
     """
     old_cwd = os.getcwd()
     os.chdir(tmp_path)
     try:
         runner.invoke(app, ["init", "Shell Flag Test"])
-        # "优先" triggers tradeoff detection, but the sentence is a bare
-        # priority list item with no why/alternatives/reversal anywhere nearby.
+        # "不做" is a strong tradeoff keyword, but this sentence has no
+        # why/alternatives/reversal nearby — a shell decision.
         transcript = tmp_path / "workplan.md"
         transcript.write_text("""# Session
 
-第一优先级：完成落地页。
-第二优先级：对接支付。
+这个功能本期不做，留到下个版本。
+那个支付模块暂时也不做。
 """, encoding="utf-8")
         result = runner.invoke(app, ["closeout", "--transcript", str(transcript)])
         assert result.exit_code == 0
@@ -802,5 +802,117 @@ def test_closeout_llm_write_flags_shell_decision(tmp_path):
         # Rich decision should NOT be flagged
         # Count: exactly one shell flag (the rich one must not trigger it)
         assert content.count("low_confidence_shell") == 1
+    finally:
+        os.chdir(old_cwd)
+
+
+# --- English keyword coverage + code backtick stripping (发现 24 + EN support) ---
+
+def test_closeout_detects_english_confirmation(tmp_path):
+    """English spoken commitment phrases must trigger decision detection."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "EN Confirmation Test"])
+        transcript = tmp_path / "en-session.md"
+        transcript.write_text("""# Session
+
+We'll go with option A for the landing page.
+Because it loads faster and has a cleaner conversion path.
+We ruled out option B because the mobile experience is poor.
+""", encoding="utf-8")
+        result = runner.invoke(app, ["closeout", "--transcript", str(transcript)])
+        assert result.exit_code == 0
+        patch = next((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
+        content = patch.read_text()
+        decision_section = content.split("## 2. Candidate Decisions")[1].split("## 3.")[0]
+        assert "We'll go with option A" in decision_section or "go with" in decision_section.lower()
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_closeout_detects_english_tradeoff_drop(tmp_path):
+    """English 'dropping/cutting/shelving' must trigger tradeoff detection."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "EN Tradeoff Test"])
+        transcript = tmp_path / "en-tradeoff.md"
+        transcript.write_text("""# Session
+
+We're dropping the paid media plan for this quarter.
+The reason is the budget is too tight.
+We can always go back to it if Q3 budget opens up.
+""", encoding="utf-8")
+        result = runner.invoke(app, ["closeout", "--transcript", str(transcript)])
+        assert result.exit_code == 0
+        patch = next((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
+        content = patch.read_text()
+        decision_section = content.split("## 2. Candidate Decisions")[1].split("## 3.")[0]
+        assert "dropping the paid media" in decision_section.lower() or "paid media" in decision_section.lower()
+        # Should NOT be flagged as shell (has reasoning + reversal)
+        assert "low_confidence_shell" not in decision_section
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_closeout_strips_code_backticks_before_matching(tmp_path):
+    """Code spans inside backticks must NOT trigger decision keywords (发现 24).
+
+    Regression: a code span like `decided to use X` or `确认通过` inside
+    backticks used to trigger keywords because the code content was not
+    stripped before matching.
+    """
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Backtick Test"])
+        # The keyword triggers are INSIDE backticks — stripping must prevent
+        # them from firing. Natural-language text outside backticks has no
+        # decision keywords.
+        transcript = tmp_path / "code-notes.md"
+        transcript.write_text("""# Session
+
+测试结果记录在 `decided-to-skip-auth.md` 文件里。
+运行命令 `确认环境变量` 后输出正常。
+fixture 数据归属代码区，不是配置区。
+""")
+        result = runner.invoke(app, ["closeout", "--transcript", str(transcript)])
+        assert result.exit_code == 0
+        patch = next((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
+        content = patch.read_text()
+        decision_section = content.split("## 2. Candidate Decisions")[1].split("## 3.")[0]
+        # Backtick-wrapped keywords must not trigger decisions
+        assert "(no candidate decisions extracted)" in decision_section
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_closeout_removed_weak_keywords_dont_fire(tmp_path):
+    """Removed weak keywords ('优先' '边界' '选择') must NOT trigger decisions.
+
+    Regression for 发现 14 root cause: these words are common in work-plan
+    priority lists, not real decisions. After A3 tightening they should
+    no longer fire.
+    """
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Weak Keyword Test"])
+        transcript = tmp_path / "workplan.md"
+        transcript.write_text("""# Session
+
+第一优先级：完成落地页。
+第二优先级：对接支付系统。
+编辑人格边界要清晰。
+我们在选择字体方案。
+""")
+        result = runner.invoke(app, ["closeout", "--transcript", str(transcript)])
+        assert result.exit_code == 0
+        patch = next((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
+        content = patch.read_text()
+        decision_section = content.split("## 2. Candidate Decisions")[1].split("## 3.")[0]
+        # Weak-keyword work-plan items should NOT be extracted as decisions
+        assert "(no candidate decisions extracted)" in decision_section
     finally:
         os.chdir(old_cwd)
