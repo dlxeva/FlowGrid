@@ -12,6 +12,7 @@ import typer
 from rich.console import Console
 from rich.markdown import Markdown
 
+from ..core.evidence import parse_decisions_ledger
 from ..core.files import is_flg_project, read_file_safe
 from ..core.state import load_state
 from .handoff import parse_patch_for_handoff
@@ -143,37 +144,19 @@ def _decision_subsection(block: str, heading: str) -> str:
 
 
 def _parse_confirmed_decisions(decisions_content: str, limit: int = 5) -> list[dict[str, str]]:
-    decisions: list[dict[str, str]] = []
-    pattern = re.compile(r"^##\s+(D-\d+)\s*\|\s*(.+)$", re.MULTILINE)
-    matches = list(pattern.finditer(decisions_content))
-
-    for i, match in enumerate(matches):
-        start = match.end()
-        end = matches[i + 1].start() if i + 1 < len(matches) else len(decisions_content)
-        block = decisions_content[start:end]
-
-        decision_text = _first_meaningful_line(_decision_subsection(block, "最终决策"), "")
-        rationale = _first_meaningful_line(_decision_subsection(block, "决策理由"), "")
-        alternatives = _decision_subsection(block, "备选方案")
-        rejected = _first_meaningful_line(_decision_subsection(block, "放弃理由"), "")
-        reversal = _first_meaningful_line(_decision_subsection(block, "复盘入口"), "")
-
-        # Skip the initial template placeholder decision.
-        if not decision_text or decision_text in PLACEHOLDER_MARKERS or decision_text.startswith("("):
-            continue
-
+    decisions = []
+    for item in parse_decisions_ledger(decisions_content):
         decisions.append(
             {
-                "id": match.group(1).strip(),
-                "title": match.group(2).strip(),
-                "decision": decision_text,
-                "rationale": rationale or "(rationale not recorded)",
-                "alternatives": _compact_lines(alternatives) or "(not recorded)",
-                "rejected": rejected or "(not recorded)",
-                "reversal": reversal or "(not recorded)",
+                "id": item["decision_id"],
+                "title": item["title"],
+                "decision": item["what_decided"],
+                "rationale": item["rationale"] or "(rationale not recorded)",
+                "alternatives": _compact_lines(item["alternatives"]) or "(not recorded)",
+                "rejected": item["rejected_alternatives"] or "(not recorded)",
+                "reversal": item["reversal_conditions"] or "(not recorded)",
             }
         )
-
     return decisions[-limit:]
 
 
@@ -301,6 +284,7 @@ def _render_confirmed_decisions(decisions: list[dict[str, str]]) -> str:
         out += "- Authority: high if accepted through review; otherwise check DECISIONS.md\n"
         out += f"- Decision: {decision['decision']}\n"
         out += f"- Rationale: {decision['rationale']}\n"
+        out += f"- Alternatives considered: {decision['alternatives']}\n"
         out += f"- Rejected alternatives: {decision['rejected']}\n"
         out += f"- Reversal conditions: {decision['reversal']}\n"
         out += f"- Evidence: DECISIONS.md#{decision['id']}\n\n"

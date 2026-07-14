@@ -34,6 +34,16 @@ Required files:
 
 Run each scenario three times with the same model if possible.
 
+Prepare the deterministic FlowGrid Context Packs with the repository-local
+runtime before opening the manual model sessions:
+
+```bash
+python evals/prepare_context_eval.py --output /tmp/flowgrid-context-eval
+```
+
+This script only creates disposable project directories and copies the generated
+Context Packs to the requested output directory. It does not score model output.
+
 ### Mode A — No FLG State
 
 Give the agent only `resume-prompt.md`.
@@ -191,7 +201,7 @@ If Mode C loses to raw history, inspect whether:
 
 If Mode C only wins over no-state but not raw history, FlowGrid may still be useful, but the Context Pack contract needs sharper compression and stronger judgment boundaries.
 
-## Current Manual Priority
+## English-Native Gate\n\nRun the deterministic English-first CLI gate before release changes:\n\n```bash\npython evals/english_native_check.py --output /tmp/flowgrid-english-native-eval.json\n```\n\nIt checks English initialization, external transcript archiving, English closeout output,\nand protection against promoting a revisit question into a formal decision. It does not\nreplace manual model-quality scoring.\n\n## Current Manual Priority
 
 Run `campaign-proposal` first.
 

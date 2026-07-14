@@ -10,7 +10,9 @@ from rich.console import Console
 from rich.table import Table
 
 from ..core.files import ensure_dir, is_flg_project, safe_write
+from ..core.i18n import normalize_language
 from ..core.state import create_initial_state, save_state
+from .. import templates_en
 from ..templates import (
     ANCHORS_MD,
     CONSTRAINTS_MD,
@@ -38,6 +40,7 @@ def init_project(
     background: str = typer.Option("", "--background", "-b", help="Project background"),
     template: Optional[str] = typer.Option(None, "--template", help="Optional role template: strategy, marketing, operations, solution"),
     directory: Optional[str] = typer.Option(None, "--dir", "-d", help="Target directory for the project (default: current working directory)"),
+    language: str = typer.Option("zh", "--language", help="Project ledger language: en or zh"),
 ) -> None:
     """Initialize a new FlowGrid project.
 
@@ -58,8 +61,15 @@ def init_project(
         console.print("Use 'flg frame' or 'flg closeout' to continue.")
         raise typer.Exit(0)
     
+    try:
+        language = normalize_language(language)
+    except ValueError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1) from exc
+
     now = get_iso_now()
     results = []
+    template_set = templates_en if language == "en" else None
     template_profile = None
     if template:
         normalized_template = template.lower().strip()
@@ -75,8 +85,22 @@ def init_project(
         ensure_dir(root / subdir)
         results.append((f".flg/{subdir.split('/')[-1]}/", "created"))
     
+    # Select the project language for generated ledger files.
+    project_template = template_set.PROJECT_MD if template_set else PROJECT_MD
+    framing_template = template_set.FRAMING_MD if template_set else FRAMING_MD
+    decisions_template = template_set.DECISIONS_MD if template_set else DECISIONS_MD
+    snapshot_template = template_set.SNAPSHOT_MD if template_set else SNAPSHOT_MD
+    goal_evolution_template = template_set.GOAL_EVOLUTION_MD if template_set else GOAL_EVOLUTION_MD
+    constraints_template = template_set.CONSTRAINTS_MD if template_set else CONSTRAINTS_MD
+    progress_template = template_set.PROGRESS_MD if template_set else PROGRESS_MD
+    contract_template = template_set.CONTRACT_MD if template_set else CONTRACT_MD
+    rationale_template = template_set.RATIONALE_TRAIL_MD if template_set else RATIONALE_TRAIL_MD
+    lessons_template = template_set.LESSONS_LEARNED_MD if template_set else LESSONS_LEARNED_MD
+    anchors_template = template_set.ANCHORS_MD if template_set else ANCHORS_MD
+    docs_readme_template = template_set.DOCS_README_MD if template_set else DOCS_README_MD
+
     # Create PROJECT.md
-    project_content = PROJECT_MD.format(
+    project_content = project_template.format(
         project_name=project_name,
         project_type=project_type,
         client=client or "(to be confirmed)",
@@ -92,7 +116,7 @@ def init_project(
     results.append(("PROJECT.md", "created" if written else "skipped"))
     
     # Create FRAMING.md
-    framing_content = FRAMING_MD.format(
+    framing_content = framing_template.format(
         problem_statement="(to be defined)",
         explicit_requirements="(to be defined)",
         real_needs="(to be hypothesized)",
@@ -107,7 +131,7 @@ def init_project(
         updated_at=now,
     )
     if template_profile:
-        framing_content = FRAMING_MD.format(
+        framing_content = framing_template.format(
             problem_statement=template_profile["problem_statement"],
             explicit_requirements=template_profile["explicit_requirements"],
             real_needs=template_profile["real_needs"],
@@ -125,12 +149,12 @@ def init_project(
     results.append(("FRAMING.md", "created" if written else "skipped"))
     
     # Create DECISIONS.md
-    decisions_content = DECISIONS_MD.format(created_at=now, updated_at=now)
+    decisions_content = decisions_template.format(created_at=now, updated_at=now)
     written = safe_write(root / "DECISIONS.md", decisions_content)
     results.append(("DECISIONS.md", "created" if written else "skipped"))
     
     # Create SNAPSHOT.md
-    snapshot_content = SNAPSHOT_MD.format(
+    snapshot_content = snapshot_template.format(
         updated_at=now,
         current_stage="Initialized - needs framing",
         current_goal=f"Define project scope and goals for {project_name}",
@@ -148,18 +172,18 @@ def init_project(
     written = safe_write(root / "PROGRESS.md", progress_content)
     results.append(("PROGRESS.md", "created" if written else "skipped"))
 
-    goal_evolution_content = GOAL_EVOLUTION_MD.format(created_at=now, updated_at=now)
+    goal_evolution_content = goal_evolution_template.format(created_at=now, updated_at=now)
     if template_profile:
-        goal_evolution_content = GOAL_EVOLUTION_MD.format(created_at=now, updated_at=now).replace(
+        goal_evolution_content = goal_evolution_template.format(created_at=now, updated_at=now).replace(
             "<!-- 复制以下模板，每次目标变化一条 -->",
             f"<!-- 复制以下模板，每次目标变化一条 -->\n\n{template_profile['goal_evolution']}"
         )
     written = safe_write(root / "GOAL_EVOLUTION.md", goal_evolution_content)
     results.append(("GOAL_EVOLUTION.md", "created" if written else "skipped"))
 
-    constraints_content = CONSTRAINTS_MD.format(created_at=now, updated_at=now)
+    constraints_content = constraints_template.format(created_at=now, updated_at=now)
     if template_profile:
-        constraints_content = CONSTRAINTS_MD.format(created_at=now, updated_at=now).replace(
+        constraints_content = constraints_template.format(created_at=now, updated_at=now).replace(
             "<!-- 复制以下模板，每条约束一个 -->",
             f"<!-- 复制以下模板，每条约束一个 -->\n\n{template_profile['constraint_block']}"
         )
@@ -167,34 +191,34 @@ def init_project(
     results.append(("CONSTRAINTS.md", "created" if written else "skipped"))
     
     # Create .flg/CONTRACT.md
-    written = safe_write(root / ".flg" / "CONTRACT.md", CONTRACT_MD)
+    written = safe_write(root / ".flg" / "CONTRACT.md", contract_template)
     results.append((".flg/CONTRACT.md", "created" if written else "skipped"))
 
     # Create rationale/ directory and RATIONALE_TRAIL.md
     ensure_dir(root / "rationale")
     results.append(("rationale/", "created"))
-    rationale_content = RATIONALE_TRAIL_MD.format(created_at=now, updated_at=now)
+    rationale_content = rationale_template.format(created_at=now, updated_at=now)
     written = safe_write(root / "RATIONALE_TRAIL.md", rationale_content)
     results.append(("RATIONALE_TRAIL.md", "created" if written else "skipped"))
     
     # Create LESSONS_LEARNED.md
-    lessons_content = LESSONS_LEARNED_MD.format(created_at=now, updated_at=now)
+    lessons_content = lessons_template.format(created_at=now, updated_at=now)
     written = safe_write(root / "LESSONS_LEARNED.md", lessons_content)
     results.append(("LESSONS_LEARNED.md", "created" if written else "skipped"))
     
     # Create ANCHORS.md
-    anchors_content = ANCHORS_MD.format(created_at=now, updated_at=now)
+    anchors_content = anchors_template.format(created_at=now, updated_at=now)
     written = safe_write(root / "ANCHORS.md", anchors_content)
     results.append(("ANCHORS.md", "created" if written else "skipped"))
 
     # Create docs/ directory with README index (发现 6: project materials zone)
     ensure_dir(root / "docs")
     results.append(("docs/", "created"))
-    written = safe_write(root / "docs" / "README.md", DOCS_README_MD)
+    written = safe_write(root / "docs" / "README.md", docs_readme_template)
     results.append(("docs/README.md", "created" if written else "skipped"))
     
     # Create .flg/state.json
-    state = create_initial_state(project_name)
+    state = create_initial_state(project_name, language=language)
     state_path = root / ".flg" / "state.json"
     state_path.write_text(json.dumps(state, indent=2, ensure_ascii=False), encoding="utf-8")
     results.append((".flg/state.json", "created"))

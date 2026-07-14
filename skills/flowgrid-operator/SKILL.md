@@ -29,6 +29,7 @@ Never initialize a project outside the user-requested project directory. Use
 
 ```bash
 flg init "Project Name" --type solution --dir /path/to/project
+# Add --language en for an English-first formal ledger.
 ```
 
 ## Operating loop
@@ -64,13 +65,22 @@ At the start of a new work segment in a project containing `.flg/`:
 ### Capture a work segment
 
 When a meaningful discussion changes direction, constraints, decisions, evidence,
-or next actions, preserve the raw discussion in `.flg/sessions/` and run:
+or next actions, run closeout on the raw discussion:
 
 ```bash
+flg closeout --transcript path/to/raw-session.md
+```
+
+Closeout automatically archives an external raw transcript under `.flg/sessions/`.
+Use `flg session save` first only when you need a stable custom filename:
+
+```bash
+flg session save path/to/raw-session.md --name <timestamp>-<topic>
 flg closeout --transcript .flg/sessions/<timestamp>-<topic>.md
 ```
 
-Use raw conversation notes. Do **not** feed `PROGRESS.md`, `SNAPSHOT.md`,
+Use raw conversation notes. `flg session save` rejects structured ledger files by
+default, so do **not** feed `PROGRESS.md`, `SNAPSHOT.md`,
 `DECISIONS.md`, or `README.md` into `closeout` — those are already-structured
 ledger files (closeout will refuse them unless you pass `--force`).
 
@@ -127,15 +137,17 @@ or strong evidence.
 
 | User intent | Action |
 | --- | --- |
-| "用 FLG 管理这个项目" / "start in FLG" | Audit, initialize/adopt, then frame. |
+| "用 FLG 管理这个项目" / "start in FLG" | Audit, initialize/adopt, then frame. Add `--language en` when the formal ledger should be English-first. |
 | "继续这个项目" / "resume" | `flg status`, `flg context`, then continue from reviewed state. |
 | "这个项目还缺什么" / "what's missing" | `flg frame`; surface proof object, constraints, open questions. |
-| "收口这次讨论" / "close out" | Save raw session, run `flg closeout`. |
+| "收口这次讨论" / "close out" | Run `flg closeout` on the raw session; external files are archived automatically. |
 | "审核这轮判断" / "review" | `flg review --patch ...`; preserve status distinctions. |
 | "合并这次变更" / "merge" | `flg merge --patch ...` after approval. |
 | "这个 patch 作废了" / "stale patch" | `flg patch supersede` or `flg patch discard`. |
 | "给下一个人交接" / "hand off" | `flg handoff` or `flg export-handoff`. |
 | "为什么当时这么决定" / "why this decision" | `flg evidence <decision-id>` and source inspection. |
+| "检查账本一致性" / "doctor" | `flg doctor`; report drift without writing. |
+| "重建证据索引" / "reindex" | `flg reindex`; rebuild from `DECISIONS.md`. |
 
 ## Report back
 

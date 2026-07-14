@@ -186,7 +186,7 @@ User says:
 - “Turn this meeting into a patch, don’t overwrite the ledger yet.”
 - “Extract what changed from this discussion.”
 
-Host should:
+Host should call closeout on the raw transcript:\n\n```bash\nflg closeout --transcript path/to/raw-session.md\n```\n\nExternal raw transcripts are automatically copied under `.flg/sessions/`. Use\n`flg session save` first only when a stable custom archive filename is needed.\n\n<!-- Legacy equivalent: save first, then closeout the archived path. -->\n\nHost should:
 
 1. save raw session notes or transcript under `.flg/sessions/`
 2. call:

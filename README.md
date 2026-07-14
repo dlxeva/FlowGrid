@@ -191,6 +191,14 @@ mkdir my-project && cd my-project
 flg init "My Project" --type proposal --client "Client Name"
 ```
 
+For an English-first project, initialize the formal ledger in English:
+
+```bash
+flg init "My Project" --language en
+```
+
+The language is stored in `.flg/state.json`; existing projects remain compatible and default to Chinese unless explicitly migrated.
+
 This creates:
 - `PROJECT.md` - Project overview
 - `FRAMING.md` - Problem definition
@@ -213,10 +221,26 @@ This checks FRAMING.md for missing fields and generates a patch with suggested q
 flg closeout --transcript path/to/transcript.md
 ```
 
-This extracts decisions, risks, and progress from a transcript and generates a closeout patch.
+This extracts decisions, risks, and progress from a transcript and generates a closeout patch. External raw transcripts are automatically copied into `.flg/sessions/` so the evidence path is durable.
+
+English transcripts are supported, including confirmation, trade-off, risk, question, rationale, rejection, and reversal language. Review low-confidence candidates before accepting them.
 
 Use raw meeting notes, session transcripts, or files under `.flg/sessions/`.
 Do not use structured ledger files such as `PROGRESS.md`, `SNAPSHOT.md`, or `DECISIONS.md` as closeout input unless you explicitly know why and pass `--force`.
+
+To archive a raw transcript before closeout:
+
+```bash
+flg session save path/to/transcript.md --name 20260715-topic
+flg closeout --transcript .flg/sessions/20260715-topic.md
+```
+
+To inspect or repair cross-file state:
+
+```bash
+flg doctor
+flg reindex
+```
 
 ## Project Structure
 
