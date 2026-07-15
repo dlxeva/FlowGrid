@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Prepare deterministic Context Pack artifacts for manual three-mode evals."""
+"""Prepare extraction-only artifacts for the Context Pack evaluation harness.
+
+This script intentionally starts from a blank FLG project. Its output measures
+closeout extraction and patch-to-context plumbing, not full resume quality.
+Use each scenario's expected-context-pack.md as the oracle for the separate
+three-mode continuation evaluation.
+"""
 
 from __future__ import annotations
 
@@ -50,6 +56,7 @@ def prepare_scenario(scenario: str, output_dir: Path) -> dict[str, object]:
         shutil.copy2(project / ".flg" / "context" / "startup.md", output_path)
         return {
             "scenario": scenario,
+            "evaluation_scope": "extraction_only",
             "context_pack": str(output_path),
             "characters": len(output_path.read_text(encoding="utf-8")),
             "resume_prompt": str(source_dir / "resume-prompt.md"),
@@ -66,6 +73,19 @@ def main() -> int:
     scenarios = args.scenario or SCENARIOS
     args.output.mkdir(parents=True, exist_ok=True)
     results = [prepare_scenario(scenario, args.output) for scenario in scenarios]
+    (args.output / "README.md").write_text(
+        """# Context Evaluation Artifacts
+
+These generated packs are **extraction-only** artifacts. The harness starts
+from a blank FLG project, so they do not measure full resume quality or prove
+that Context Pack is better than raw history.
+
+For the continuation comparison, use each scenario's
+`expected-context-pack.md` as the oracle and compare no-state, raw history,
+and FlowGrid Context Pack responses in isolated sessions.
+""",
+        encoding="utf-8",
+    )
     print(json.dumps({"scenarios": results}, ensure_ascii=False, indent=2))
     return 0
 
