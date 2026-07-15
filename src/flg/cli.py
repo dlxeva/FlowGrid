@@ -146,7 +146,9 @@ def show_status() -> None:
                 patch_info["source_command"] = line.split(":", 1)[1].strip()
             elif line.startswith("generated_at:"):
                 patch_info["created_at"] = line.split(":", 1)[1].strip()
-            elif line.startswith("status:"):
+            # Only the frontmatter status defines patch lifecycle. Candidate
+            # sections can contain their own pending_review statuses.
+            elif line.startswith("status:") and patch_info["status"] == "unknown":
                 patch_info["status"] = line.split(":", 1)[1].strip()
         all_patches.append(patch_info)
 
