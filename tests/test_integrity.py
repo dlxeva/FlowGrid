@@ -134,3 +134,60 @@ def test_doctor_reports_legacy_decision_entries_instead_of_false_ok(tmp_path):
         assert "D-001" in result.output
     finally:
         os.chdir(old_cwd)
+
+
+def test_doctor_ignores_closed_patch_retained_for_audit(tmp_path):
+    """Rejected patches retained in state history must not be reported as pending."""
+    old_cwd = _project(tmp_path)
+    try:
+        patch_path = tmp_path / ".flg" / "patches" / "rejected.patch.md"
+        patch_path.write_text(
+            "patch_id: rejected\nstatus: rejected\n",
+            encoding="utf-8",
+        )
+        state_path = tmp_path / ".flg" / "state.json"
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+        state["pending_patches"].append(
+            {
+                "patch_id": "rejected",
+                "path": str(patch_path),
+                "status": "rejected",
+            }
+        )
+        state_path.write_text(json.dumps(state), encoding="utf-8")
+
+        result = runner.invoke(app, ["doctor"])
+        assert result.exit_code == 0
+        assert "closed_patches_in_pending_state" not in result.output
+        assert "merged_pending:" not in result.output
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_doctor_reports_pending_state_when_patch_file_is_closed(tmp_path):
+    """A pending state entry whose patch file is closed is a real inconsistency."""
+    old_cwd = _project(tmp_path)
+    try:
+        patch_path = tmp_path / ".flg" / "patches" / "drifted.patch.md"
+        patch_path.write_text(
+            "patch_id: drifted\nstatus: merged\n",
+            encoding="utf-8",
+        )
+        state_path = tmp_path / ".flg" / "state.json"
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+        state["pending_patches"].append(
+            {
+                "patch_id": "drifted",
+                "path": str(patch_path),
+                "status": "pending_review",
+            }
+        )
+        state_path.write_text(json.dumps(state), encoding="utf-8")
+
+        result = runner.invoke(app, ["doctor"])
+        assert result.exit_code == 0
+        assert "Closed patches still pending" in result.output
+        assert "merged_pending:" in result.output
+        assert "drifted" in result.output
+    finally:
+        os.chdir(old_cwd)

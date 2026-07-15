@@ -188,12 +188,40 @@ def validate_project(root: Path) -> dict[str, Any]:
     state_text = state_path.read_text(encoding="utf-8") if state_path.exists() else ""
     legacy_paths = sorted(set(re.findall(r"(?:/mnt/c/|/root/|[A-Za-z]:\\)[^\"\n]*", state_text)))
     merged_pending = []
+    closed_statuses = {"merged", "rejected", "superseded"}
     try:
         state = json.loads(state_text) if state_text else {}
     except json.JSONDecodeError:
         state = {}
     for patch in state.get("pending_patches", []) if isinstance(state, dict) else []:
-        if isinstance(patch, dict) and patch.get("status") in {"merged", "rejected", "superseded"}:
+        if not isinstance(patch, dict):
+            continue
+
+        # Closed entries are retained in state.json for audit history. They
+        # are healthy; only a state/file disagreement should be actionable.
+        state_status = str(patch.get("status") or "").lower()
+        if state_status in closed_statuses:
+            continue
+
+        patch_path = patch.get("path")
+        if not patch_path:
+            continue
+        path = Path(str(patch_path))
+        if not path.is_absolute():
+            path = root / path
+        if not path.exists():
+            continue
+
+        file_status = ""
+        try:
+            for line in path.read_text(encoding="utf-8").splitlines():
+                if line.startswith("status:"):
+                    file_status = line.split(":", 1)[1].strip().lower()
+                    break
+        except OSError:
+            continue
+
+        if file_status in closed_statuses:
             merged_pending.append(str(patch.get("patch_id", "unknown")))
 
     issues = []
