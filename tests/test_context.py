@@ -164,3 +164,25 @@ def test_context_pack_preserves_decision_alternatives(tmp_path):
         assert "Alternatives considered: A. Use a hosted path、defer the decision" in result.output
     finally:
         os.chdir(old_cwd)
+
+
+def test_context_pack_reads_plural_hyphenated_snapshot_next_action(tmp_path):
+    """Snapshot heading variants must not hide the project's next action."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Snapshot Heading Test"])
+        (tmp_path / "SNAPSHOT.md").write_text(
+            "# Project Snapshot\n\n"
+            "## Current Core Goal\n\nKeep the validation loop bounded.\n\n"
+            "## Next Highest-Priority Actions\n\n"
+            "1. Record and evaluate Fixture 05.\n\n",
+            encoding="utf-8",
+        )
+
+        result = runner.invoke(app, ["context", "--print"])
+
+        assert result.exit_code == 0
+        assert "Record and evaluate Fixture 05" in result.output
+    finally:
+        os.chdir(old_cwd)
