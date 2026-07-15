@@ -5,12 +5,14 @@
 > A local project-state context engine for rationale-heavy, non-coding business projects.
 > Designed for AI agents to preserve reviewed judgments, project state, and reasoning chains in local files.
 
-![Stage](https://img.shields.io/badge/stage-v0.3.0-4c6ef5)
+![Stage](https://img.shields.io/badge/stage-v0.4--validation-4c6ef5)
 ![Runtime](https://img.shields.io/badge/runtime-local--first-2b8a3e)
 ![Interface](https://img.shields.io/badge/interface-CLI%20%2B%20project%20protocol-495057)
-![Tests](https://img.shields.io/badge/tests-77%20passed-2f9e44)
+![Tests](https://img.shields.io/badge/tests-125%20passed-2f9e44)
 
 FlowGrid helps business-project knowledge workers turn messy AI work sessions into reviewed, traceable, and resumable project context.
+
+> **Current status:** the codebase reports `v0.3.0` and is in v0.4 core validation. The current focus is entry reliability, rebuildable ledger state, and real-project continuation; v0.4 is not presented as a released version yet.
 
 It is built for long-running work where the deliverable is not just a document, but a defensible judgment chain: why this proposal makes sense, why this direction was chosen, what alternatives were rejected, and when a past judgment should be revised.
 
@@ -191,6 +193,14 @@ mkdir my-project && cd my-project
 flg init "My Project" --type proposal --client "Client Name"
 ```
 
+For an English-first project, initialize the formal ledger in English:
+
+```bash
+flg init "My Project" --language en
+```
+
+The language is stored in `.flg/state.json`; existing projects remain compatible and default to Chinese unless explicitly migrated.
+
 This creates:
 - `PROJECT.md` - Project overview
 - `FRAMING.md` - Problem definition
@@ -206,6 +216,8 @@ flg frame
 ```
 
 This checks FRAMING.md for missing fields and generates a patch with suggested questions.
+It also reports when the framing has no declared evidence basis or relies on
+secondary/speculative evidence.
 
 ### 3. Close out a session
 
@@ -213,10 +225,26 @@ This checks FRAMING.md for missing fields and generates a patch with suggested q
 flg closeout --transcript path/to/transcript.md
 ```
 
-This extracts decisions, risks, and progress from a transcript and generates a closeout patch.
+This extracts decisions, risks, and progress from a transcript and generates a closeout patch. External raw transcripts are automatically copied into `.flg/sessions/` so the evidence path is durable.
+
+English transcripts are supported, including confirmation, trade-off, risk, question, rationale, rejection, and reversal language. Review low-confidence candidates before accepting them.
 
 Use raw meeting notes, session transcripts, or files under `.flg/sessions/`.
 Do not use structured ledger files such as `PROGRESS.md`, `SNAPSHOT.md`, or `DECISIONS.md` as closeout input unless you explicitly know why and pass `--force`.
+
+To archive a raw transcript before closeout:
+
+```bash
+flg session save path/to/transcript.md --name 20260715-topic
+flg closeout --transcript .flg/sessions/20260715-topic.md
+```
+
+To inspect or repair cross-file state:
+
+```bash
+flg doctor
+flg reindex
+```
 
 ## Project Structure
 

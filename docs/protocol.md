@@ -52,6 +52,17 @@ For rationale-heavy business projects, an agent needs to know:
 
 These files hold durable project state a human or agent should treat as the reviewed project ledger.
 
+### Evidence Basis
+
+`FRAMING.md` may declare an overall evidence basis using the `Evidence Basis`
+section. This is an advisory quality signal, not an additional required field.
+
+Supported labels are `direct`, `verified`, `secondary`, and `speculative`.
+`flg frame` and `flg audit` warn when the basis is missing, secondary, unclear,
+or speculative. A warning does not block exploration, but the agent should not
+present the framing as established fact or make a high-risk commitment without
+first-hand validation or explicit human confirmation.
+
 ### Runtime / Review / Context Layer
 
 Inside `.flg/`:

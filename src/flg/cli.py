@@ -19,6 +19,8 @@ from .commands.capture import capture_add, capture_list, capture_show, capture_r
 from .commands.decision_cmd import decision_add
 from .commands.patch_cmd import patch_supersede, patch_discard
 from .commands.onboard import onboard
+from .commands.doctor import doctor, reindex
+from .commands.session import save_session
 from .core.state import load_state, get_state_schema_info
 
 console = Console()
@@ -43,6 +45,13 @@ app.command(name="import", help="Import existing project into FLG")(import_proje
 app.command(name="context", help="Generate bounded agent startup Context Pack")(context_command)
 app.command(name="evidence", help="Show evidence behind a reviewed decision")(evidence_command)
 app.command(name="onboard", help="First-run setup: env check, guided demo, and skill installation")(onboard)
+app.command(name="doctor", help="Check cross-file project consistency")(doctor)
+app.command(name="reindex", help="Rebuild evidence index from DECISIONS.md")(reindex)
+
+# Session archive group
+session_app = typer.Typer(help="Archive raw session evidence", no_args_is_help=True)
+session_app.command(name="save", help="Archive a raw transcript under .flg/sessions/")(save_session)
+app.add_typer(session_app, name="session")
 
 # Capture subcommand group
 capture_app = typer.Typer(help="Real-time judgment candidate capture", no_args_is_help=True)
@@ -137,7 +146,9 @@ def show_status() -> None:
                 patch_info["source_command"] = line.split(":", 1)[1].strip()
             elif line.startswith("generated_at:"):
                 patch_info["created_at"] = line.split(":", 1)[1].strip()
-            elif line.startswith("status:"):
+            # Only the frontmatter status defines patch lifecycle. Candidate
+            # sections can contain their own pending_review statuses.
+            elif line.startswith("status:") and patch_info["status"] == "unknown":
                 patch_info["status"] = line.split(":", 1)[1].strip()
         all_patches.append(patch_info)
 

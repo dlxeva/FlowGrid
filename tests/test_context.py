@@ -136,3 +136,31 @@ def test_context_pack_excludes_reviewed_accepted_patches(tmp_path):
             assert patch_name not in pending_section
     finally:
         os.chdir(old_cwd)
+
+
+def test_context_pack_preserves_decision_alternatives(tmp_path):
+    """Direct decisions keep their alternatives in the generated context."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Alternatives Test"])
+        result = runner.invoke(
+            app,
+            [
+                "decision",
+                "add",
+                "--decision",
+                "Use the local path",
+                "--rationale",
+                "It is auditable",
+                "--alternatives",
+                "Use a hosted path, defer the decision",
+            ],
+        )
+        assert result.exit_code == 0
+
+        result = runner.invoke(app, ["context", "--print"])
+        assert result.exit_code == 0
+        assert "Alternatives considered: A. Use a hosted path、defer the decision" in result.output
+    finally:
+        os.chdir(old_cwd)

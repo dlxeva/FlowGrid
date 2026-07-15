@@ -100,6 +100,25 @@ def main() -> int:
             cwd=project_dir,
             env_overrides=env_overrides,
         )
+
+        # The deterministic demo contains shell decisions, which --accept-all
+        # intentionally skips. Exercise the confirmed-evidence path explicitly
+        # instead of treating skipped low-context candidates as decisions.
+        run_cmd(
+            flg_cmd
+            + [
+                "decision",
+                "add",
+                "--decision",
+                "Use organic launch channels",
+                "--rationale",
+                "The demo budget and timeline favor an auditable local-first plan",
+                "--alternatives",
+                "Paid ads, defer launch",
+            ],
+            cwd=project_dir,
+            env_overrides=env_overrides,
+        )
         evidence_index = project_dir / ".flg" / "context" / "evidence_index.json"
         if not evidence_index.exists():
             print(f"[FAIL] Evidence index not generated: {evidence_index}", file=sys.stderr)

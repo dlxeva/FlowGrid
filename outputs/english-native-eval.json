@@ -1,0 +1,16 @@
+{
+  "passed": true,
+  "fixture": "evals/scenarios/campaign-proposal/raw-session.md",
+  "checks": {
+    "state_language_is_en": true,
+    "core_template_is_english": true,
+    "core_template_has_no_chinese_decision_heading": true,
+    "external_transcript_archived": true,
+    "closeout_created_patch": true,
+    "patch_references_archived_source": true,
+    "closeout_keeps_formal_ledger_unchanged": true,
+    "revisit_question_not_promoted": true,
+    "english_closeout_output": true
+  },
+  "note": "Deterministic CLI gate; model-quality scoring remains a separate manual evaluation."
+}

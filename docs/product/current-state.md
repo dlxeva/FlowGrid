@@ -1,63 +1,67 @@
 # FlowGrid Current State
 
-Last updated: 2026-07-08
+Last updated: 2026-07-16
 Primary branch: `master`
-Version: v0.3.0
+Current code version: `v0.3.0`
+Current stage: `v0.4 core validation`
 
 ## Product Position
 
 FlowGrid is a local project-state context engine for rationale-heavy, non-coding business projects.
 
-The target work pattern is long-running judgment work where the deliverable depends on preserving why a direction was chosen, what alternatives were rejected, what evidence supported the call, and when the call should be reopened.
+Its job is to let project state, boundaries, judgments, progress, and next actions follow the project directory across AI sessions and hosts, reducing repeated context explanation.
 
-## What Changed in v0.3.0
+## Current Implemented Surface
 
-### Capture Pipeline (P0-P3)
+- English-first project initialization and localized ledger entries
+- `closeout` raw transcript archiving under `.flg/sessions/`
+- Batch closeout extraction with pending review patches
+- Real-time `capture add/list/show/review`
+- Explicit `decision add` for strong user commitments
+- `doctor` and `reindex` for cross-file consistency and rebuildable evidence indexes
+- Bounded Context Pack, evidence lookup, handoff, onboarding, and host-agnostic Agent Skill
+- Advisory evidence-basis quality signal for complete `FRAMING.md` files
+- Patch lifecycle parsing that preserves rejected and superseded states
 
-Real-time judgment capture is now fully implemented:
+## Current Verification
 
-| Command | Description |
-|---------|-------------|
-| `flg capture add` | Capture a judgment candidate in real-time |
-| `flg capture list` | List candidates (filter by type/status) |
-| `flg capture show` | View full details and raw evidence |
-| `flg capture review` | Interactive review → accept into DECISIONS.md or reject |
-| `flg capture profile` | Manage project-specific judgment trigger phrases |
-| `flg decision add` | Direct write to DECISIONS.md (strong commitment only) |
+- `125` tests passed
+- `python scripts/smoke_test.py` passed
+- English-native deterministic gate passed
+- Real FlowGrid ledger audit passed with an expected undeclared-evidence-basis warning
+- Current PR: [#13](https://github.com/dlxeva/FlowGrid/pull/13), pending merge at the time of this update
 
-Key design:
-- Captures stored in `.flg/captures/` (YAML frontmatter), aligned with existing judgment-status-model
-- `closeout` (batch extraction) and `capture` (real-time) coexist as complementary pipelines
-- Agent detection protocol defined in `flg-workflow` skill → `references/capture-trigger-rules.md`
-- Full Design RFC: `docs/product/judgment-capture-pipeline.md`
+## Current Goal
 
-### v0.3 Stabilization
+Complete the v0.4 core loop:
 
-- README command tables updated (CN + EN)
-- Smoke test covers 10 commands: init → frame → closeout → review → evidence → context → capture add → capture list → capture show → handoff → status
-- Eval fixture tightened (resume-prompt no longer leaks KOL boundary to Mode A)
-- 77 tests passing, 0 regression
+1. Raw discussions reliably enter the project state layer.
+2. Formal ledger state and evidence indexes can be rebuilt from source files.
+3. Real, long, contradictory project histories show lower context-repetition cost for the next Agent.
 
-## Current Branch
+## Immediate Priorities
 
-Single active branch: `master`. Feature branch `feature/capture-pipeline` merged and deleted.
+- Validate automatic session capture across Codex, ZCode, Hermes, and other supported hosts.
+- Run isolated comparisons between no state, raw history, and FlowGrid Context Pack.
+- Measure repeated explanation, revived rejected directions, candidate/fact confusion, hallucinated project facts, and user correction count.
+- Keep `DECISIONS.md` as formal truth and avoid adding new cognitive abstractions until the loop is proven.
 
-## Open Items
+## Deferred
 
-- `flg trace` — planned, not implemented
-- Eval Set v0 scenarios 4-5 — fixtures needed
-- Role and task templates — Phase 6 of v0.3 plan
-- Dogfood scenarios — Phase 7 of v0.3 plan
+- Quadrant tags and protocol routing
+- Blindspot pass and unknown-unknown discovery engine
+- Multi-source provenance graph and `flg trace`
+- Graph database, ABAC, GUI, cloud sync, SaaS, and generic project management features
 
 ## Non-Goals
 
-- Do not turn FlowGrid into a generic PM tool
-- Do not optimize for coding-agent workflows
-- Do not add dashboard or SaaS framing
+- Do not turn FlowGrid into a generic PM tool.
+- Do not optimize for coding-agent workflows.
+- Do not present v0.4 as released before real-project validation is complete.
 
 ## Reading Order for Future Agents
 
-1. `docs/product/current-state.md` (this file)
-2. `docs/product/judgment-capture-pipeline.md` (Design RFC)
-3. `docs/product/v0.3-plan.md`
+1. `docs/product/current-state.md`
+2. `docs/product/future-direction.md`
+3. `docs/product/judgment-capture-pipeline.md`
 4. `docs/protocol.md`

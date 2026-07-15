@@ -140,3 +140,39 @@ Budget is 50k, timeline is 8 weeks.
     # With all fields filled (using H2), frame should report complete —
     # NOT report Explicit Requirements / Real Needs Hypothesis as missing.
     assert "complete" in result.output.lower() or "0 missing" in result.output.lower()
+
+
+def test_frame_warns_when_evidence_basis_is_secondary(flg_project):
+    """Complete framing should still warn when its evidence is only secondary."""
+    framing_path = flg_project / "FRAMING.md"
+    content = framing_path.read_text(encoding="utf-8")
+    content = content.replace("(to be defined)", "Real content here")
+    content = content.replace("(to be filled)", "Real content here")
+    content = content.replace("(to be hypothesized)", "Real hypothesis")
+    content = content.replace("(to be identified)", "- Question 1")
+    content = content.replace("(none yet)", "- Risk 1")
+    content = content.replace("(direct / verified / secondary / speculative)", "secondary")
+    framing_path.write_text(content, encoding="utf-8")
+
+    result = runner.invoke(app, ["frame"])
+
+    assert result.exit_code == 0
+    assert "secondary evidence" in result.output.lower()
+
+
+def test_frame_accepts_direct_evidence_basis(flg_project):
+    """Direct evidence should be reported without a low-confidence warning."""
+    framing_path = flg_project / "FRAMING.md"
+    content = framing_path.read_text(encoding="utf-8")
+    content = content.replace("(to be defined)", "Real content here")
+    content = content.replace("(to be filled)", "Real content here")
+    content = content.replace("(to be hypothesized)", "Real hypothesis")
+    content = content.replace("(to be identified)", "- Question 1")
+    content = content.replace("(none yet)", "- Risk 1")
+    content = content.replace("(direct / verified / secondary / speculative)", "direct")
+    framing_path.write_text(content, encoding="utf-8")
+
+    result = runner.invoke(app, ["frame"])
+
+    assert result.exit_code == 0
+    assert "evidence basis: direct" in result.output.lower()

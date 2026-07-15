@@ -279,3 +279,30 @@ def test_init_creates_docs_readme(tmp_dir):
     content = readme.read_text()
     assert "素材" in content or "materials" in content.lower()
     assert "索引" in content or "index" in content.lower()
+
+
+def test_init_english_language_generates_english_ledger(tmp_dir):
+    result = runner.invoke(app, ["init", "English Project", "--language", "en"])
+    assert result.exit_code == 0
+
+    state = json.loads((tmp_dir / ".flg" / "state.json").read_text())
+    assert state["language"] == "en"
+    decisions = (tmp_dir / "DECISIONS.md").read_text()
+    assert "### Decision Rationale" in decisions
+    assert "### 决策理由" not in decisions
+
+    result = runner.invoke(
+        app,
+        [
+            "decision",
+            "add",
+            "--decision",
+            "Keep the pilot narrow",
+            "--rationale",
+            "The evidence is still limited",
+        ],
+    )
+    assert result.exit_code == 0
+    decisions = (tmp_dir / "DECISIONS.md").read_text()
+    assert "### Final Decision" in decisions
+    assert "### Decision Rationale" in decisions
