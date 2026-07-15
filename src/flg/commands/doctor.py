@@ -28,6 +28,7 @@ def doctor(
     table.add_column("Result", style="bold")
     table.add_row("Overall", "OK" if report["status"] == "ok" else "Needs attention")
     table.add_row("Formal decisions", str(report["decision_count"]))
+    table.add_row("Unparsed decision entries", str(len(report["unparsed_decisions"])))
     table.add_row("Indexed decisions", str(report["index_count"]))
     table.add_row("Missing index entries", str(len(report["missing_index"])))
     table.add_row("Orphan index entries", str(len(report["orphan_index"])))
@@ -36,7 +37,7 @@ def doctor(
     table.add_row("Closed patches still pending", str(len(report["merged_pending"])))
     console.print(table)
 
-    for key in ("missing_index", "orphan_index", "broken_references", "legacy_paths", "merged_pending"):
+    for key in ("missing_index", "orphan_index", "broken_references", "legacy_paths", "merged_pending", "unparsed_decisions"):
         values = report[key]
         if values:
             console.print(f"[yellow]{key}:[/yellow]")

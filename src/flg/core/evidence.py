@@ -10,7 +10,9 @@ from typing import Any
 
 EVIDENCE_INDEX_PATH = Path(".flg") / "context" / "evidence_index.json"
 
-_DECISION_HEADING = re.compile(r"^##\s+(D-\d+)\s*\|\s*(.+)$", re.MULTILINE)
+# Accept both the ASCII separator emitted by current templates and the fullwidth
+# separator used by existing Chinese ledgers.
+_DECISION_HEADING = re.compile(r"^##\s+(D-\d+)\s*[|｜]\s*(.+)$", re.MULTILINE)
 _PLACEHOLDER_MARKERS = ("标题", "d-xxx", "[title]", "[decision title]")
 _PROVENANCE_FIELDS = (
     "source_patch",
@@ -86,6 +88,18 @@ def parse_decisions_ledger(content: str) -> list[dict[str, str]]:
     return decisions
 
 
+def _unparsed_decision_ids(content: str, parsed_ids: set[str]) -> list[str]:
+    """Find non-template decision headings that the structured parser skipped."""
+    headings = _DECISION_HEADING.finditer(content)
+    return sorted(
+        {
+            match.group(1)
+            for match in headings
+            if not _is_placeholder(match.group(2)) and match.group(1) not in parsed_ids
+        }
+    )
+
+
 def load_evidence_index(root: Path) -> dict[str, Any]:
     path = root / EVIDENCE_INDEX_PATH
     if not path.exists():
@@ -153,6 +167,8 @@ def validate_project(root: Path) -> dict[str, Any]:
         decisions_path.read_text(encoding="utf-8") if decisions_path.exists() else ""
     )
     decision_ids = {item["decision_id"] for item in decisions}
+    ledger_content = decisions_path.read_text(encoding="utf-8") if decisions_path.exists() else ""
+    unparsed_decisions = _unparsed_decision_ids(ledger_content, decision_ids)
     index_path = root / EVIDENCE_INDEX_PATH
     index_exists = index_path.exists()
     index = load_evidence_index(root)
@@ -193,11 +209,14 @@ def validate_project(root: Path) -> dict[str, Any]:
         issues.append("legacy_paths")
     if merged_pending:
         issues.append("closed_patches_in_pending_state")
+    if unparsed_decisions:
+        issues.append("unparsed_decision_entries")
 
     return {
         "status": "ok" if not issues else "needs_attention",
         "issues": issues,
         "decision_count": len(decision_ids),
+        "unparsed_decisions": unparsed_decisions,
         "index_count": len(index_ids),
         "missing_index": missing_index,
         "orphan_index": orphan_index,
