@@ -5,12 +5,14 @@
 > A local project-state context engine for rationale-heavy, non-coding business projects.
 > Designed for AI agents to preserve reviewed judgments, project state, and reasoning chains in local files.
 
-![Stage](https://img.shields.io/badge/stage-v0.3.0-4c6ef5)
+![Stage](https://img.shields.io/badge/stage-v0.4--validation-4c6ef5)
 ![Runtime](https://img.shields.io/badge/runtime-local--first-2b8a3e)
 ![Interface](https://img.shields.io/badge/interface-CLI%20%2B%20project%20protocol-495057)
-![Tests](https://img.shields.io/badge/tests-77%20passed-2f9e44)
+![Tests](https://img.shields.io/badge/tests-125%20passed-2f9e44)
 
 FlowGrid helps business-project knowledge workers turn messy AI work sessions into reviewed, traceable, and resumable project context.
+
+> **Current status:** the codebase reports `v0.3.0` and is in v0.4 core validation. The current focus is entry reliability, rebuildable ledger state, and real-project continuation; v0.4 is not presented as a released version yet.
 
 It is built for long-running work where the deliverable is not just a document, but a defensible judgment chain: why this proposal makes sense, why this direction was chosen, what alternatives were rejected, and when a past judgment should be revised.
 
