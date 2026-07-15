@@ -10,6 +10,7 @@ from rich.console import Console
 from rich.table import Table
 
 from ..core.files import is_flg_project, read_file_safe
+from ..core.evidence_quality import assess_evidence_basis
 from ..core.patches import create_patch, generate_patch_id
 from ..core.state import add_pending_patch, load_state
 from ..templates import FRAME_PATCH_MD, get_iso_now
@@ -148,6 +149,8 @@ def frame_project() -> None:
             filled_fields.append(field_name)
         else:
             missing_fields.append(field_name)
+
+    evidence_basis = assess_evidence_basis(framing_content)
     
     # Display results
     console.print()
@@ -155,6 +158,10 @@ def frame_project() -> None:
     if not missing_fields:
         console.print("[bold green]✓ FRAMING.md is complete![/bold green]")
         console.print(f"All {len(filled_fields)} required fields are filled.")
+        if evidence_basis["warning"]:
+            console.print(f"[yellow]⚠ Evidence basis: {evidence_basis['message']}[/yellow]")
+        else:
+            console.print(f"[green]Evidence basis: {evidence_basis['label']}[/green]")
         console.print()
         console.print("You can proceed with [cyan]flg closeout[/cyan] after your session.")
         return
