@@ -228,6 +228,45 @@ def strip_inline_code(text: str) -> str:
     return text
 
 
+_GENERATED_TRANSCRIPT_HEADINGS = {
+    "agent analysis",
+    "agent summary",
+    "distilled signals",
+    "extracted decisions",
+    "handoff summary",
+    "structured summary",
+}
+
+
+def strip_generated_transcript_sections(content: str) -> str:
+    """Keep raw discussion while excluding agent-generated summary sections.
+
+    Hosts sometimes append their own handoff or extraction output to the raw
+    session file. That output is useful for humans, but feeding it back into
+    closeout causes field labels such as ``Type`` or ``Status`` to look like
+    fresh decisions. The original transcript remains unchanged on disk; this
+    helper only narrows the extraction input.
+    """
+    lines = content.splitlines(keepends=True)
+    kept: list[str] = []
+    skipping = False
+
+    for line in lines:
+        heading = re.match(r"^\s{0,3}(#{2,6})\s+(.+?)\s*$", line)
+        if heading:
+            title = re.sub(r"[*_`]", "", heading.group(2)).strip().lower()
+            if title in _GENERATED_TRANSCRIPT_HEADINGS:
+                skipping = True
+                continue
+            if skipping and len(heading.group(1)) <= 2:
+                skipping = False
+
+        if not skipping:
+            kept.append(line)
+
+    return "".join(kept)
+
+
 def iter_segments(content: str) -> list[str]:
     """Split transcript into sentence-like segments while keeping questions."""
     segments = []
@@ -974,6 +1013,10 @@ def closeout_session(
         console.print("[red]Transcript is empty.[/red]")
         raise typer.Exit(1)
 
+    # Preserve the raw session as the source artifact, but do not let an
+    # appended agent-generated summary become a second source of decisions.
+    extraction_content = strip_generated_transcript_sections(content)
+
     # ── Resolve extraction mode ────────────────────────────────────────
     # Priority: --prompt > explicit --llm > --no-llm > auto-detect
 
@@ -982,18 +1025,18 @@ def closeout_session(
 
     if prompt_only:
         # --prompt: generate prompt file only, no extraction
-        _do_prompt_only(root, transcript, content)
+        _do_prompt_only(root, transcript, extraction_content)
         return
 
     if llm is not None:
         if llm.lower() == "hermes":
             # Hermes-assisted: save prompt, let current AI process it
-            _delegate_to_hermes(root, transcript, content)
+            _delegate_to_hermes(root, transcript, extraction_content)
             return
         # Explicit --llm <provider>
         if not is_llm_available(llm.lower()):
             console.print(f"[yellow]No API key found for {llm}. Trying Hermes-assisted mode instead.[/yellow]")
-            _delegate_to_hermes(root, transcript, content)
+            _delegate_to_hermes(root, transcript, extraction_content)
             return
         use_llm = True
         llm_provider = llm.lower()
@@ -1011,11 +1054,11 @@ def closeout_session(
 
     # ── LLM extraction path (v0.2.3) ───────────────────────────────────
     if use_llm:
-        _do_llm_closeout(root, transcript, content, project_name, state, llm_provider)
+        _do_llm_closeout(root, transcript, extraction_content, project_name, state, llm_provider)
         return
 
     # ── Keyword extraction path (existing behavior) ────────────────────
-    _do_keyword_closeout(root, transcript, content, project_name, state, mode)
+    _do_keyword_closeout(root, transcript, extraction_content, project_name, state, mode)
 
 
 def _do_prompt_only(root: Path, transcript: Path, content: str) -> None:

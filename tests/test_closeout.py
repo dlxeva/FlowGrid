@@ -248,6 +248,47 @@ We should think more before choosing anything.
         os.chdir(old_cwd)
 
 
+def test_closeout_ignores_agent_generated_summary_section(tmp_path):
+    """Agent summaries appended to a raw session must not create false decisions."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Raw Boundary Test"])
+        transcript = tmp_path / "mixed-session.md"
+        transcript.write_text(
+            """# Raw Discussion
+
+## Discussion Content
+
+We decided to use Option A instead of Option B because it is reversible and cheaper to test.
+We will revisit this if the first experiment fails to produce a measurable signal within two weeks.
+
+## Distilled Signals
+
+### D1 - Decision: Option A over Option B
+- **What**: Selected Option A as the initial approach
+- **Why**: Reversible and cheaper to test
+- **Type**: architecture-level choice
+
+### NA1 - Next Action
+- **Owner**: the agent
+- **Status**: pending execution
+""",
+            encoding="utf-8",
+        )
+        result = runner.invoke(app, ["closeout", "--transcript", str(transcript), "--no-llm"])
+        assert result.exit_code == 0
+
+        patch = next((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
+        content = patch.read_text(encoding="utf-8")
+        assert "Option A instead of Option B" in content
+        assert "**Type**: architecture-level choice" not in content
+        assert "**Owner**: the agent" not in content
+        assert "Candidate decisions pending review: 1" in content
+    finally:
+        os.chdir(old_cwd)
+
+
 def test_closeout_detects_tradeoff_decision(tmp_path):
     """Explicit sequencing trade-offs should be captured as decisions."""
     old_cwd = os.getcwd()

@@ -171,8 +171,9 @@ def _evidence_entry(
 def review_patch(
     patch_file: str = typer.Option(..., "--patch", "-p", help="Patch file to review"),
     accept_all: bool = typer.Option(False, "--accept-all", help="Accept all candidate decisions without prompting"),
+    report_only: bool = typer.Option(False, "--report-only", help="Report candidates without writing ledger state"),
 ) -> None:
-    """Review candidate decisions from a patch and append accepted ones to DECISIONS.md."""
+    """Review candidate decisions, optionally without writing ledger state."""
     root = Path.cwd()
     if not is_flg_project(root):
         console.print("[red]Not a FLG project. Run 'flg init' first.[/red]")
@@ -194,6 +195,22 @@ def review_patch(
     decisions = patch_info["decisions"]
     if not decisions:
         console.print("[yellow]No candidate decisions found in this patch.[/yellow]")
+        raise typer.Exit(0)
+
+    if report_only:
+        console.print()
+        console.print(f"[bold]Candidate decisions in[/bold] {patch_path.name}")
+        console.print()
+        for index, decision in enumerate(decisions, 1):
+            is_shell = _is_shell_decision_for_review(decision)
+            quality = "shell / needs re-extraction" if is_shell else "reviewable"
+            console.print(f"{index}. [cyan]{decision.get('title', 'Untitled decision')}[/cyan] [{quality}]")
+            if decision.get("what_decided"):
+                console.print(f"   What: {decision['what_decided']}")
+            if decision.get("why"):
+                console.print(f"   Why: {decision['why']}")
+        console.print()
+        console.print("[dim]Report only: no DECISIONS.md, evidence index, or state files were changed.[/dim]")
         raise typer.Exit(0)
 
     decisions_path = root / "DECISIONS.md"

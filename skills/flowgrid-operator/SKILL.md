@@ -99,16 +99,27 @@ default, so do **not** feed `PROGRESS.md`, `SNAPSHOT.md`,
 `DECISIONS.md`, or `README.md` into `closeout` — those are already-structured
 ledger files (closeout will refuse them unless you pass `--force`).
 
+The raw session must contain only the verbatim discussion or unstructured notes.
+Do not append an Agent-generated handoff, distilled signals, field labels such
+as `Type`, `Owner`, or `Status`, or an extraction summary to the same file.
+If a host has already appended such a section, keep the original file for audit
+but create a clean raw copy before closeout. FLG also excludes recognized
+generated summary sections from extraction without changing the raw source.
+
 If no LLM API keys are configured, add `--no-llm` to force keyword-based extraction.
 
 ### Review and merge
 
 Treat `closeout` output as candidate state only.
 
-1. Run `flg review --patch <patch-file>`.
+1. In an autonomous host, first run `flg review --patch <patch-file> --report-only`
+   so candidates can be inspected without writing ledger state. Use interactive
+   `flg review --patch <patch-file>` when the user is making the approval decisions.
 2. Summarize candidate decisions for the user — note which are rich (have reasoning)
    and which are shells (flagged `low_confidence_shell`, skipped by `--accept-all`).
-3. Run `flg merge --patch <patch-file>` only after the user explicitly approves.
+3. Run `flg review --patch <patch-file> --accept-all` only after the user explicitly
+   instructs the host to maintain the ledger autonomously. Then run
+   `flg merge --patch <patch-file>`.
 
 Never silently convert a pending judgment into a confirmed decision. Do not
 reintroduce rejected or superseded directions without new evidence.
