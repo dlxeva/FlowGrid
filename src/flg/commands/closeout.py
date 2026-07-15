@@ -251,8 +251,66 @@ def is_revisit_or_question(segment: str) -> bool:
             "revisit",
             "the question is",
             "what if we",
+            "what would justify",
+            "would justify",
+            "without those",
+            "needed to reopen",
+            "needed to expand",
         )
     )
+
+
+def is_criteria_prompt(segment: str) -> bool:
+    """Return True for questions that ask what would justify a future move."""
+    normalized = segment.strip().lower()
+    return any(
+        marker in normalized
+        for marker in (
+            "what would justify",
+            "what evidence would",
+            "what would need to be true",
+            "what conditions",
+            "what must be true",
+            "under what conditions",
+        )
+    )
+
+
+def is_criteria_answer(segment: str, previous_segment: str | None) -> bool:
+    """Keep a criteria list from becoming a decision when it answers a prompt."""
+    if not previous_segment or not is_criteria_prompt(previous_segment):
+        return False
+
+    normalized = segment.strip().lower()
+    # A real commitment should still win over the preceding exploratory prompt.
+    commitment_markers = (
+        "we decided",
+        "we'll",
+        "we will",
+        "let's ",
+        "we're ",
+        "the decision is",
+        "approved",
+        "settled on",
+        "定了",
+        "确认采用",
+        "决定",
+    )
+    if any(marker in normalized for marker in commitment_markers):
+        return False
+
+    criteria_markers = (
+        "mandate",
+        "budget",
+        "owner",
+        "readiness",
+        "evidence",
+        "条件",
+        "证据",
+        "预算",
+    )
+    has_list_shape = "," in segment or " and " in normalized or " or " in normalized
+    return has_list_shape and any(marker in normalized for marker in criteria_markers)
 
 
 def match_pattern(segment: str, patterns: list[str]) -> str | None:
@@ -266,7 +324,7 @@ def match_pattern(segment: str, patterns: list[str]) -> str | None:
 def _get_context_window(
     full_text: str,
     target_sentence: str,
-    window: int = 5,
+    window: int = 20,
     all_segments: list[str] | None = None,
 ) -> str:
     """Return a window of ±N sentences around a target sentence in the full text.
@@ -298,7 +356,7 @@ def extract_decisions(
     clean_content = strip_inline_code(content)
     clean_segments = clean_segments if clean_segments is not None else iter_segments(clean_content)
 
-    for sentence in clean_segments:
+    for index, sentence in enumerate(clean_segments):
         if not sentence or len(sentence) < 10:
             continue
 
@@ -308,7 +366,12 @@ def extract_decisions(
 
         # Guard: skip sentences that describe risks or reopen a path for discussion.
         # These contain decision vocabulary but do not commit the project to a choice.
-        if match_pattern(match_text, RISK_SENTENCE_PATTERNS) or is_revisit_or_question(match_text):
+        previous_sentence = clean_segments[index - 1] if index > 0 else None
+        if (
+            match_pattern(match_text, RISK_SENTENCE_PATTERNS)
+            or is_revisit_or_question(match_text)
+            or is_criteria_answer(match_text, previous_sentence)
+        ):
             continue
 
         # Check for explicit confirmation
@@ -687,6 +750,11 @@ REASONING_PATTERNS = [
     r"this way\b",
     r"makes sense because\b",
     r"it comes down to\b",
+    # English decision rationale commonly stated as constraints or outcomes.
+    r"budget (?:is|was) (?:not enough|too tight|constrained)\b",
+    r"(?:conversion|conversion path) (?:is|was) weak\b",
+    r"(?:did not|does not) (?:prove|explain) (?:conversion|the conversion path)\b",
+    r"surface visibility\b",
 ]
 
 # Rejection patterns - what alternatives were rejected
@@ -710,6 +778,9 @@ REJECTION_PATTERNS = [
     r"decided against\b",
     r"didn't go with\b",
     r"passed on\b",
+    r"reject(?:ed)?\b",
+    r"should not be the main\b",
+    r"do not want .* as (?:the )?main\b",
 ]
 
 # Reversal patterns - conditions under which to reverse
@@ -729,6 +800,10 @@ REVERSAL_PATTERNS = [
     r"fall back to\b",
     r"worst case\b",
     r"plan b\b",
+    r"new (?:budget|evidence|channel data)\b",
+    r"reopen .*\b",
+    r"reconsider .*\b",
+    r"bounded .* test\b",
 ]
 
 
@@ -747,6 +822,10 @@ def extract_decision_context(context_text: str) -> dict:
 
     for sentence in iter_segments(context_text):
         if not sentence or len(sentence) < 5:
+            continue
+        # Questions describe a prompt for reasoning, not evidence of the
+        # decision itself. Do not treat "what should we reject?" as a rejection.
+        if "?" in sentence or "？" in sentence:
             continue
 
         for pattern in REASONING_PATTERNS:
