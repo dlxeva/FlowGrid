@@ -912,6 +912,33 @@ def test_closeout_english_revisit_request_is_not_a_decision(tmp_path):
         os.chdir(old_cwd)
 
 
+def test_closeout_does_not_promote_expansion_criteria_to_decision(tmp_path):
+    """Criteria for reopening a path must stay evidence, not become a commitment."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Expansion Criteria Test"])
+        transcript = tmp_path / "criteria.md"
+        transcript.write_text(
+            """# Session
+
+The delivery scope should stay narrow.
+What would justify expanding scope?
+Clear executive mandate, confirmed budget, a named owner, and stronger data readiness.
+Without those, broad transformation is not responsible to sell.
+""",
+            encoding="utf-8",
+        )
+        result = runner.invoke(app, ["closeout", "--transcript", str(transcript), "--no-llm"])
+        assert result.exit_code == 0
+        patch = next((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
+        content = patch.read_text()
+        decision_section = content.split("## 2. Candidate Decisions")[1].split("## 3.")[0]
+        assert "confirmed budget" not in decision_section
+    finally:
+        os.chdir(old_cwd)
+
+
 def test_closeout_strips_code_backticks_before_matching(tmp_path):
     """Code spans inside backticks must NOT trigger decision keywords (发现 24).
 
