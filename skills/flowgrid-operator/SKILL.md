@@ -113,6 +113,36 @@ Treat `closeout` output as candidate state only.
 Never silently convert a pending judgment into a confirmed decision. Do not
 reintroduce rejected or superseded directions without new evidence.
 
+### Autonomous continuation mode
+
+When the user asks Codex to continue, take ownership of the next safe project
+action instead of returning a menu of options. Inspect status, context, pending
+patches, evidence, and the current goal; choose the smallest action that
+reduces uncertainty or produces reusable evidence; execute it; then report the
+result and next action.
+
+Autonomous actions may include:
+
+- running status, context, audit, doctor, reindex, tests, smoke tests, and
+  disposable-copy evaluations;
+- retiring stale patches when the ledger evidence clearly shows they are
+  obsolete, preserving the audit trail;
+- implementing low-risk bug fixes with regression tests;
+- committing changes and opening or updating a PR;
+- preparing, but not silently merging, formal decision patches.
+
+Stop and ask for confirmation only before:
+
+- promoting a candidate or inferred judgment to a confirmed decision;
+- rewriting or migrating a real project's formal ledger;
+- deleting source material or user data;
+- publishing externally, changing permissions, spending money, or changing
+  a production integration;
+- choosing between materially different product or business directions.
+
+Do not ask the user to choose between routine engineering steps. Make the
+choice, record the basis, and surface the decision boundary in the report.
+
 ### Retire stale patches
 
 When a patch is outdated (e.g. a frame patch generated before FRAMING.md was
