@@ -12,7 +12,7 @@ import typer
 from rich.console import Console
 from rich.markdown import Markdown
 
-from ..core.evidence import parse_decisions_ledger
+from ..core.evidence import parse_decisions_ledger, validate_project
 from ..core.files import is_flg_project, read_file_safe
 from ..core.state import load_state
 from .handoff import parse_patch_for_handoff
@@ -333,6 +333,26 @@ def _render_evidence_refs(decisions: list[dict[str, str]], patches: list[dict]) 
     return "\n".join(refs) + "\n"
 
 
+def _render_source_health(report: dict) -> str:
+    """Expose ledger/index drift so a bounded pack cannot look fully clean."""
+    lines = [
+        f"- Status: {report['status']}",
+        f"- Formal decisions: {report['decision_count']}",
+        f"- Indexed decisions: {report['index_count']}",
+        f"- Missing index entries: {len(report['missing_index'])}",
+        f"- Orphan index entries: {len(report['orphan_index'])}",
+        f"- Broken evidence references: {len(report['broken_references'])}",
+        f"- Legacy paths: {len(report['legacy_paths'])}",
+        f"- Closed patches still pending: {len(report['merged_pending'])}",
+    ]
+    if report["issues"]:
+        lines.append(f"- Issues: {', '.join(report['issues'])}")
+        lines.append("- Required action: run `flg doctor` and repair or rebuild before treating the pack as complete.")
+    else:
+        lines.append("- Required action: none; continue to monitor source health.")
+    return "\n".join(lines) + "\n"
+
+
 def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> tuple[str, dict]:
     if mode != "resume":
         raise ValueError("v0 only supports --mode resume")
@@ -363,6 +383,7 @@ def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> 
 
     confirmed_decisions = _parse_confirmed_decisions(decisions_content)
     pending_patches = _pending_patch_summaries(root)
+    source_health = validate_project(root)
 
     assumptions = _list_items(_section(snapshot_content, "Unconfirmed"), limit=8)
     assumptions += _list_items(_section(framing_content, "Open Questions"), limit=5)
@@ -474,6 +495,9 @@ def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> 
 
 {active_constraints}
 
+## Source Health
+
+{_render_source_health(source_health)}
 ## Next Actions
 
 {_render_items(next_actions)}
@@ -509,6 +533,7 @@ def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> 
         "sources_included": sources_included,
         "pending_patches_count": len(pending_patches),
         "confirmed_decisions_count": len(confirmed_decisions),
+        "source_health": source_health,
         "truncated": truncated,
     }
     return content, metadata

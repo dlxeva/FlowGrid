@@ -10,10 +10,12 @@ in Pending Judgments — redundant.
 import glob
 import os
 import os.path
+import json
 
 from typer.testing import CliRunner
 
 from flg.cli import app
+from flg.commands.context import build_context_pack
 
 runner = CliRunner()
 
@@ -184,5 +186,38 @@ def test_context_pack_reads_plural_hyphenated_snapshot_next_action(tmp_path):
 
         assert result.exit_code == 0
         assert "Record and evaluate Fixture 05" in result.output
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_context_pack_surfaces_source_health_drift(tmp_path):
+    """Index drift must be visible in the bounded pack, not silently hidden."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Source Health Test"])
+        result = runner.invoke(
+            app,
+            [
+                "decision",
+                "add",
+                "--decision",
+                "Keep the ledger local",
+                "--rationale",
+                "It remains auditable",
+            ],
+        )
+        assert result.exit_code == 0
+        (tmp_path / ".flg" / "context" / "evidence_index.json").write_text(
+            json.dumps({"version": 1, "items": {}}),
+            encoding="utf-8",
+        )
+
+        content, _ = build_context_pack(tmp_path)
+
+        assert "## Source Health" in content
+        assert "- Status: needs_attention" in content
+        assert "- Missing index entries: 1" in content
+        assert "decisions_missing_from_index" in content
     finally:
         os.chdir(old_cwd)
