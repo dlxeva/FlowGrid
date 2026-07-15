@@ -27,6 +27,12 @@ FRAMING_MD = """# Problem Definition
 
 {problem_statement}
 
+## Evidence Basis
+
+- **Overall basis:** (direct / verified / secondary / speculative)
+- **Direct evidence:** (what was observed or explicitly confirmed)
+- **Verification needed before commitment:** (what still needs first-hand validation)
+
 ## Requirements
 
 ### Explicit Requirements

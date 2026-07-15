@@ -214,6 +214,8 @@ flg frame
 ```
 
 This checks FRAMING.md for missing fields and generates a patch with suggested questions.
+It also reports when the framing has no declared evidence basis or relies on
+secondary/speculative evidence.
 
 ### 3. Close out a session
 

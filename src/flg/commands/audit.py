@@ -12,6 +12,7 @@ from rich.table import Table
 from rich.markdown import Markdown
 
 from ..core.files import is_flg_project, read_file_safe
+from ..core.evidence_quality import assess_evidence_basis
 from ..templates import get_iso_now
 
 console = Console()
@@ -204,6 +205,14 @@ def audit_project(
         table.add_row(f, f"[{style}]{status}[/{style}]", "")
     
     console.print(table)
+
+    framing_content = read_file_safe(root / "FRAMING.md") or ""
+    evidence_basis = assess_evidence_basis(framing_content)
+    console.print()
+    if evidence_basis["warning"]:
+        console.print(f"[yellow]Evidence basis warning:[/yellow] {evidence_basis['message']}")
+    else:
+        console.print(f"[green]Evidence basis:[/green] {evidence_basis['label']}")
     
     # Display missing files
     if missing_files:

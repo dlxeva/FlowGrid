@@ -71,6 +71,21 @@ or next actions, run closeout on the raw discussion:
 flg closeout --transcript path/to/raw-session.md
 ```
 
+### Mandatory source-capture trigger
+
+Do not rely on memory to reconstruct a meaningful work segment later. When a
+session produces a direction change, important evidence, a rejected path, a
+new constraint, or a candidate decision:
+
+1. Preserve the raw discussion or notes immediately.
+2. Run `flg closeout` before leaving the session or switching agents.
+3. Treat the generated patch as pending state until reviewed.
+4. If the host cannot access the raw transcript, preserve the notes that are
+   available and report the missing source instead of claiming closeout is complete.
+
+This is a host workflow rule: the user should not need to remember `session`
+or `closeout` commands manually.
+
 Closeout automatically archives an external raw transcript under `.flg/sessions/`.
 Use `flg session save` first only when you need a stable custom filename:
 

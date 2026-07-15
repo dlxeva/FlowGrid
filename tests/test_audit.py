@@ -33,3 +33,27 @@ def test_audit_ignores_docs_directory(tmp_path):
         assert "docs/research.md" not in result.output
     finally:
         os.chdir(old_cwd)
+
+
+def test_audit_warns_when_evidence_basis_is_secondary(tmp_path):
+    """Audit should surface a low-confidence framing basis without blocking."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Evidence Audit Test"])
+        framing_path = tmp_path / "FRAMING.md"
+        content = framing_path.read_text(encoding="utf-8")
+        content = content.replace("(to be defined)", "Real content here")
+        content = content.replace("(to be filled)", "Real content here")
+        content = content.replace("(to be hypothesized)", "Real hypothesis")
+        content = content.replace("(to be identified)", "- Question 1")
+        content = content.replace("(none yet)", "- Risk 1")
+        content = content.replace("(direct / verified / secondary / speculative)", "secondary")
+        framing_path.write_text(content, encoding="utf-8")
+
+        result = runner.invoke(app, ["audit"])
+
+        assert result.exit_code == 0
+        assert "secondary evidence" in result.output.lower()
+    finally:
+        os.chdir(old_cwd)
