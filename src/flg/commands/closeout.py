@@ -266,7 +266,7 @@ def match_pattern(segment: str, patterns: list[str]) -> str | None:
 def _get_context_window(
     full_text: str,
     target_sentence: str,
-    window: int = 5,
+    window: int = 20,
     all_segments: list[str] | None = None,
 ) -> str:
     """Return a window of ±N sentences around a target sentence in the full text.
@@ -687,6 +687,11 @@ REASONING_PATTERNS = [
     r"this way\b",
     r"makes sense because\b",
     r"it comes down to\b",
+    # English decision rationale commonly stated as constraints or outcomes.
+    r"budget (?:is|was) (?:not enough|too tight|constrained)\b",
+    r"(?:conversion|conversion path) (?:is|was) weak\b",
+    r"(?:did not|does not) (?:prove|explain) (?:conversion|the conversion path)\b",
+    r"surface visibility\b",
 ]
 
 # Rejection patterns - what alternatives were rejected
@@ -710,6 +715,9 @@ REJECTION_PATTERNS = [
     r"decided against\b",
     r"didn't go with\b",
     r"passed on\b",
+    r"reject(?:ed)?\b",
+    r"should not be the main\b",
+    r"do not want .* as (?:the )?main\b",
 ]
 
 # Reversal patterns - conditions under which to reverse
@@ -729,6 +737,10 @@ REVERSAL_PATTERNS = [
     r"fall back to\b",
     r"worst case\b",
     r"plan b\b",
+    r"new (?:budget|evidence|channel data)\b",
+    r"reopen .*\b",
+    r"reconsider .*\b",
+    r"bounded .* test\b",
 ]
 
 
@@ -747,6 +759,10 @@ def extract_decision_context(context_text: str) -> dict:
 
     for sentence in iter_segments(context_text):
         if not sentence or len(sentence) < 5:
+            continue
+        # Questions describe a prompt for reasoning, not evidence of the
+        # decision itself. Do not treat "what should we reject?" as a rejection.
+        if "?" in sentence or "？" in sentence:
             continue
 
         for pattern in REASONING_PATTERNS:
