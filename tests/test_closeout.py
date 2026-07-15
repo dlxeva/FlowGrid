@@ -856,6 +856,40 @@ We can always go back to it if Q3 budget opens up.
         os.chdir(old_cwd)
 
 
+def test_closeout_keeps_natural_campaign_reasoning_out_of_shell_gate(tmp_path):
+    """Natural campaign language should preserve rationale and reopen conditions."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Natural Campaign Test"])
+        transcript = tmp_path / "campaign.md"
+        transcript.write_text(
+            """# Session
+
+The first version leaned heavily on KOL launch visibility.
+The budget is not enough for a real KOL-heavy launch.
+The stronger direction is user-generated proof and a clearer conversion path.
+The main plan should not be KOL-led.
+Agent: What should be rejected explicitly?
+Reject KOL-heavy launch as the main plan.
+If there is no new budget or channel data, do not revive KOL as confirmed.
+""",
+            encoding="utf-8",
+        )
+        result = runner.invoke(app, ["closeout", "--transcript", str(transcript), "--no-llm"])
+        assert result.exit_code == 0
+        patch = next((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
+        content = patch.read_text()
+
+        decision_section = content.split("## 2. Candidate Decisions")[1].split("## 3.")[0]
+        assert "low_confidence_shell" not in decision_section
+        assert "budget is not enough" in decision_section
+        assert "new budget" in decision_section
+        assert "What should be rejected explicitly?" not in decision_section
+    finally:
+        os.chdir(old_cwd)
+
+
 def test_closeout_english_revisit_request_is_not_a_decision(tmp_path):
     """A request to reconsider a path belongs in discussion, not decisions."""
     old_cwd = os.getcwd()
