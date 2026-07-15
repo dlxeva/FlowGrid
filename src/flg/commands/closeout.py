@@ -1737,6 +1737,12 @@ def _refresh_snapshot(
     Part of the Agent Startup Context Protocol: SNAPSHOT.md is the first of
     three sources every agent must read on entry.
     """
+    # A closeout with no extracted state is not permission to erase the last
+    # known project state. Preserve the existing AI-maintained snapshot until
+    # a later closeout produces an actual update.
+    if not (decisions or risks or next_actions):
+        return
+
     from ..templates import SNAPSHOT_MD
 
     now = get_iso_now()

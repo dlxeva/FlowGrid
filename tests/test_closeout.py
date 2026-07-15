@@ -163,6 +163,37 @@ def test_closeout_refreshes_snapshot(tmp_path):
         os.chdir(old_cwd)
 
 
+def test_empty_closeout_preserves_existing_snapshot(tmp_path):
+    """A no-op closeout must not erase the last AI-maintained project state."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Snapshot Preservation Test"])
+        snapshot_path = tmp_path / "SNAPSHOT.md"
+        snapshot_path.write_text(
+            snapshot_path.read_text(encoding="utf-8")
+            .replace("- (none yet)", "- Keep the reviewed direction")
+            .replace("- Project initialized", "- The current direction is confirmed")
+            .replace("- (none identified yet)", "- Source health is still being monitored")
+            .replace("Run 'flg frame' to define project goals and boundaries", "Run the continuation evaluation"),
+            encoding="utf-8",
+        )
+
+        transcript = tmp_path / "empty-session.md"
+        transcript.write_text("# Session\n\nRoutine discussion with no new project state.\n", encoding="utf-8")
+        result = runner.invoke(app, ["closeout", "--transcript", str(transcript), "--no-llm"])
+
+        assert result.exit_code == 0
+        content = snapshot_path.read_text(encoding="utf-8")
+        assert "Keep the reviewed direction" in content
+        assert "The current direction is confirmed" in content
+        assert "Source health is still being monitored" in content
+        assert "Run the continuation evaluation" in content
+        assert "(no recent decisions)" not in content
+    finally:
+        os.chdir(old_cwd)
+
+
 def test_closeout_on_non_flg_project(tmp_path):
     """Test that flg closeout fails on non-FLG project."""
     old_cwd = os.getcwd()
