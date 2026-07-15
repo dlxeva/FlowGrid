@@ -392,7 +392,16 @@ def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> 
     raw_next_actions = state.get("next_actions", [])
     if isinstance(raw_next_actions, list):
         next_actions.extend(str(item) for item in raw_next_actions[:8])
-    snapshot_next = _first_meaningful_line(_section(snapshot_content, "Next Highest Priority Action"), "")
+    snapshot_next = ""
+    for heading in (
+        "Next Highest Priority Action",
+        "Next Highest Priority Actions",
+        "Next Highest-Priority Actions",
+        "Next Actions",
+    ):
+        snapshot_next = _first_meaningful_line(_section(snapshot_content, heading), "")
+        if snapshot_next:
+            break
     if snapshot_next and snapshot_next not in next_actions:
         next_actions.append(snapshot_next)
     for patch in pending_patches:
