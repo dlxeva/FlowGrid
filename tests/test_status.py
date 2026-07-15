@@ -123,3 +123,37 @@ def test_status_warns_on_pending_review_patches(tmp_path):
         assert "pending_review" in result.output
     finally:
         os.chdir(old_cwd)
+
+
+def test_status_uses_patch_header_status_not_nested_candidate_status(tmp_path):
+    """Nested candidate statuses must not reopen a rejected patch."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        flg_dir = tmp_path / ".flg"
+        patches_dir = flg_dir / "patches"
+        patches_dir.mkdir(parents=True)
+        state = {
+            "project_name": "Nested Status Project",
+            "created": "2026-07-01",
+            "updated": "2026-07-02",
+            "phase": "execution",
+            "version": "0.1.0",
+            "pending_patches": [],
+        }
+        (flg_dir / "state.json").write_text(json.dumps(state), encoding="utf-8")
+        (flg_dir / "CONTRACT.md").write_text("# Contract", encoding="utf-8")
+        (patches_dir / "closeout-rejected.patch.md").write_text(
+            "patch_id: closeout-rejected\n"
+            "status: rejected\n\n"
+            "## Candidate Decision\n"
+            "status: pending_review\n",
+            encoding="utf-8",
+        )
+
+        result = runner.invoke(app, ["status"])
+        assert result.exit_code == 0
+        assert "⚠" not in result.output
+        assert "No pending patches needing review" in result.output
+    finally:
+        os.chdir(old_cwd)
