@@ -40,6 +40,33 @@ Next step is to confirm budget allocation.
         os.chdir(old_cwd)
 
 
+def test_review_report_only_does_not_write_ledger(tmp_path):
+    """Autonomous hosts can inspect candidates without bypassing approval."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Review Report Test"])
+        transcript = tmp_path / "session.md"
+        transcript.write_text(
+            """# Session
+
+We decided to use the smaller experiment because it is reversible and cheaper.
+""",
+            encoding="utf-8",
+        )
+        runner.invoke(app, ["closeout", "--transcript", str(transcript), "--no-llm"])
+        patch = next((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
+
+        decisions_before = (tmp_path / "DECISIONS.md").read_text(encoding="utf-8")
+        result = runner.invoke(app, ["review", "--patch", patch.name, "--report-only"])
+
+        assert result.exit_code == 0
+        assert "Report only" in result.output
+        assert (tmp_path / "DECISIONS.md").read_text(encoding="utf-8") == decisions_before
+        assert not (tmp_path / ".flg" / "context" / "evidence_index.json").exists()
+    finally:
+        os.chdir(old_cwd)
+
 def test_review_marks_patch_state(tmp_path):
     """review should record decision review status in state.json."""
     import json
