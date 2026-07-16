@@ -57,3 +57,22 @@ def test_audit_warns_when_evidence_basis_is_secondary(tmp_path):
         assert "secondary evidence" in result.output.lower()
     finally:
         os.chdir(old_cwd)
+
+
+def test_audit_reports_missing_authoritative_anchor(tmp_path):
+    """A complete ledger is not ready while an authoritative anchor is missing."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        assert runner.invoke(app, ["init", "Missing Anchor Audit Test"]).exit_code == 0
+        (tmp_path / "ANCHORS.md").write_text(
+            """# Authoritative Anchors\n\n### Product\n\n- **File:** missing/README.md\n- **Role:** product truth\n- **Authority:** authoritative\n- **Provenance:** internal\n- **Lifecycle:** active\n""",
+            encoding="utf-8",
+        )
+        result = runner.invoke(app, ["audit"])
+        assert result.exit_code == 0
+        assert "Anchor Health" in result.output
+        assert "missing/README.md" in result.output
+        assert "Ready for FLG workflow" not in result.output
+    finally:
+        os.chdir(old_cwd)
