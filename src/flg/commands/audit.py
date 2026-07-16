@@ -85,6 +85,22 @@ def _parse_anchors_for_audit(root: Path) -> list[dict]:
     return entries
 
 
+def _resolve_anchor_path(root: Path, anchor_file: str) -> Path:
+    """Resolve a ledger-relative or absolute anchor path for validation."""
+    path = Path(anchor_file).expanduser()
+    return path if path.is_absolute() else root / path
+
+
+def _find_missing_anchors(root: Path, anchors: list[dict]) -> list[dict]:
+    """Return authoritative anchors whose target path no longer exists."""
+    return [
+        anchor
+        for anchor in anchors
+        if anchor.get("authority") == "authoritative"
+        and not _resolve_anchor_path(root, anchor["file"]).exists()
+    ]
+
+
 def _detect_multi_version_conflicts(root: Path, anchors: list[dict]) -> list[dict]:
     """Detect potential multi-version conflicts based on file naming patterns."""
     conflicts = []
@@ -233,7 +249,19 @@ def audit_project(
     console.print("[bold]Multi-version Conflict Detection:[/bold]")
     
     anchors = _parse_anchors_for_audit(root)
+    missing_anchors = _find_missing_anchors(root, anchors)
     conflicts = _detect_multi_version_conflicts(root, anchors)
+
+    console.print()
+    console.print("[bold]Anchor Health:[/bold]")
+    if missing_anchors:
+        console.print(f"  [red]{len(missing_anchors)} authoritative anchor(s) point to missing files.[/red]")
+        for anchor in missing_anchors:
+            console.print(f"    ✗ {anchor['topic']}: {anchor['file']}")
+    elif anchors:
+        console.print(f"  [green]✓ {len(anchors)} anchor(s) resolve to existing files.[/green]")
+    else:
+        console.print("  [yellow]No anchors defined.[/yellow]")
     
     if not conflicts:
         console.print("  [green]No multi-version conflicts detected.[/green]")
@@ -269,8 +297,12 @@ def audit_project(
     if high_risk:
         console.print(f"  4. [red]Fix {len(high_risk)} high-risk multi-version conflict(s)[/red]")
         console.print("     Edit ANCHORS.md to specify authoritative versions")
-    
-    if maturity_score == 5 and not high_risk:
+
+    if missing_anchors:
+        console.print(f"  5. [red]Repair {len(missing_anchors)} missing authoritative anchor(s)[/red]")
+        console.print("     Update ANCHORS.md or restore the referenced file before relying on handoff output")
+
+    if maturity_score == 5 and not high_risk and not missing_anchors:
         console.print("  [green]Project has complete core files and no conflicts. Ready for FLG workflow.[/green]")
     
     # Generate report if requested

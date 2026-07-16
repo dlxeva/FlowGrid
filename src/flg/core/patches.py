@@ -25,7 +25,7 @@ def create_patch(root: Path, patch_id: str, content: str) -> Path:
 
 
 def list_patches(root: Path) -> list[dict]:
-    """List all pending patches."""
+    """List patch metadata using only the patch header lifecycle state."""
     patches_dir = root / ".flg" / "patches"
     if not patches_dir.exists():
         return []
@@ -39,8 +39,11 @@ def list_patches(root: Path) -> list[dict]:
             "path": str(f),
             "size": f.stat().st_size,
         }
-        # Try to extract patch_id and status
+        # Header fields define patch lifecycle. Candidate decision blocks may
+        # contain their own status lines and must not overwrite patch status.
         for line in content.split("\n"):
+            if line.strip() == "---":
+                break
             if line.startswith("patch_id:"):
                 patch_info["patch_id"] = line.split(":", 1)[1].strip()
             elif line.startswith("status:"):

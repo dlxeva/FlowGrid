@@ -56,6 +56,7 @@ def parse_decisions_ledger(content: str) -> list[dict[str, str]]:
         alternatives = _section(block, ("备选方案", "Alternatives"))
         rejected = _section(block, ("放弃理由", "Rejected Alternatives"))
         reversal = _section(block, ("复盘入口", "Reversal Conditions"))
+        status = _section(block, ("决策状态", "Status")).lower() or "confirmed"
         if _is_placeholder(title) or _is_placeholder(what_decided):
             continue
 
@@ -79,6 +80,7 @@ def parse_decisions_ledger(content: str) -> list[dict[str, str]]:
                 "alternatives": alternatives,
                 "rejected_alternatives": rejected,
                 "reversal_conditions": reversal,
+                "status": status,
                 "source_type": source_type,
                 "source": source,
             }
@@ -118,7 +120,7 @@ def rebuild_evidence_index(root: Path) -> dict[str, Any]:
         old = old_items.get(decision_id, {})
         item: dict[str, Any] = {
             "decision_id": decision_id,
-            "status": "confirmed",
+            "status": decision["status"],
             "authority": old.get("authority", "high"),
             "source_type": old.get("source_type") or decision["source_type"],
             "source_excerpt": old.get("source_excerpt") or decision["what_decided"],

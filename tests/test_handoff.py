@@ -54,6 +54,44 @@ def test_handoff_shows_pending_patches(flg_project_with_patch):
     assert "pending patch" in result.output.lower()
 
 
+def test_handoff_excludes_rejected_patches(tmp_path):
+    """Rejected patches remain auditable but are not active handoff state."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        assert runner.invoke(app, ["init", "Rejected Handoff Test"]).exit_code == 0
+        transcript = tmp_path / "session.md"
+        transcript.write_text("我们确认采用方案A。\n因为方案A更快。\n", encoding="utf-8")
+        assert runner.invoke(app, ["closeout", "--transcript", str(transcript)]).exit_code == 0
+        patch = next((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
+        assert runner.invoke(app, ["patch", "discard", patch.name, "--reason", "test"]).exit_code == 0
+
+        result = runner.invoke(app, ["handoff"])
+        assert result.exit_code == 0
+        assert "(no pending patches)" in result.output
+        assert patch.name not in result.output
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_handoff_marks_missing_anchor_not_authoritative(tmp_path):
+    """Handoff must flag missing anchor paths instead of treating them as current truth."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        assert runner.invoke(app, ["init", "Missing Anchor Test"]).exit_code == 0
+        (tmp_path / "ANCHORS.md").write_text(
+            """# Authoritative Anchors\n\n### Product\n\n- **File:** missing/README.md\n- **Role:** product truth\n- **Authority:** authoritative\n- **Provenance:** internal\n- **Lifecycle:** active\n""",
+            encoding="utf-8",
+        )
+        result = runner.invoke(app, ["handoff"])
+        assert result.exit_code == 0
+        assert "Status: missing" in result.output
+        assert "Do not use it as current authority" in result.output
+    finally:
+        os.chdir(old_cwd)
+
+
 def test_handoff_shows_risks(flg_project_with_patch):
     """Test that handoff shows risks from patches."""
     result = runner.invoke(app, ["handoff"])

@@ -52,6 +52,8 @@ PLACEHOLDER_MARKERS = {
     "(现在的目标)",
     "(触发变化的事件 / 信息 / 约束)",
     "(影响了哪些文档 / 动作 / 边界)",
+    "{created_at}",
+    "{updated_at}",
 }
 
 
@@ -146,6 +148,8 @@ def _decision_subsection(block: str, heading: str) -> str:
 def _parse_confirmed_decisions(decisions_content: str, limit: int = 5) -> list[dict[str, str]]:
     decisions = []
     for item in parse_decisions_ledger(decisions_content):
+        if item.get("status") in {"superseded", "rejected"}:
+            continue
         decisions.append(
             {
                 "id": item["decision_id"],
@@ -451,7 +455,7 @@ def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> 
 ## Rejected Alternatives
 
 {_render_items(rejected_alternatives)}
-## Superseded Judgments
+## Goal Evolution
 
 {_render_items(superseded)}
 ## Current Risks
@@ -479,7 +483,9 @@ def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> 
 - Surface assumptions when using them to support recommendations.
 - Do not revive rejected alternatives unless new evidence exists.
 - Do not rely on superseded judgments as current truth.
-- Ask for review before changing goals, boundaries, review objects, proof objects, or core judgments.
+- Surface the boundary before changing goals, boundaries, review objects, proof
+  objects, or core judgments; interrupt the user only when an external,
+  irreversible action depends on that change.
 - Retrieve evidence when asked why a judgment was made.
 - Do not load raw sessions by default.
 
