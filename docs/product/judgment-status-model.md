@@ -14,13 +14,15 @@ The risk is not only forgetting.
 
 The risk is making weak, stale, or superseded judgments look authoritative.
 
-A useful project-state system must distinguish fact, judgment, assumption, preference, pending review, and obsolete state.
+A useful project-state system must distinguish fact, judgment, assumption, preference, pending review, and obsolete state without turning every distinction into a user-facing approval step.
 
 ## Status Values
 
 ### confirmed
 
-A human-reviewed decision or project state item.
+A decision or project state item that is clearly committed in the conversation
+or adopted from strong source evidence. This does not require a separate FLG
+approval prompt; the host still preserves provenance and authority.
 
 Agents may inherit it as current project truth unless a newer item supersedes it.
 
@@ -52,13 +54,15 @@ Agents should not rely on it as current truth.
 
 A judgment that has conflicting signals or disagreement.
 
-Agents should ask for review or retrieve evidence before using it.
+Agents should surface the conflict and retrieve evidence. They should interrupt
+only when an irreversible external action depends on the contested item.
 
 ### stale
 
 A judgment that may have expired due to time, external change, client feedback, budget change, or project-stage change.
 
-Agents should request recheck before relying on it.
+Agents should surface the recheck boundary before relying on it for a material
+action; routine ledger maintenance can continue in the background.
 
 ### needs_recheck
 
@@ -79,7 +83,7 @@ Examples:
 - explicit user confirmation
 - client-confirmed feedback
 - signed-off decision
-- accepted review entry
+- explicit human review entry
 - authoritative project document
 
 ### medium
@@ -183,7 +187,8 @@ A FlowGrid-aware agent should follow these rules:
 3. Surface `assumption` when using it to support a recommendation.
 4. Avoid re-suggesting `rejected` alternatives unless new evidence exists.
 5. Never rely on `superseded` items as current truth.
-6. Ask for human review when encountering `contested` items.
+6. Surface `contested` items with their conflicting evidence; interrupt the user
+   only if the next external action depends on resolving the conflict.
 7. Warn before relying on `stale` or `needs_recheck` items.
 8. Prefer high-authority evidence when judgments conflict.
 
@@ -231,7 +236,7 @@ The model succeeds if an agent can answer:
 
 - Can I inherit this judgment?
 - Is this a fact, a judgment, or an assumption?
-- Has this been reviewed by a human?
+- What evidence and authority support this judgment?
 - Was this rejected or superseded?
 - What could reverse it?
 - What source supports it?
