@@ -79,7 +79,8 @@ new constraint, or a candidate decision:
 
 1. Preserve the raw discussion or notes immediately.
 2. Run `flg closeout` before leaving the session or switching agents.
-3. Treat the generated patch as pending state until reviewed.
+3. Treat the generated patch as internal candidate state and process it in the
+   background; do not turn routine ledger maintenance into a user prompt.
 4. If the host cannot access the raw transcript, preserve the notes that are
    available and report the missing source instead of claiming closeout is complete.
 
@@ -108,20 +109,25 @@ generated summary sections from extraction without changing the raw source.
 
 If no LLM API keys are configured, add `--no-llm` to force keyword-based extraction.
 
-### Review and merge
+### Background review and merge
 
-Treat `closeout` output as candidate state only.
+`closeout` output is an internal candidate state, not a user-facing approval
+step. In the normal host-integrated flow:
 
-1. In an autonomous host, first run `flg review --patch <patch-file> --report-only`
-   so candidates can be inspected without writing ledger state. Use interactive
-   `flg review --patch <patch-file>` when the user is making the approval decisions.
-2. Summarize candidate decisions for the user — note which are rich (have reasoning)
-   and which are shells (flagged `low_confidence_shell`, skipped by `--accept-all`).
-3. Run `flg review --patch <patch-file> --accept-all` only after the user explicitly
-   instructs the host to maintain the ledger autonomously. Then run
-   `flg merge --patch <patch-file>`.
+1. Run `flg review --patch <patch-file> --report-only` in the background as an
+   internal quality gate. It never interrupts the user or writes ledger state.
+2. Run `flg review --patch <patch-file> --autonomous` only after that gate.
+   Rich candidates with real reasoning are adopted into the ledger; shell
+   candidates with no context remain pending and are not written as decisions.
+3. If the host used real-time capture, run `flg capture review --auto-confirm`
+   in the background; this only processes captures explicitly marked
+   `confirmed` and leaves inferred captures pending.
+4. Run `flg merge --patch <patch-file> --yes` in the background.
 
-Never silently convert a pending judgment into a confirmed decision. Do not
+The user should continue speaking naturally. Report only material project
+changes, unresolved ambiguity, or an external action that requires a decision.
+
+Never silently promote a shell or ambiguous judgment into current truth. Do not
 reintroduce rejected or superseded directions without new evidence.
 
 ### Autonomous continuation mode
@@ -140,11 +146,11 @@ Autonomous actions may include:
   obsolete, preserving the audit trail;
 - implementing low-risk bug fixes with regression tests;
 - committing changes and opening or updating a PR;
-- preparing, but not silently merging, formal decision patches.
+- preparing and silently maintaining formal decision patches from clear raw
+  evidence; preserve provenance and status for inferred or ambiguous items.
 
 Stop and ask for confirmation only before:
 
-- promoting a candidate or inferred judgment to a confirmed decision;
 - rewriting or migrating a real project's formal ledger;
 - deleting source material or user data;
 - publishing externally, changing permissions, spending money, or changing
@@ -186,8 +192,9 @@ Not every statement with a decision keyword is a real decision. Use this filter:
 - Work-plan priority lists ("first priority: X, second priority: Y")
 
 When unsure, prefer `flg capture add` (candidate, `inferred`) over
-`flg decision add` (confirmed). Promote to confirmed only after user sign-off
-or strong evidence.
+`flg decision add` (confirmed). Keep ambiguous candidates in the background
+until stronger conversational evidence appears; do not interrupt the user just
+to ask whether an internal ledger entry is correct.
 
 ## Natural-language mapping
 
@@ -198,7 +205,7 @@ or strong evidence.
 | "这个项目还缺什么" / "what's missing" | `flg frame`; surface proof object, constraints, open questions. |
 | "收口这次讨论" / "close out" | Run `flg closeout` on the raw session; external files are archived automatically. |
 | "审核这轮判断" / "review" | `flg review --patch ...`; preserve status distinctions. |
-| "合并这次变更" / "merge" | `flg merge --patch ...` after approval. |
+| "合并这次变更" / "merge" | `flg merge --patch ... --yes` in the background. |
 | "这个 patch 作废了" / "stale patch" | `flg patch supersede` or `flg patch discard`. |
 | "给下一个人交接" / "hand off" | `flg handoff` or `flg export-handoff`. |
 | "为什么当时这么决定" / "why this decision" | `flg evidence <decision-id>` and source inspection. |

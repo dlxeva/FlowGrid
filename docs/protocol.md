@@ -7,9 +7,10 @@ FlowGrid is a **local project-state context engine** for rationale-heavy, non-co
 The CLI matters, but the deeper contract is agent-state governance:
 
 - the project directory is the source of truth
-- markdown files carry durable reviewed project state
+- markdown files carry durable project state and its evidence boundaries
 - `.flg/` carries runtime, review, pending-change, context, and evidence state
-- agents may propose updates, but must not silently rewrite core judgment
+- agents may maintain clear, evidence-backed updates in the background, but
+  must preserve provenance, status, and authority instead of hiding uncertainty
 - receiving agents should consume a bounded Context Pack instead of raw history dumps
 
 FlowGrid is designed for business-project knowledge workers who need to keep judgments reviewable, traceable, and resumable across long-running AI collaboration.
@@ -50,7 +51,8 @@ For rationale-heavy business projects, an agent needs to know:
 - `CONSTRAINTS.md`
 - `ANCHORS.md`
 
-These files hold durable project state a human or agent should treat as the reviewed project ledger.
+These files hold durable project state that a human or agent can inherit, with
+status and authority determining how strongly it should be trusted.
 
 ### Evidence Basis
 
@@ -61,7 +63,7 @@ Supported labels are `direct`, `verified`, `secondary`, and `speculative`.
 `flg frame` and `flg audit` warn when the basis is missing, secondary, unclear,
 or speculative. A warning does not block exploration, but the agent should not
 present the framing as established fact or make a high-risk commitment without
-first-hand validation or explicit human confirmation.
+first-hand validation or an explicit conversational commitment.
 
 ### Runtime / Review / Context Layer
 
@@ -98,7 +100,9 @@ FlowGrid must not flatten every extracted item into a fact.
 
 Important judgments should carry status. The protocol-level statuses are:
 
-- `confirmed` — human-reviewed and inheritable as current project truth
+- `confirmed` — clearly committed in the conversation or adopted from strong
+  source evidence; inheritable as current project truth without a separate FLG
+  approval ceremony
 - `pending_review` — extracted candidate judgment, not formal truth
 - `assumption` — working premise that supports reasoning
 - `rejected` — considered and ruled out
@@ -112,7 +116,7 @@ Extended protocol concepts:
 
 Authority levels may be used when available:
 
-- `high` — explicit user confirmation, client-confirmed feedback, signed-off decision, accepted review entry, authoritative project document
+- `high` — explicit user confirmation, client-confirmed feedback, signed-off decision, explicit human review entry, authoritative project document
 - `medium` — repeated user preference, meeting note with clear stakeholder signal, strong but unreviewed extraction, project owner hypothesis
 - `low` — AI inference, weak raw-session signal, speculative idea, ambiguous fragment
 
@@ -228,7 +232,9 @@ Examples:
 - status changes from pending to confirmed
 - supersession of confirmed decisions
 
-These must stay reviewable and should not be silently merged.
+These must retain provenance and status. The host may process them in the
+background, but should not silently promote ambiguous items or let them drive
+an irreversible external action.
 
 ## Evidence Model
 
@@ -267,7 +273,9 @@ A FlowGrid-aware agent should follow these protocol rules:
 4. Surface assumptions when using them to support recommendations.
 5. Avoid re-suggesting rejected alternatives unless new evidence exists.
 6. Avoid relying on superseded judgments as current truth.
-7. Ask for review when changing goals, boundaries, review objects, proof objects, or core judgments.
+7. Surface the boundary when changing goals, boundaries, review objects, proof
+   objects, or core judgments; interrupt the user only when an external,
+   irreversible action depends on that change.
 8. Retrieve evidence when asked why a judgment was made.
 9. Keep raw session input raw; do not feed ledger files back into closeout by default.
 10. Generate closeout before leaving a meaningful work session.

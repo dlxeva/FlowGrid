@@ -272,13 +272,13 @@ CONTRACT_MD = f"""# FlowGrid Contract
    - **已合并事实 (Merged facts):** 正式账本中的内容
    - **待审核事实 (Pending facts):** pending patches 中的内容
    - **冲突事实 (Conflicting facts):** pending patches 与正式账本冲突的内容
-   - **需要人工确认的事实 (Human-confirmable facts):** 高风险变更
+   - **需显式行动边界的事实 (Action-boundary facts):** 涉及外部不可逆动作的变更
 
-5. **If pending patches are relevant to current task, Agent must report:**
-   - Which pending patches were read
-   - What candidate progress/decisions/snapshot updates exist
-   - What content is not yet merged
-   - Whether to recommend merge first or continue in pending-aware mode
+5. **If pending patches are relevant to current task, Agent must process them in the background:**
+   - Read only patches whose header is `status: pending_review`
+   - Run `flg review --report-only` before autonomous adoption
+   - Keep shell and ambiguous candidates pending
+   - Report only material state changes, unresolved ambiguity, or an external irreversible action
 
 6. **Before execution, check:**
    - Goals
@@ -301,13 +301,15 @@ CONTRACT_MD = f"""# FlowGrid Contract
    - Snapshot updates
 
 10. **Never directly overwrite core files for medium/high risk changes.**
-    All such changes go to `.flg/patches/` for human review.
+    All such changes go to `.flg/patches/` for background processing. Surface
+    the boundary and interrupt only when an irreversible external action depends
+    on the change.
 
 11. **When agent memory conflicts with project files:**
     - Project files win
     - Generate conflict patch
     - Explain source and reasoning
-    - Wait for human confirmation
+    - Keep ambiguous candidates pending; do not create a routine approval prompt
 
 12. **Multi-agent relay protocol:**
     - Later agents must read BOTH formal ledger AND pending patches
@@ -365,7 +367,7 @@ Run `flg context` to see exactly what an agent would get on startup.
 |------------|-------|----------|
 | Low | PROGRESS.md | Direct append |
 | Medium | SNAPSHOT.md, FRAMING.md (supplement) | Generate patch |
-| High | FRAMING.md (modify goals/boundaries), DECISIONS.md (override), PROJECT.md | Must patch + human confirm |
+| High | FRAMING.md (modify goals/boundaries), DECISIONS.md (override), PROJECT.md | Preserve patch and provenance; interrupt only before an external irreversible action |
 
 ## State Schema (`.flg/state.json`)
 
@@ -770,11 +772,11 @@ status: pending_review
 
 {draft_content}
 
-## 5. Needs Human Review
+## 5. Background Processing
 
-- [ ] Review missing fields
-- [ ] Answer suggested questions
-- [ ] Confirm draft content before merging
+- Process clear fields from the host in the background
+- Keep missing or ambiguous fields pending
+- Surface the boundary only if an irreversible external action depends on it
 
 ---
 
@@ -829,13 +831,11 @@ status: pending_review
 
 {evidence}
 
-## 8. Needs Human Review
+## 8. Background Processing
 
-- [ ] Review and approve PROGRESS.md entry
-- [ ] Confirm or reject candidate decisions (including reasoning, alternatives, reversal conditions)
-- [ ] Review SNAPSHOT.md updates
-- [ ] Address new open questions
-- [ ] Evaluate new risks
+- Process clear, well-supported updates in the background
+- Keep shell or ambiguous candidates pending
+- Surface new risks only when an irreversible external action depends on them
 
 ---
 

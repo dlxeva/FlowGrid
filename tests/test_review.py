@@ -66,7 +66,6 @@ We decided to use the smaller experiment because it is reversible and cheaper.
         assert not (tmp_path / ".flg" / "context" / "evidence_index.json").exists()
     finally:
         os.chdir(old_cwd)
-
 def test_review_marks_patch_state(tmp_path):
     """review should record decision review status in state.json."""
     import json
@@ -158,5 +157,35 @@ def test_review_accept_all_writes_rich_decisions(tmp_path):
 
         decisions_content = (tmp_path / "DECISIONS.md").read_text(encoding="utf-8")
         assert "方案A" in decisions_content
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_review_autonomous_records_medium_authority(tmp_path):
+    """Background adoption must not be recorded as a high-authority review."""
+    import json
+
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Autonomous Authority Test"])
+        transcript = tmp_path / "rich.md"
+        transcript.write_text("""# Session
+
+我们确认采用方案A。
+因为方案A的ROI更高，预算也在可控范围内。
+放弃方案B，因为成本太高不可控。
+""", encoding="utf-8")
+        runner.invoke(app, ["closeout", "--transcript", str(transcript)])
+
+        patch = next((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
+        result = runner.invoke(app, ["review", "--patch", patch.name, "--autonomous"])
+        assert result.exit_code == 0
+        assert "Accepted" in result.output
+
+        index = json.loads((tmp_path / ".flg" / "context" / "evidence_index.json").read_text(encoding="utf-8"))
+        item = next(iter(index["items"].values()))
+        assert item["authority"] == "medium"
+        assert item["source_type"] == "closeout_patch"
     finally:
         os.chdir(old_cwd)
