@@ -3,14 +3,14 @@
 [English](./README.md) | [简体中文](./README.zh-CN.md)
 
 > A local project-state context engine for rationale-heavy, non-coding business projects.
-> Designed for AI agents to preserve reviewed judgments, project state, and reasoning chains in local files.
+> Designed for AI agents to preserve state-aware judgments, project state, and reasoning chains in local files.
 
 ![Stage](https://img.shields.io/badge/stage-v0.4--validation-4c6ef5)
 ![Runtime](https://img.shields.io/badge/runtime-local--first-2b8a3e)
 ![Interface](https://img.shields.io/badge/interface-CLI%20%2B%20project%20protocol-495057)
-![Tests](https://img.shields.io/badge/tests-125%20passed-2f9e44)
+![Tests](https://img.shields.io/badge/tests-144%20passed-2f9e44)
 
-FlowGrid helps business-project knowledge workers turn messy AI work sessions into reviewed, traceable, and resumable project context.
+FlowGrid helps business-project knowledge workers turn messy AI work sessions into state-aware, traceable, and resumable project context.
 
 > **Current status:** the codebase reports `v0.3.0` and is in v0.4 core validation. The current focus is entry reliability, rebuildable ledger state, and real-project continuation; v0.4 is not presented as a released version yet.
 
@@ -31,9 +31,9 @@ It is built for long-running work where the deliverable is not just a document, 
 ## At a Glance
 
 - **Local-first:** project truth lives in files, not chat memory
-- **Context-first:** agent startup should load reviewed project state, not raw history dumps
+- **Context-first:** agent startup should load bounded project state, not raw history dumps
 - **Judgment-aware:** decisions store why, rejected options, assumptions, and reversal conditions
-- **Patch-first:** medium/high-risk updates stay reviewable before merge
+- **Background-safe writes:** the host processes routine patches without making the user operate a ledger workflow
 - **Host-agnostic:** works inside Codex, Hermes, OpenClaw, Claude, or any agent shell that can read files and run commands
 - **Business-project oriented:** built for proposals, campaigns, briefs, strategies, mechanisms, and retrospectives
 
@@ -44,6 +44,10 @@ mkdir demo && cd demo
 flg init "Launch Proposal" --type proposal --client "Client A"
 flg frame
 flg closeout --transcript meeting-notes.md
+flg review --patch .flg/patches/<closeout-patch>.md --report-only
+flg review --patch .flg/patches/<closeout-patch>.md --autonomous
+flg merge --patch .flg/patches/<closeout-patch>.md --yes
+flg context --mode resume
 flg handoff
 ```
 
@@ -53,6 +57,10 @@ After that, you will have:
 - a protocol directory: `.flg/`
 - reviewable pending changes in `.flg/patches/`
 - a resumable handoff summary for the next session or agent
+
+In host-integrated use, the review and merge lines run in the background. The
+user continues the project in natural language; ambiguous shell candidates stay
+pending instead of becoming formal decisions.
 
 You can run that flow from Codex, Hermes, OpenClaw, Claude, or any AI agent work product that can read files and run commands.
 
@@ -227,7 +235,7 @@ flg closeout --transcript path/to/transcript.md
 
 This extracts decisions, risks, and progress from a transcript and generates a closeout patch. External raw transcripts are automatically copied into `.flg/sessions/` so the evidence path is durable.
 
-English transcripts are supported, including confirmation, trade-off, risk, question, rationale, rejection, and reversal language. Review low-confidence candidates before accepting them.
+English transcripts are supported, including confirmation, trade-off, risk, question, rationale, rejection, and reversal language. Low-confidence candidates remain pending for background handling.
 
 Use raw meeting notes, session transcripts, or files under `.flg/sessions/`.
 Do not use structured ledger files such as `PROGRESS.md`, `SNAPSHOT.md`, or `DECISIONS.md` as closeout input unless you explicitly know why and pass `--force`.
@@ -272,9 +280,11 @@ FlowGrid uses a patch-first approach to avoid AI accidentally overwriting import
 
 - **Low risk** (progress logs): Can be appended directly
 - **Medium risk** (snapshot updates): Generate patch for review
-- **High risk** (goal/boundary changes): Must generate patch + human confirmation
+- **High risk** (goal/boundary changes): Must retain provenance and an explicit action boundary
 
-All patches are stored in `.flg/patches/` and require human review before merging.
+All patches are stored in `.flg/patches/` and processed by the host in the
+background. `--report-only` is available for diagnostics; `--autonomous` adopts
+clear candidates with medium authority while shell candidates remain pending.
 
 ### Two-Layer State (Agent Startup Protocol)
 
@@ -288,7 +298,7 @@ When an agent starts working on a FLG project, it must read **two layers** of st
 - Pending patches are not formal facts, but represent "pending project state"
 - Agents must read and understand pending patches before continuing
 
-This ensures multi-agent relay works correctly: Agent B can see Agent A's closeout output even before human review.
+This ensures multi-agent relay works correctly: Agent B can see Agent A's closeout output while the host preserves pending and ambiguous state internally.
 
 ## CLI Commands
 
@@ -297,22 +307,36 @@ This ensures multi-agent relay works correctly: Agent B can see Agent A's closeo
 | `flg init <name>` | Initialize a new project |
 | `flg frame` | Check framing completeness |
 | `flg closeout --transcript <file>` | Generate closeout patch |
-| `flg review --patch <file>` | Accept candidate decisions into DECISIONS.md |
+| `flg onboard [--yes]` | Check the environment, run the guided demo, and install the host skill |
+| `flg session save <file>` | Archive a raw session before closeout |
+| `flg review --patch <file> [--report-only] [--autonomous]` | Inspect candidates internally, then process eligible decisions in the background |
 | `flg context --mode resume` | Generate bounded agent startup Context Pack |
 | `flg evidence <decision-id>` | Show evidence behind a reviewed decision |
-| `flg merge --patch <file>` | Merge pending patch into formal ledger |
+| `flg merge --patch <file> [--yes]` | Merge routine patch updates without a prompt |
 | `flg handoff` | Generate agent handoff summary |
 | `flg audit <path>` | Audit existing project directory |
 | `flg extract-decisions <path>` | Extract candidate decisions |
 | `flg import <source>` | Import existing project into FLG |
 | `flg status` | Show project status |
 | `flg version` | Show FLG version |
+| `flg doctor` | Check cross-file ledger and index consistency |
+| `flg reindex` | Rebuild runtime indexes from the formal ledger |
 | `flg capture add -c <claim> -r <reason>` | Capture a judgment candidate in real-time |
 | `flg capture list` | List judgment candidates (filter by type/status) |
-| `flg capture review` | Review candidates → accept into DECISIONS.md or reject |
+| `flg capture review` | Process candidates in the background → accept or keep pending |
 | `flg decision add -d <decision> -r <reason>` | Direct decision write (strong commitment only) |
 
 > `flg trace` is planned future work and is not implemented in the current CLI.
+
+## Current v0.4 Validation Focus
+
+- stable ingestion of raw sessions into `.flg/sessions/`
+- reliable background processing before candidate judgments enter the formal ledger
+- rebuilding runtime indexes from formal project files with `doctor` and `reindex`
+- continuation by a later agent using real, long, and contradictory project history
+
+Automatic quadrant routing, a blindspot engine, and `flg trace` are not completed
+capabilities in the current version.
 
 ## Smoke Test
 
@@ -325,9 +349,9 @@ pytest -q
 
 The smoke test creates a temporary project, runs `init`, `frame`, `closeout`, `review`, `evidence`, `context`, `handoff`, and `status`, then prints the generated files.
 
-## v0.1 Core Scope
+## Historical v0.1 Core Scope
 
-This version includes:
+The original v0.1 scope included:
 - `flg init` - Project initialization
 - `flg frame` - Framing completeness check
 - `flg closeout` - Session closeout with transcript extraction
@@ -341,7 +365,7 @@ This version includes:
 - Project state management
 - Two-layer state protocol (formal ledger + pending patches)
 
-## v0.1.5 Legacy (Implemented)
+## Historical v0.1.5 Legacy (Implemented)
 
 Legacy Audit features:
 - `flg audit --report-only` - Audit existing projects

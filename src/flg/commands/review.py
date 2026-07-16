@@ -23,7 +23,7 @@ EVIDENCE_INDEX_PATH = Path(".flg") / "context" / "evidence_index.json"
 
 # Placeholder markers that indicate a field was never filled in.
 # If what_decided is empty OR why/alternatives/rejected/reversal are all
-# placeholders, the candidate is a "shell" and --accept-all must skip it.
+# placeholders, the candidate is a "shell" and background modes must skip it.
 _PLACEHOLDER_VALUES = {
     "(not detected in context)",
     "(not detected by llm)",
@@ -39,8 +39,8 @@ def _is_shell_decision_for_review(decision: dict) -> bool:
     - no what_decided content at all, or
     - why + alternatives + rejected + reversal all placeholder/empty.
 
-    --accept-all skips these to keep DECISIONS.md trustworthy. Interactive
-    review still allows a human to force-accept after seeing the warning.
+    Background modes skip these to keep DECISIONS.md trustworthy. They should
+    be re-extracted with more context rather than promoted automatically.
     """
     what = (decision.get("what_decided") or "").strip()
     if not what:
@@ -149,12 +149,13 @@ def _evidence_entry(
     patch_info: dict,
     patch_content: str,
     reviewed_at: str,
+    autonomous: bool = False,
 ) -> dict:
     return {
         "decision_id": decision_id,
         "status": "confirmed",
-        "authority": "high",
-        "source_type": "review_action",
+        "authority": "medium" if autonomous else "high",
+        "source_type": "closeout_patch" if autonomous else "review_action",
         "source_patch": str(Path(".flg") / "patches" / patch_path.name),
         "source_session": _extract_source_session_from_patch(patch_content),
         "source_excerpt": decision.get("excerpt") or decision.get("what_decided") or "",
@@ -171,8 +172,14 @@ def _evidence_entry(
 def review_patch(
     patch_file: str = typer.Option(..., "--patch", "-p", help="Patch file to review"),
     accept_all: bool = typer.Option(False, "--accept-all", help="Accept all candidate decisions without prompting"),
+    autonomous: bool = typer.Option(
+        False,
+        "--autonomous",
+        help="Adopt clear candidates in the background with medium authority",
+    ),
+    report_only: bool = typer.Option(False, "--report-only", help="Report candidates without writing ledger state"),
 ) -> None:
-    """Review candidate decisions from a patch and append accepted ones to DECISIONS.md."""
+    """Process candidate decisions, optionally without writing ledger state."""
     root = Path.cwd()
     if not is_flg_project(root):
         console.print("[red]Not a FLG project. Run 'flg init' first.[/red]")
@@ -196,6 +203,22 @@ def review_patch(
         console.print("[yellow]No candidate decisions found in this patch.[/yellow]")
         raise typer.Exit(0)
 
+    if report_only:
+        console.print()
+        console.print(f"[bold]Candidate decisions in[/bold] {patch_path.name}")
+        console.print()
+        for index, decision in enumerate(decisions, 1):
+            is_shell = _is_shell_decision_for_review(decision)
+            quality = "shell / needs re-extraction" if is_shell else "reviewable"
+            console.print(f"{index}. [cyan]{decision.get('title', 'Untitled decision')}[/cyan] [{quality}]")
+            if decision.get("what_decided"):
+                console.print(f"   What: {decision['what_decided']}")
+            if decision.get("why"):
+                console.print(f"   Why: {decision['why']}")
+        console.print()
+        console.print("[dim]Report only: no DECISIONS.md, evidence index, or state files were changed.[/dim]")
+        raise typer.Exit(0)
+
     decisions_path = root / "DECISIONS.md"
     decisions_content = read_file_safe(decisions_path) or "# Decision Log\n"
     next_number = _next_decision_number(decisions_content)
@@ -203,6 +226,7 @@ def review_patch(
     accepted_evidence_entries = []
     skipped_shells = 0
     reviewed_at = datetime.now().isoformat(timespec="seconds")
+    background = autonomous or accept_all
 
     console.print()
     console.print(f"[bold]Reviewing candidate decisions from[/bold] {patch_path.name}")
@@ -218,12 +242,12 @@ def review_patch(
             console.print(f"  Excerpt: {decision['excerpt']}")
 
         # Quality gate: shell decisions (no reasoning/alternatives/reversal)
-        # must not be silently accepted via --accept-all. They pollute
+        # must not be silently accepted by a background mode. They pollute
         # DECISIONS.md with empty entries that look like real decisions.
         is_shell = _is_shell_decision_for_review(decision)
-        if is_shell and accept_all:
+        if is_shell and background:
             console.print("  [yellow]⚠ Skipped (shell decision: no reasoning/alternatives/reversal).[/yellow]")
-            console.print("  [dim]--accept-all will not write shell decisions. Run without --accept-all to force-accept after review.[/dim]")
+            console.print("  [dim]Background processing will not write shell decisions. Re-extract with more context instead.[/dim]")
             skipped_shells += 1
             continue
         elif is_shell:
@@ -231,7 +255,7 @@ def review_patch(
             console.print("  [dim]Recommended: reject and re-extract with more context, or fill in the why before accepting.[/dim]")
 
         default_accept = True if not is_shell else False
-        accepted = accept_all or Confirm.ask("Accept this decision into DECISIONS.md?", default=default_accept)
+        accepted = background or Confirm.ask("Accept this decision into DECISIONS.md?", default=default_accept)
         if accepted:
             decision_id = f"D-{next_number:03d}"
             accepted_entries.append(_build_decision_entry(next_number, decision))
@@ -243,14 +267,15 @@ def review_patch(
                     patch_info=patch_info,
                     patch_content=content,
                     reviewed_at=reviewed_at,
+                    autonomous=autonomous,
                 )
             )
             next_number += 1
 
     if not accepted_entries:
         if skipped_shells:
-            console.print(f"[yellow]No decisions accepted. {skipped_shells} shell decision(s) skipped by --accept-all.[/yellow]")
-            console.print("[dim]Re-run without --accept-all to force-accept shells after manual review, or re-extract with more context.[/dim]")
+            console.print(f"[yellow]No decisions accepted. {skipped_shells} shell decision(s) skipped by background processing.[/yellow]")
+            console.print("[dim]Re-extract with more context before adopting any shell candidate.[/dim]")
         else:
             console.print("[yellow]No decisions accepted.[/yellow]")
         raise typer.Exit(0)
@@ -270,6 +295,7 @@ def review_patch(
             if patch.get("patch_id") == patch_info.get("patch_id"):
                 patch["decision_reviewed_at"] = reviewed_at
                 patch["decision_review_status"] = "accepted"
+                patch["decision_adoption_mode"] = "autonomous" if autonomous else "interactive"
                 patch["evidence_index"] = str(EVIDENCE_INDEX_PATH)
                 break
         save_state(root, state)

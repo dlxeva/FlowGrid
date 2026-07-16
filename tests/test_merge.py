@@ -74,6 +74,18 @@ def test_merge_updates_progress(flg_project_with_patch):
     assert "Session Progress" in progress_content
 
 
+def test_merge_autonomous_skips_interactive_prompt(flg_project_with_patch):
+    """AI hosts can complete routine ledger maintenance without a user prompt."""
+    patches_dir = flg_project_with_patch / ".flg" / "patches"
+    patch_file = next(patches_dir.glob("closeout-*.patch.md"))
+
+    result = runner.invoke(app, ["merge", "--patch", patch_file.name, "--yes"])
+
+    assert result.exit_code == 0
+    assert "Merge complete" in result.output
+    assert "Proceed with merge?" not in result.output
+
+
 def test_merge_updates_snapshot(flg_project_with_patch):
     """Test that merge updates SNAPSHOT.md with risks."""
     patches_dir = flg_project_with_patch / ".flg" / "patches"

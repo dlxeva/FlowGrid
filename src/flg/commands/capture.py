@@ -137,7 +137,7 @@ def capture_add(
     console.print(f"  Type: {type_}  |  Status: pending_review  |  Confidence: {confidence}")
     console.print(f"  File: {filepath}")
     if review_required:
-        console.print(f"  [yellow]⚠ Review required before this becomes a formal decision.[/yellow]")
+        console.print(f"  [yellow]⚠ Inferred capture remains pending for background processing.[/yellow]")
     console.print()
 
 
@@ -399,10 +399,12 @@ def _save_evidence_index(root: Path, index: dict) -> Path:
 
 def capture_review(
     auto_confirm: bool = typer.Option(
-        False, "--auto-confirm", help="Auto-confirm all pending captures (use with caution)"
+        False,
+        "--auto-confirm",
+        help="Auto-process only explicitly confirmed captures; keep inferred items pending",
     ),
 ) -> None:
-    """逐条审核候选判断，确认的写入 DECISIONS.md，拒绝的标记为 rejected。"""
+    """后台处理候选判断；仅显式 confirmed 捕获可自动写入账本。"""
     root = Path.cwd()
     if not is_flg_project(root):
         console.print("[red]Not a FLG project. Run 'flg init' first.[/red]")
@@ -447,6 +449,11 @@ def capture_review(
         if meta.get("raw_evidence"):
             console.print(f"  Evidence: [dim]{meta['raw_evidence'][:80]}[/dim]")
         console.print()
+
+        if auto_confirm and meta.get("confidence") != "confirmed":
+            console.print("  [yellow]⚠ Kept pending (capture is inferred, not explicitly confirmed).[/yellow]")
+            console.print()
+            continue
 
         if auto_confirm:
             choice = "a"

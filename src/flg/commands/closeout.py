@@ -228,6 +228,45 @@ def strip_inline_code(text: str) -> str:
     return text
 
 
+_GENERATED_TRANSCRIPT_HEADINGS = {
+    "agent analysis",
+    "agent summary",
+    "distilled signals",
+    "extracted decisions",
+    "handoff summary",
+    "structured summary",
+}
+
+
+def strip_generated_transcript_sections(content: str) -> str:
+    """Keep raw discussion while excluding agent-generated summary sections.
+
+    Hosts sometimes append their own handoff or extraction output to the raw
+    session file. That output is useful for humans, but feeding it back into
+    closeout causes field labels such as ``Type`` or ``Status`` to look like
+    fresh decisions. The original transcript remains unchanged on disk; this
+    helper only narrows the extraction input.
+    """
+    lines = content.splitlines(keepends=True)
+    kept: list[str] = []
+    skipping = False
+
+    for line in lines:
+        heading = re.match(r"^\s{0,3}(#{2,6})\s+(.+?)\s*$", line)
+        if heading:
+            title = re.sub(r"[*_`]", "", heading.group(2)).strip().lower()
+            if title in _GENERATED_TRANSCRIPT_HEADINGS:
+                skipping = True
+                continue
+            if skipping and len(heading.group(1)) <= 2:
+                skipping = False
+
+        if not skipping:
+            kept.append(line)
+
+    return "".join(kept)
+
+
 def iter_segments(content: str) -> list[str]:
     """Split transcript into sentence-like segments while keeping questions."""
     segments = []
@@ -895,6 +934,10 @@ def closeout_session(
         console.print("[red]Transcript is empty.[/red]")
         raise typer.Exit(1)
 
+    # Preserve the raw session as the source artifact, but do not let an
+    # appended agent-generated summary become a second source of decisions.
+    extraction_content = strip_generated_transcript_sections(content)
+
     # ── Resolve extraction mode ────────────────────────────────────────
     # Priority: --prompt > explicit --llm > --no-llm > auto-detect
 
@@ -903,18 +946,18 @@ def closeout_session(
 
     if prompt_only:
         # --prompt: generate prompt file only, no extraction
-        _do_prompt_only(root, transcript, content)
+        _do_prompt_only(root, transcript, extraction_content)
         return
 
     if llm is not None:
         if llm.lower() == "hermes":
             # Hermes-assisted: save prompt, let current AI process it
-            _delegate_to_hermes(root, transcript, content)
+            _delegate_to_hermes(root, transcript, extraction_content)
             return
         # Explicit --llm <provider>
         if not is_llm_available(llm.lower()):
             console.print(f"[yellow]No API key found for {llm}. Trying Hermes-assisted mode instead.[/yellow]")
-            _delegate_to_hermes(root, transcript, content)
+            _delegate_to_hermes(root, transcript, extraction_content)
             return
         use_llm = True
         llm_provider = llm.lower()
@@ -932,11 +975,11 @@ def closeout_session(
 
     # ── LLM extraction path (v0.2.3) ───────────────────────────────────
     if use_llm:
-        _do_llm_closeout(root, transcript, content, project_name, state, llm_provider)
+        _do_llm_closeout(root, transcript, extraction_content, project_name, state, llm_provider)
         return
 
     # ── Keyword extraction path (existing behavior) ────────────────────
-    _do_keyword_closeout(root, transcript, content, project_name, state, mode)
+    _do_keyword_closeout(root, transcript, extraction_content, project_name, state, mode)
 
 
 def _do_prompt_only(root: Path, transcript: Path, content: str) -> None:
@@ -1087,7 +1130,7 @@ suggested_action: {suggested_action}
     summary = (
         f"- Candidate decisions extracted by Hermes AI: {len(llm_decisions)}\n"
         f"- Source: {json_path}\n"
-        f"- All decisions marked pending_review — human confirmation required"
+        f"- All decisions marked pending_review — background processing required; ambiguous items remain pending"
     )
 
     patch_content = f"""# FLG Patch (Hermes AI Extracted — v0.2.3)
@@ -1136,11 +1179,11 @@ mode: llm-hermes
         patch_content += f"> {d['content'][:200]}\n\n"
 
     patch_content += f"""
-## 8. Needs Human Review
+## 8. Background Processing
 
-- [ ] Review ALL {len(llm_decisions)} AI-extracted candidate decisions
-- [ ] Confirm each decision is real (AI may hallucinate or over-extract)
-- [ ] Fill in missing fields where AI marked "not provided"
+- [ ] Process candidates in the host background flow
+- [ ] Keep shell or ambiguous candidates pending
+- [ ] Inspect extraction quality only when the host detects a material conflict
 - [ ] Reject any false positives
 
 ---
@@ -1159,9 +1202,9 @@ mode: llm-hermes
     console.print(f"Decisions written: {len(llm_decisions)}")
     console.print()
     console.print("Next steps:")
-    console.print("  1. Review the patch — AI decisions need human confirmation")
-    console.print("  2. Confirm or reject each candidate decision")
-    console.print("  3. Run: flg merge --patch <file>")
+    console.print("  1. Process the patch in the host background flow")
+    console.print("  2. Keep shell or ambiguous candidates pending")
+    console.print("  3. Run: flg merge --patch <file> --yes")
 
 
 def _do_llm_closeout(
@@ -1219,9 +1262,9 @@ The LLM found no explicit decisions in this conversation.
 
 ---
 
-## Needs Human Review
+## Background Processing
 
-- [ ] Review the transcript to confirm no decisions were missed
+- No candidate decisions were extracted; the host may continue normally.
 
 ---
 
@@ -1253,7 +1296,7 @@ The LLM found no explicit decisions in this conversation.
             source_excerpt = source_excerpt[:117] + "..."
 
         # Quality gate (same as keyword path): flag shell decisions so
-        # review --accept-all won't silently write them into DECISIONS.md.
+        # background review won't silently write them into DECISIONS.md.
         why_label = "LLM extracted (v0.2.3)"
         confidence = d.get("confidence", "medium")
         suggested_action = "needs_review"
@@ -1286,7 +1329,7 @@ suggested_action: {suggested_action}
     summary = (
         f"- Candidate decisions extracted by LLM ({llm_model}): {len(llm_decisions)}\n"
         f"- Source: {transcript}\n"
-        f"- All decisions marked pending_review — human confirmation required"
+        f"- All decisions marked pending_review — background processing required; ambiguous items remain pending"
     )
 
     patch_content = f"""# FLG Patch (LLM Extracted — v0.2.3)
@@ -1336,11 +1379,11 @@ llm_model: {llm_model}
         patch_content += f"> {d['content'][:200]}\n\n"
 
     patch_content += f"""
-## 8. Needs Human Review
+## 8. Background Processing
 
-- [ ] Review ALL {len(llm_decisions)} LLM-extracted candidate decisions
-- [ ] Confirm each decision is a real decision (LLM may hallucinate or over-extract)
-- [ ] Fill in reasoning, alternatives, and reversal conditions where LLM marked "not detected"
+- [ ] Process candidates in the host background flow
+- [ ] Keep shell or ambiguous candidates pending
+- [ ] Inspect extraction quality only when the host detects a material conflict
 - [ ] Reject any false positives
 - [ ] Consider running 'flg closeout --no-llm' for complementary keyword-based extraction
 
@@ -1367,9 +1410,9 @@ llm_model: {llm_model}
     console.print(f"Decisions found: {len(llm_decisions)}")
     console.print()
     console.print("Next steps:")
-    console.print("  1. Review the patch — LLM decisions need human confirmation")
-    console.print("  2. Confirm or reject each candidate decision")
-    console.print("  3. Run: flg merge --patch <file>")
+    console.print("  1. Process the patch in the host background flow")
+    console.print("  2. Keep shell or ambiguous candidates pending")
+    console.print("  3. Run: flg merge --patch <file> --yes")
 
 
 def _do_keyword_closeout(
@@ -1434,7 +1477,7 @@ def _do_keyword_closeout(
 
             # Quality gate: flag shell decisions (no reasoning/alternatives/reversal).
             # These stay in the patch but get low_confidence so review won't
-            # silently accept them into DECISIONS.md via --accept-all.
+            # silently accept them into DECISIONS.md via background processing.
             why_label = why_this_is_a_decision(d)
             confidence = d["confidence"]
             suggested_action = "needs_review"
@@ -1580,12 +1623,11 @@ mode: {mode}
 
     {lessons_text}
 
-    ## 10. Needs Human Review
+    ## 10. Background Processing
 
-    - [ ] Review candidate decisions
-    - [ ] Review goal evolution signals
-    - [ ] Review suggested next actions
-    - [ ] Confirm or reject each decision
+    - [ ] Process candidate decisions in the host background flow
+    - [ ] Preserve ambiguous candidates as pending
+    - [ ] Process goal evolution signals and suggested next actions
 - [ ] Evaluate risks
 - [ ] Address open questions
 - [ ] Fill in LESSONS_LEARNED.md if signals detected
@@ -1620,10 +1662,10 @@ mode: {mode}
     _refresh_snapshot(root, decisions, risks, next_actions, state)
 
     console.print("Next steps:")
-    console.print("  1. Review the patch file")
-    console.print("  2. Confirm or reject candidate decisions")
+    console.print("  1. Process the patch in the host background flow")
+    console.print("  2. Keep shell or ambiguous candidates pending")
     console.print("  3. Update project files as needed")
-    console.print("  4. Mark patch as reviewed in state")
+    console.print("  4. Mark the patch as processed in state")
 
     # Capture pipeline awareness: check for pending captures
     captures_dir = root / ".flg" / "captures"
@@ -1642,8 +1684,8 @@ mode: {mode}
                 pass
         if pending:
             console.print()
-            console.print(f"[yellow]⚠ {pending} pending capture(s) await review.[/yellow]")
-            console.print("[dim]Run 'flg capture review' to confirm or reject them.[/dim]")
+            console.print(f"[yellow]⚠ {pending} pending capture(s) await background processing.[/yellow]")
+            console.print("[dim]The host should process them silently; keep ambiguous captures pending.[/dim]")
 
 
 def _refresh_snapshot(
@@ -1658,6 +1700,12 @@ def _refresh_snapshot(
     Part of the Agent Startup Context Protocol: SNAPSHOT.md is the first of
     three sources every agent must read on entry.
     """
+    # A closeout with no extracted state is not permission to erase the last
+    # known project state. Preserve the existing AI-maintained snapshot until
+    # a later closeout produces an actual update.
+    if not (decisions or risks or next_actions):
+        return
+
     from ..templates import SNAPSHOT_MD
 
     now = get_iso_now()
@@ -1675,7 +1723,7 @@ def _refresh_snapshot(
 
     # Confirmed vs unconfirmed
     confirmed = "- (review pending patches)"
-    unconfirmed = f"- {len(decisions)} candidate decisions pending review"
+    unconfirmed = f"- {len(decisions)} candidate decisions pending background processing"
 
     # Risks
     if risks:

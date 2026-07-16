@@ -73,14 +73,15 @@ def test_onboard_skip_demo(tmp_path):
         os.chdir(old_cwd)
 
 
-def test_detect_hosts_returns_installed_hosts():
-    """detect_hosts should find at least one host on this dev machine."""
-    hosts = detect_hosts()
-    # This machine has codex, hermes, zcode, agents installed
-    assert len(hosts) > 0
-    host_names = [h["name"] for h in hosts]
-    # At least one of these should be present
-    assert "codex" in host_names or "hermes" in host_names or "agents" in host_names
+def test_detect_hosts_returns_installed_hosts(tmp_path):
+    """detect_hosts should detect a host without relying on the developer machine."""
+    (tmp_path / ".codex" / "skills").mkdir(parents=True)
+
+    with patch("flg.commands.onboard.Path.home", return_value=tmp_path):
+        hosts = detect_hosts()
+
+    assert [host["name"] for host in hosts] == ["codex"]
+    assert hosts[0]["skill_installed"] is False
 
 
 def test_install_skill_creates_symlink(tmp_path):
