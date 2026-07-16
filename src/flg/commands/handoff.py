@@ -160,7 +160,15 @@ def generate_handoff_summary(root: Path, format: str = "markdown") -> str:
     all_next_actions = []
     
     if patches_dir.exists():
-        for patch_file in patches_dir.glob("*.patch.md"):
+        # Patch files remain on disk after rejection or supersession for audit.
+        # Only pending patches belong in the next agent's active work state.
+        pending_patch_metadata = [
+            patch
+            for patch in list_patches(root)
+            if patch.get("status") == "pending_review"
+        ]
+        for patch in pending_patch_metadata:
+            patch_file = patches_dir / patch["filename"]
             content = read_file_safe(patch_file)
             if content:
                 patch_info = parse_patch_for_handoff(content)
@@ -265,16 +273,21 @@ def generate_handoff_summary(root: Path, format: str = "markdown") -> str:
     anchor_entries = _parse_anchors(anchors_content)
     if anchor_entries:
         summary += "\n## Authoritative Anchors\n\n"
-        summary += "> 冲突时以锚点文件为准。Agent 应优先读取这些文件。\n\n"
+        summary += "> 冲突时以存在且 active 的锚点文件为准。缺失锚点不能作为当前权威来源。\n\n"
         for entry in anchor_entries:
+            anchor_path = _resolve_anchor_path(root, entry["file"])
+            exists = anchor_path.exists()
             summary += f"### {entry['topic']}\n\n"
             summary += f"- **File:** `{entry['file']}`\n"
+            summary += f"- **Status:** {'active' if exists else 'missing'}\n"
             summary += f"- **Role:** {entry['role']}\n"
             summary += f"- **Authority:** {entry['authority']}\n"
             summary += f"- **Provenance:** {entry['provenance']}\n"
             summary += f"- **Lifecycle:** {entry['lifecycle']}\n"
             if entry['notes']:
                 summary += f"- **Notes:** {entry['notes']}\n"
+            if not exists:
+                summary += "- **Warning:** This anchor path is missing. Do not use it as current authority; repair ANCHORS.md first.\n"
             summary += "\n"
     else:
         summary += "\n## Authoritative Anchors\n\n"
@@ -382,9 +395,9 @@ def generate_handoff_summary(root: Path, format: str = "markdown") -> str:
         summary += "1. FRAMING.md is complete — proceed with project work\n"
         summary += "2. Run `flg closeout --transcript <file>` at end of session\n"
     elif all_decisions:
-        summary += "1. Review pending candidate decisions with source excerpts\n"
-        summary += "2. Confirm or reject each decision before merge\n"
-        summary += "3. Merge confirmed patches: `flg merge --patch <file>`\n"
+        summary += "1. Process pending candidate decisions in the host background flow\n"
+        summary += "2. Keep shell or ambiguous decisions pending\n"
+        summary += "3. Merge routine updates: `flg merge --patch <file> --yes`\n"
         summary += "4. Continue project work from the updated ledger\n"
     else:
         summary += "1. Continue project work\n"
@@ -399,7 +412,7 @@ def generate_handoff_summary(root: Path, format: str = "markdown") -> str:
     # Add warnings
     if all_decisions:
         summary += "- Pending candidate decisions are NOT confirmed facts\n"
-        summary += "- They require human review before merging\n"
+        summary += "- The host should process them in the background; keep ambiguous items pending\n"
     if all_risks:
         summary += "- Risks identified are from keyword matching, may need verification\n"
     
@@ -647,3 +660,9 @@ def _parse_anchors(anchors_content: str) -> list:
             entries.append(entry)
 
     return entries
+
+
+def _resolve_anchor_path(root: Path, anchor_file: str) -> Path:
+    """Resolve relative anchors against the ledger root for health checks."""
+    path = Path(anchor_file).expanduser()
+    return path if path.is_absolute() else root / path
