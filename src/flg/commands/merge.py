@@ -14,6 +14,7 @@ from ..core.files import is_flg_project, read_file_safe, safe_write
 from ..core.patches import list_patches
 from ..core.state import load_state, save_state
 from ..templates import get_iso_now
+from .patch_cmd import _update_patch_file_status
 
 console = Console()
 
@@ -138,6 +139,27 @@ def extract_open_questions(sections: dict) -> list[str]:
     return questions
 
 
+def extract_next_actions(sections: dict) -> list[str]:
+    """Extract suggested next actions from a closeout patch."""
+    actions = []
+    for key, content in sections.items():
+        if "suggested next actions" not in key.lower():
+            continue
+        for line in content.split("\n"):
+            line = line.strip()
+            if line.startswith("- ") and line != "- (none identified)":
+                actions.append(line[2:])
+    return actions
+
+
+def _patch_header_status(content: str) -> str:
+    """Return the lifecycle status declared in a patch header."""
+    for line in content.split("\n"):
+        if line.startswith("status:"):
+            return line.split(":", 1)[1].strip().lower()
+    return ""
+
+
 def merge_patch(
     patch_file: str = typer.Option(..., "--patch", "-p", help="Patch file to merge"),
     dry_run: bool = typer.Option(False, "--dry-run", "-d", help="Preview merge without changes"),
@@ -170,6 +192,11 @@ def merge_patch(
     if not content:
         console.print("[red]Patch is empty.[/red]")
         raise typer.Exit(1)
+
+    patch_status = _patch_header_status(content)
+    if patch_status and patch_status != "pending_review":
+        console.print(f"[red]Patch is closed ({patch_status}) and cannot be merged.[/red]")
+        raise typer.Exit(1)
     
     # Parse patch
     sections = parse_patch_sections(content)
@@ -185,6 +212,7 @@ def merge_patch(
     decisions = extract_decisions(sections)
     risks = extract_risks(sections)
     questions = extract_open_questions(sections)
+    next_actions = extract_next_actions(sections)
     reviewed_decisions_already_accepted = False
     merge_patch_id = ""
     for line in content.split("\n"):
@@ -223,6 +251,11 @@ def merge_patch(
     if risks:
         console.print("[yellow]Medium Risk - SNAPSHOT.md:[/yellow]")
         console.print(f"  {len(risks)} new risks")
+        console.print()
+
+    if next_actions:
+        console.print("[yellow]Medium Risk - SNAPSHOT.md:[/yellow]")
+        console.print(f"  {len(next_actions)} suggested next action(s)")
         console.print()
     
     if questions:
@@ -265,24 +298,7 @@ def merge_patch(
             merge_log["merged_files"].append("PROGRESS.md")
             console.print("[green]✓ Appended to PROGRESS.md[/green]")
     
-    # 2. Update SNAPSHOT.md with risks (medium risk - append to risks section)
-    if risks:
-        snapshot_path = root / "SNAPSHOT.md"
-        if snapshot_path.exists():
-            snapshot_content = read_file_safe(snapshot_path)
-            # Find risks section and append
-            if "## Current Risks" in snapshot_content:
-                for risk in risks:
-                    if risk not in snapshot_content:
-                        snapshot_content = snapshot_content.replace(
-                            "## Current Risks\n\n",
-                            f"## Current Risks\n\n- {risk}\n"
-                        )
-                snapshot_path.write_text(snapshot_content, encoding="utf-8")
-                merge_log["merged_files"].append("SNAPSHOT.md")
-                console.print("[green]✓ Updated SNAPSHOT.md with risks[/green]")
-    
-    # 3. High risk: decisions - generate report only
+    # 2. High risk: decisions - generate report only
     if decisions:
         if reviewed_decisions_already_accepted:
             merge_log["skipped_sections"].append("Candidate decisions (already accepted via review)")
@@ -291,6 +307,16 @@ def merge_patch(
             merge_log["high_risk_sections"].append("Candidate decisions")
             console.print("[yellow]⚠ Candidate decisions require background processing[/yellow]")
             console.print("  Keep them pending until the host has sufficient source context")
+
+    # 3. SNAPSHOT.md is formal state. Refresh it only after this merge, and
+    # never surface unreviewed candidate decisions as confirmed judgments.
+    from .closeout import _refresh_snapshot
+
+    snapshot_decisions = decisions if reviewed_decisions_already_accepted else []
+    if snapshot_decisions or risks or next_actions:
+        _refresh_snapshot(root, snapshot_decisions, risks, next_actions, state)
+        merge_log["merged_files"].append("SNAPSHOT.md")
+        console.print("[green]✓ Refreshed SNAPSHOT.md from merged patch state[/green]")
     
     # 4. Update patch status
     # Find patch in state and mark as merged
@@ -300,7 +326,15 @@ def merge_patch(
                 p["status"] = "merged"
                 p["merged_at"] = now
                 break
-    
+
+    # Keep the audit artifact's lifecycle in sync with state.json. Handoff and
+    # Context Pack read patch headers so a state-only merge would resurrect a
+    # closed patch as active work for the next host.
+    _update_patch_file_status(
+        patch_path,
+        "merged",
+        "Merged into formal project state by flg merge.",
+    )
     save_state(root, state)
     
     # 5. Generate merge log

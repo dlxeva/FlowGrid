@@ -229,14 +229,21 @@ def generate_handoff_summary(root: Path, format: str = "markdown") -> str:
     # NEW: If SNAPSHOT only has the default init template goal
     # (e.g. "Define project scope and goals for X"), fall back to FRAMING.md Goals.
     _DEFAULT_GOAL_HINT = "Define project scope and goals for"
+    _DEFAULT_PRIORITY = "Run 'flg frame' to define project goals and boundaries"
     if current_goal == "(not defined)" or current_goal.startswith(_DEFAULT_GOAL_HINT):
         framing_goal = _extract_framing_goal(framing_content)
         if framing_goal != "(not defined)":
             current_goal = framing_goal
             # The init template's default next action is only meaningful before
             # framing exists. Do not let it override a completed FRAMING.md.
-            if current_priority == "Run 'flg frame' to define project goals and boundaries":
+            if current_priority == _DEFAULT_PRIORITY:
                 current_priority = ""
+
+    # A pending closeout may carry the first meaningful project action before
+    # framing is filled. Do not let the init template hide that action merely
+    # because closeout no longer mutates SNAPSHOT.md before review.
+    if current_priority == _DEFAULT_PRIORITY and all_next_actions:
+        current_priority = ""
     
     # NEW: Pull Open Questions from FRAMING.md (in addition to patches)
     framing_questions = _extract_framing_questions(framing_content)

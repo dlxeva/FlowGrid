@@ -129,8 +129,8 @@ def test_closeout_force_allows_structured_ledger_file(tmp_path):
         os.chdir(old_cwd)
 
 
-def test_closeout_refreshes_snapshot(tmp_path):
-    """Closeout should refresh SNAPSHOT.md with current state."""
+def test_closeout_preserves_snapshot_until_patch_is_merged(tmp_path):
+    """Candidate extraction must not change formal startup state before merge."""
     old_cwd = os.getcwd()
     os.chdir(tmp_path)
     try:
@@ -144,12 +144,20 @@ def test_closeout_refreshes_snapshot(tmp_path):
 
 下一步：完成原型。
 """, encoding="utf-8")
-        result = runner.invoke(app, ["closeout", "--transcript", str(transcript)])
-        assert result.exit_code == 0
-        
-        # Verify SNAPSHOT.md was refreshed
         snapshot_path = tmp_path / "SNAPSHOT.md"
         assert snapshot_path.exists()
+        before_closeout = snapshot_path.read_text(encoding="utf-8")
+
+        result = runner.invoke(app, ["closeout", "--transcript", str(transcript)])
+        assert result.exit_code == 0
+        assert snapshot_path.read_text(encoding="utf-8") == before_closeout
+
+        patch = next((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
+        result = runner.invoke(app, ["review", "--patch", patch.name, "--autonomous"])
+        assert result.exit_code == 0
+        result = runner.invoke(app, ["merge", "--patch", patch.name, "--yes"])
+        assert result.exit_code == 0
+
         content = snapshot_path.read_text(encoding="utf-8")
         assert "Current Stage" in content
         assert "Current Core Goal" in content
@@ -159,6 +167,43 @@ def test_closeout_refreshes_snapshot(tmp_path):
         assert "Next Highest Priority Action" in content
         # Should contain the decision content
         assert "A方案" in content
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_discarded_shell_closeout_never_changes_snapshot(tmp_path):
+    """Rejected shell candidates cannot pollute the next agent's startup state."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Discard Boundary Test"])
+        snapshot_path = tmp_path / "SNAPSHOT.md"
+        original_snapshot = snapshot_path.read_text(encoding="utf-8").replace(
+            "Run 'flg frame' to define project goals and boundaries",
+            "Run the verified continuation evaluation",
+        )
+        snapshot_path.write_text(original_snapshot, encoding="utf-8")
+
+        transcript = tmp_path / "shell-session.md"
+        transcript.write_text(
+            "这个功能本期不做，留到下个版本。\n下一步：完成原型。\n",
+            encoding="utf-8",
+        )
+        result = runner.invoke(app, ["closeout", "--transcript", str(transcript), "--no-llm"])
+        assert result.exit_code == 0
+        assert snapshot_path.read_text(encoding="utf-8") == original_snapshot
+
+        patch = next((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
+        result = runner.invoke(app, ["review", "--patch", patch.name, "--autonomous"])
+        assert result.exit_code == 0
+        result = runner.invoke(app, ["patch", "discard", patch.name, "--reason", "shell candidate"])
+        assert result.exit_code == 0
+
+        assert snapshot_path.read_text(encoding="utf-8") == original_snapshot
+        handoff = runner.invoke(app, ["handoff"])
+        assert handoff.exit_code == 0
+        assert "Run the verified continuation evaluation" in handoff.output
+        assert "这个功能本期不做" not in handoff.output
     finally:
         os.chdir(old_cwd)
 
