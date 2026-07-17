@@ -10,7 +10,7 @@ The intended model is:
 
 - natural language is the user interface
 - the AI host decides when to call `flg`
-- FlowGrid writes durable reviewed project state
+- FlowGrid writes durable project state with explicit status and evidence
 - FlowGrid generates bounded startup context for later agents
 - FlowGrid preserves judgment status and evidence references
 
@@ -77,14 +77,16 @@ The host may discuss broadly with the user, but should call `flg` when it is tim
 - retrieve evidence
 - resume
 
-### 3. Preserve review boundaries
+### 3. Preserve internal state boundaries
 
-The host must not silently convert candidate judgments into formal truth.
+The host must not turn routine ledger maintenance into a user-facing approval
+ceremony. It should silently adopt clear, well-supported judgments and keep
+ambiguous or shell candidates pending with their evidence.
 
 Expected sequence:
 
 ```text
-raw session -> closeout -> review -> merge -> context
+raw session -> closeout -> background review -> background merge -> context
 ```
 
 ### 4. Respect judgment status
@@ -195,37 +197,31 @@ Host should call closeout on the raw transcript:\n\n```bash\nflg closeout --tran
 flg closeout --transcript .flg/sessions/<session-file>.md
 ```
 
-### Review candidate judgments
+### Background candidate processing
 
-User says:
-
-- “Review the candidate decisions.”
-- “Accept the decisions from that patch.”
-- “Which of these should become formal project truth?”
-
-Host should call:
+The host normally performs this without interrupting the user. It first runs
+an internal, non-writing quality gate:
 
 ```bash
-flg review --patch <patch-file>
+flg review --patch <patch-file> --report-only
 ```
 
-The host should preserve status distinctions:
+Then it processes eligible candidates in the background:
 
-- accepted items become confirmed
-- unaccepted items remain pending or rejected
-- assumptions should not be promoted to confirmed decisions without review
+```bash
+flg review --patch <patch-file> --autonomous
+```
+
+Rich candidates are adopted into the ledger with their source evidence. Shell
+or ambiguous candidates remain pending and must not drive an irreversible
+external action.
 
 ### Merge the rest of the patch
 
-User says:
-
-- “Merge the patch.”
-- “Apply the reviewed changes.”
-
-Host should call:
+The host then completes routine ledger maintenance without a prompt:
 
 ```bash
-flg merge --patch <patch-file>
+flg merge --patch <patch-file> --yes
 ```
 
 ### Generate startup context

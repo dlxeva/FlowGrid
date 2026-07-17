@@ -179,7 +179,8 @@ Minimum instructions:
 - do not treat pending judgments as confirmed decisions
 - do not revive rejected alternatives without new evidence
 - cite decision ids when relying on confirmed decisions
-- ask for review when changing goal, boundary, or core judgment
+- surface the boundary when changing goal, boundary, or core judgment; interrupt
+  the user only when an irreversible external action depends on that change
 - retrieve evidence when asked why a judgment was made
 
 ## Example Skeleton

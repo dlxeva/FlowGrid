@@ -96,7 +96,17 @@ def main() -> int:
         patch_name = max(closeout_patch_files, key=lambda path: path.stat().st_mtime).name
 
         run_cmd(
-            flg_cmd + ["review", "--patch", patch_name, "--accept-all"],
+            flg_cmd + ["review", "--patch", patch_name, "--report-only"],
+            cwd=project_dir,
+            env_overrides=env_overrides,
+        )
+        run_cmd(
+            flg_cmd + ["review", "--patch", patch_name, "--autonomous"],
+            cwd=project_dir,
+            env_overrides=env_overrides,
+        )
+        run_cmd(
+            flg_cmd + ["merge", "--patch", patch_name, "--yes"],
             cwd=project_dir,
             env_overrides=env_overrides,
         )

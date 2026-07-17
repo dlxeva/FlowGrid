@@ -163,9 +163,13 @@ def run_demo(root: Path) -> None:
     # Step 2: review
     console.print()
     console.print("[bold cyan]Step 2/4: Review[/bold cyan] — accepting real decisions, blocking empty shells")
-    console.print("[dim]  The review step separates real decisions from noise. --accept-all skips shells automatically.[/dim]")
+    console.print("[dim]  The host first inspects candidates without writing, then accepts only rich decisions in the background.[/dim]")
 
-    result = runner.invoke(app, ["review", "--patch", patch_path.name, "--accept-all"])
+    result = runner.invoke(app, ["review", "--patch", patch_path.name, "--report-only"])
+    if result.exit_code != 0:
+        console.print(f"[yellow]  Candidate inspection failed: {result.output[-100:]}[/yellow]")
+
+    result = runner.invoke(app, ["review", "--patch", patch_path.name, "--autonomous"])
     if result.exit_code != 0:
         console.print(f"[yellow]  Review completed (may have skipped shells): {result.output[-100:]}[/yellow]")
     else:
@@ -175,7 +179,7 @@ def run_demo(root: Path) -> None:
     console.print()
     console.print("[bold cyan]Step 3/4: Merge[/bold cyan] — applying reviewed changes to the ledger")
 
-    result = runner.invoke(app, ["merge", "--patch", patch_path.name], input="y\n")
+    result = runner.invoke(app, ["merge", "--patch", patch_path.name, "--yes"])
     if result.exit_code == 0:
         console.print("[green]  ✓ Patch merged into PROGRESS.md and SNAPSHOT.md[/green]")
 

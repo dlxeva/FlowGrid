@@ -65,6 +65,26 @@ def test_context_pack_excludes_superseded_template_items(tmp_path):
     assert "(之前的目标)" not in output
     assert "(现在的目标)" not in output
     assert "(触发变化的事件" not in output
+    assert "{created_at}" not in output
+
+
+def test_context_pack_excludes_superseded_formal_decisions(tmp_path):
+    """Historical decisions remain indexed but must not drive current startup context."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Superseded Decision Test"])
+        decisions = tmp_path / "DECISIONS.md"
+        decisions.write_text(
+            decisions.read_text(encoding="utf-8")
+            + """\n\n## D-002 | Retired environment\n\n### 决策状态\nsuperseded\n\n### 最终决策\nUse the retired environment path.\n\n### 决策理由\nHistorical only.\n\n### 备选方案\nUse the current path.\n\n### 放弃理由\nThe current path replaced it.\n\n### 复盘入口\nNone.\n""",
+            encoding="utf-8",
+        )
+        result = runner.invoke(app, ["context", "--print"])
+        assert result.exit_code == 0
+        assert "Retired environment" not in result.output
+    finally:
+        os.chdir(old_cwd)
 
 
 def test_context_pack_excludes_rejected_patches(tmp_path):
