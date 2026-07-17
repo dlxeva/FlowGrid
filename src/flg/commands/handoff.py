@@ -12,6 +12,7 @@ from rich.markdown import Markdown
 from ..core.files import is_flg_project, read_file_safe
 from ..core.patches import list_patches
 from ..core.state import load_state
+from .capture import _read_frontmatter
 
 console = Console()
 
@@ -186,6 +187,35 @@ def generate_handoff_summary(root: Path, format: str = "markdown") -> str:
                 all_risks.extend(patch_info["risks"])
                 all_questions.extend(patch_info["questions"])
                 all_next_actions.extend(patch_info["next_actions"])
+
+    # Real-time captures do not create a patch. They are still active project
+    # state: a new agent must see inferred judgments before deciding whether to
+    # promote, reject, or gather more evidence for them.
+    captures_dir = root / ".flg" / "captures"
+    if captures_dir.exists():
+        for capture_file in sorted(captures_dir.glob("cap-*.md"), reverse=True):
+            capture = _read_frontmatter(capture_file)
+            if not capture or capture.get("status") != "pending_review":
+                continue
+            all_decisions.append(
+                {
+                    "title": capture.get("claim", capture_file.stem),
+                    "status": "pending_review",
+                    "confidence": capture.get("confidence", "unknown"),
+                    "type": capture.get("type", "judgment"),
+                    "what_decided": capture.get("claim", ""),
+                    "why": capture.get("rationale", ""),
+                    "alternatives": "; ".join(capture.get("alternatives", [])),
+                    "rejected": "",
+                    "reversal": capture.get("risks", ""),
+                    "excerpt": capture.get("raw_evidence", ""),
+                    "action": "needs_review",
+                    "source": f"capture {capture.get('id', capture_file.stem)}",
+                }
+            )
+            question = capture.get("question")
+            if question and question != "(not specified)":
+                all_questions.append(question)
     
     # Extract current goal from SNAPSHOT
     current_goal = "(not defined)"
@@ -336,6 +366,8 @@ def generate_handoff_summary(root: Path, format: str = "markdown") -> str:
             summary += f"### {i}. {d['title']}\n\n"
             summary += f"- **Status:** {d['status']}\n"
             summary += f"- **Confidence:** {d['confidence']}\n"
+            if d.get("source"):
+                summary += f"- **Source:** {d['source']}\n"
             if d['what_decided']:
                 summary += f"- **What was decided:** {d['what_decided']}\n"
             if d['why']:

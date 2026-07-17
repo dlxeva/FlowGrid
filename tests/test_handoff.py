@@ -74,6 +74,42 @@ def test_handoff_excludes_rejected_patches(tmp_path):
         os.chdir(old_cwd)
 
 
+def test_handoff_shows_pending_capture_without_patch(tmp_path):
+    """A real-time inferred capture must survive agent handoff."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        assert runner.invoke(app, ["init", "Capture Handoff Test"]).exit_code == 0
+        result = runner.invoke(
+            app,
+            [
+                "capture",
+                "add",
+                "--claim",
+                "Do not merge the conflicting branch.",
+                "--rationale",
+                "The replacement branch is clean and preserves current master work.",
+                "--type",
+                "decision",
+                "--confidence",
+                "inferred",
+                "--source",
+                "agent_summary",
+                "--evidence",
+                "PR state: conflicting versus clean replacement.",
+            ],
+        )
+        assert result.exit_code == 0
+
+        result = runner.invoke(app, ["handoff"])
+        assert result.exit_code == 0
+        assert "Do not merge the conflicting branch." in result.output
+        assert "capture cap-" in result.output
+        assert "PR state: conflicting versus clean replacement." in result.output
+    finally:
+        os.chdir(old_cwd)
+
+
 def test_handoff_marks_missing_anchor_not_authoritative(tmp_path):
     """Handoff must flag missing anchor paths instead of treating them as current truth."""
     old_cwd = os.getcwd()
