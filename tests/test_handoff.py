@@ -110,6 +110,48 @@ def test_handoff_shows_pending_capture_without_patch(tmp_path):
         os.chdir(old_cwd)
 
 
+def test_handoff_surfaces_snapshot_priority_risks_and_boundaries(tmp_path):
+    """A fresh host needs the active project state, not only generic CLI advice."""
+    from flg.commands.handoff import generate_handoff_summary
+
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        assert runner.invoke(app, ["init", "Active State Handoff Test"]).exit_code == 0
+        (tmp_path / "SNAPSHOT.md").write_text(
+            """# Project Snapshot
+
+## Current Core Goal
+
+Validate cold-host continuation.
+
+## Current Risks
+
+- The default handoff may omit the active project action.
+
+## Do Not Misread
+
+- Do not reopen the historical branch.
+
+## Next Highest Priority Action
+
+Run the isolated continuation test before adding features.
+""",
+            encoding="utf-8",
+        )
+
+        summary = generate_handoff_summary(tmp_path)
+        assert "Current Priority and Boundaries" in summary
+        assert "Run the isolated continuation test before adding features." in summary
+        assert "The default handoff may omit the active project action." in summary
+        assert "Do not reopen the historical branch." in summary
+        assert summary.index("Run the isolated continuation test") < summary.index(
+            "Suggested Next Actions"
+        )
+    finally:
+        os.chdir(old_cwd)
+
+
 def test_handoff_marks_missing_anchor_not_authoritative(tmp_path):
     """Handoff must flag missing anchor paths instead of treating them as current truth."""
     old_cwd = os.getcwd()
