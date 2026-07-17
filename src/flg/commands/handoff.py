@@ -217,15 +217,14 @@ def generate_handoff_summary(root: Path, format: str = "markdown") -> str:
             if question and question != "(not specified)":
                 all_questions.append(question)
     
-    # Extract current goal from SNAPSHOT
-    current_goal = "(not defined)"
-    for line in snapshot_content.split("\n"):
-        if "Current Core Goal" in line:
-            idx = snapshot_content.index(line) + len(line)
-            remaining = snapshot_content[idx:].strip()
-            if remaining:
-                current_goal = remaining.split("\n")[0].strip()
-            break
+    # SNAPSHOT.md is the project-level current truth. Surface its active goal,
+    # priority, risks, and boundaries before falling back to generic CLI advice.
+    current_goal = " ".join(_extract_markdown_section_lines(snapshot_content, "Current Core Goal")) or "(not defined)"
+    current_priority = " ".join(
+        _extract_markdown_section_lines(snapshot_content, "Next Highest Priority Action")
+    )
+    snapshot_risks = _extract_markdown_section_lines(snapshot_content, "Current Risks")
+    snapshot_boundaries = _extract_markdown_section_lines(snapshot_content, "Do Not Misread")
     
     # NEW: If SNAPSHOT only has the default init template goal
     # (e.g. "Define project scope and goals for X"), fall back to FRAMING.md Goals.
@@ -234,6 +233,10 @@ def generate_handoff_summary(root: Path, format: str = "markdown") -> str:
         framing_goal = _extract_framing_goal(framing_content)
         if framing_goal != "(not defined)":
             current_goal = framing_goal
+            # The init template's default next action is only meaningful before
+            # framing exists. Do not let it override a completed FRAMING.md.
+            if current_priority == "Run 'flg frame' to define project goals and boundaries":
+                current_priority = ""
     
     # NEW: Pull Open Questions from FRAMING.md (in addition to patches)
     framing_questions = _extract_framing_questions(framing_content)
@@ -413,10 +416,39 @@ def generate_handoff_summary(root: Path, format: str = "markdown") -> str:
     summary += """
 ---
 
-## 7. Suggested Next Actions
+## 7. Current Priority and Boundaries
 
 """
-    if all_next_actions:
+    if current_priority:
+        summary += f"- **Highest priority (SNAPSHOT.md):** {current_priority}\n"
+    else:
+        summary += "- **Highest priority (SNAPSHOT.md):** (not defined)\n"
+
+    if snapshot_risks:
+        summary += "- **Current risks (SNAPSHOT.md):**\n"
+        for risk in snapshot_risks[:3]:
+            summary += f"  - {risk}\n"
+    else:
+        summary += "- **Current risks (SNAPSHOT.md):** (none declared)\n"
+
+    if snapshot_boundaries:
+        summary += "- **Do not (SNAPSHOT.md):**\n"
+        for boundary in snapshot_boundaries[:3]:
+            summary += f"  - {boundary}\n"
+    else:
+        summary += "- **Do not (SNAPSHOT.md):** (no project-specific boundary declared)\n"
+
+    summary += """
+---
+
+## 8. Suggested Next Actions
+
+"""
+    if current_priority:
+        summary += f"1. {current_priority}\n"
+        if all_decisions:
+            summary += "2. Process pending candidate decisions only after the current priority is addressed\n"
+    elif all_next_actions:
         for idx, action in enumerate(all_next_actions[:5], 1):
             summary += f"{idx}. {action}\n"
     elif current_stage == "initialized" and not framing_is_complete:
@@ -438,7 +470,7 @@ def generate_handoff_summary(root: Path, format: str = "markdown") -> str:
     summary += """
 ---
 
-## 8. Do Not Misread
+## 9. Do Not Misread
 
 """
     # Add warnings
@@ -575,6 +607,35 @@ def _extract_framing_questions(framing_content: str) -> list:
             if q and not any(p in q for p in _PLACEHOLDER_PATTERNS):
                 questions.append(q)
     return questions
+
+
+def _extract_markdown_section_lines(content: str, heading: str) -> list[str]:
+    """Return meaningful lines from a level-two Markdown section.
+
+    SNAPSHOT.md is intentionally human-editable, so this accepts bullets or
+    plain prose and strips only structural/template noise.
+    """
+    import re
+
+    match = re.search(rf"^##\s+{re.escape(heading)}\s*$", content, re.MULTILINE)
+    if not match:
+        return []
+    following = content[match.end():]
+    next_heading = re.search(r"^##\s+", following, re.MULTILINE)
+    body = following[:next_heading.start()] if next_heading else following
+
+    ignored = {"(none identified)", "(none yet)", "(not defined)", "(to be filled)"}
+    lines = []
+    for raw in body.splitlines():
+        line = raw.strip()
+        if not line or line == "---" or line.startswith("*Last Updated:"):
+            continue
+        if line.startswith("- "):
+            line = line[2:].strip()
+        if line.lower() in ignored:
+            continue
+        lines.append(line)
+    return lines
 
 
 def _extract_decisions_context(decisions_content: str) -> list:
