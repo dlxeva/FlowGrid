@@ -1474,12 +1474,6 @@ llm_model: {llm_model}
     patch_path = create_patch(root, patch_id, patch_content)
     add_pending_patch(root, patch_id, str(patch_path), "medium", source_command="flg closeout --llm")
 
-    # Refresh snapshot with LLM decisions
-    llm_decisions_for_snapshot = [
-        {"content": d["content"][:100]} for d in llm_decisions
-    ]
-    _refresh_snapshot(root, llm_decisions_for_snapshot, [], [], state)
-
     console.print()
     console.print(f"[bold green]✓ LLM extraction complete (v0.2.3)[/bold green]")
     console.print()
@@ -1737,9 +1731,6 @@ mode: {mode}
     console.print(f"  - Rationale Excerpts: {len(rationale_excerpts)}")
     console.print()
 
-    # Refresh SNAPSHOT.md for Agent Startup Context Protocol
-    _refresh_snapshot(root, decisions, risks, next_actions, state)
-
     console.print("Next steps:")
     console.print("  1. Process the patch in the host background flow")
     console.print("  2. Keep shell or ambiguous candidates pending")
@@ -1774,10 +1765,12 @@ def _refresh_snapshot(
     next_actions: list[str],
     state: dict | None,
 ) -> None:
-    """Refresh SNAPSHOT.md — a ~2KB file that gives an agent current project state.
+    """Refresh SNAPSHOT.md after a patch has entered formal project state.
 
     Part of the Agent Startup Context Protocol: SNAPSHOT.md is the first of
-    three sources every agent must read on entry.
+    three sources every agent must read on entry.  This helper is intentionally
+    called from ``flg merge``, never from closeout: extracted candidates remain
+    provisional until the patch lifecycle explicitly admits them.
     """
     # A closeout with no extracted state is not permission to erase the last
     # known project state. Preserve the existing AI-maintained snapshot until
@@ -1795,7 +1788,10 @@ def _refresh_snapshot(
 
     # Judgments from latest decisions
     if decisions:
-        judgment_lines = [f"- {d['content'][:100]}" for d in decisions[:3]]
+        judgment_lines = [
+            f"- {(d.get('content') if isinstance(d, dict) else str(d))[:100]}"
+            for d in decisions[:3]
+        ]
         judgments = "\n".join(judgment_lines)
     else:
         judgments = "- (no recent decisions)"
@@ -1806,7 +1802,10 @@ def _refresh_snapshot(
 
     # Risks
     if risks:
-        risk_lines = [f"- {r['content'][:120]}" for r in risks[:3]]
+        risk_lines = [
+            f"- {(r.get('content') if isinstance(r, dict) else str(r))[:120]}"
+            for r in risks[:3]
+        ]
         risks_text = "\n".join(risk_lines)
     else:
         risks_text = "- (none identified)"

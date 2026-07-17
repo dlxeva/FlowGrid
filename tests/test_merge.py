@@ -73,6 +73,14 @@ def test_merge_updates_progress(flg_project_with_patch):
     progress_content = (flg_project_with_patch / "PROGRESS.md").read_text()
     assert "Session Progress" in progress_content
 
+    patch_content = patch_files[0].read_text(encoding="utf-8")
+    assert "status: merged" in patch_content
+    assert "Merged into formal project state" in patch_content
+
+    handoff = runner.invoke(app, ["handoff"])
+    assert handoff.exit_code == 0
+    assert "(no pending patches)" in handoff.output
+
 
 def test_merge_autonomous_skips_interactive_prompt(flg_project_with_patch):
     """AI hosts can complete routine ledger maintenance without a user prompt."""
@@ -123,6 +131,17 @@ def test_merge_on_nonexistent_patch(flg_project_with_patch):
     result = runner.invoke(app, ["merge", "--patch", "nonexistent.patch.md"])
     assert result.exit_code == 1
     assert "not found" in result.output.lower()
+
+
+def test_merge_rejects_closed_patch(flg_project_with_patch):
+    """A rejected patch is audit history, never mergeable formal state."""
+    patch = next((flg_project_with_patch / ".flg" / "patches").glob("closeout-*.patch.md"))
+    result = runner.invoke(app, ["patch", "discard", patch.name, "--reason", "not applicable"])
+    assert result.exit_code == 0
+
+    result = runner.invoke(app, ["merge", "--patch", patch.name, "--yes"])
+    assert result.exit_code == 1
+    assert "closed" in result.output.lower()
 
 
 def test_merge_on_non_flg_project(tmp_path):
