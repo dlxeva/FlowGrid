@@ -639,7 +639,7 @@ def _parse_anchors(anchors_content: str) -> list:
             pattern = rf"\*\*{re.escape(field_name)}:\*\*\s*(.+)"
             m = re.search(pattern, block)
             if m:
-                val = m.group(1).strip()
+                val = m.group(1).strip().strip("`")
                 # Strip placeholder parentheses
                 if val.startswith("(") and val.endswith(")"):
                     return ""

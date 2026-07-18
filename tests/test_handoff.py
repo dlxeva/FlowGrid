@@ -516,6 +516,37 @@ def test_handoff_shows_anchors_when_defined(tmp_path):
         os.chdir(old_cwd)
 
 
+def test_handoff_resolves_markdown_code_span_anchor_path(tmp_path):
+    """Handoff must not flag a valid backticked anchor as missing."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        assert runner.invoke(app, ["init", "Code Span Anchor Handoff Test"]).exit_code == 0
+        (tmp_path / "lambda").mkdir()
+        (tmp_path / "lambda" / "app.mjs").write_text("export default {};", encoding="utf-8")
+        (tmp_path / "ANCHORS.md").write_text(
+            """# Authoritative Anchors
+
+### Runtime
+
+- **File:** `lambda/app.mjs`
+- **Role:** runtime truth
+- **Authority:** authoritative
+- **Provenance:** internal
+- **Lifecycle:** active
+""",
+            encoding="utf-8",
+        )
+
+        result = runner.invoke(app, ["handoff"])
+
+        assert result.exit_code == 0
+        assert "lambda/app.mjs" in result.output
+        assert "anchor path is missing" not in result.output
+    finally:
+        os.chdir(old_cwd)
+
+
 def test_handoff_anchors_empty_when_no_entries(tmp_path):
     """Test that handoff shows placeholder when ANCHORS.md has no entries."""
     old_cwd = os.getcwd()
