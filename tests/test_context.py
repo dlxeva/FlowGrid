@@ -68,6 +68,25 @@ def test_context_pack_excludes_superseded_template_items(tmp_path):
     assert "{created_at}" not in output
 
 
+def test_context_pack_does_not_promote_pending_decision_status(tmp_path):
+    """A ledger entry marked pending_review must never appear as confirmed startup truth."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Pending Decision Test"])
+        decisions = tmp_path / "DECISIONS.md"
+        decisions.write_text(
+            decisions.read_text(encoding="utf-8")
+            + """\n\n## D-002 | Pending enterprise plan\n\n### 决策状态\npending_review\n\n### 最终决策\nUse the enterprise plan.\n\n### 决策理由\nOnly an unreviewed candidate says so.\n\n### 备选方案\nStarter plan.\n\n### 放弃理由\nNot confirmed.\n\n### 复盘入口\nNeeds user confirmation.\n""",
+            encoding="utf-8",
+        )
+        confirmed_pack, _ = build_context_pack(tmp_path)
+        confirmed = confirmed_pack.split("## Confirmed Decisions", 1)[1].split("## Pending Judgments", 1)[0]
+        assert "Pending enterprise plan" not in confirmed
+    finally:
+        os.chdir(old_cwd)
+
+
 def test_context_pack_excludes_superseded_formal_decisions(tmp_path):
     """Historical decisions remain indexed but must not drive current startup context."""
     old_cwd = os.getcwd()

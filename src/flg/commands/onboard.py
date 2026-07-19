@@ -41,10 +41,10 @@ _DEMO_TRANSCRIPT = """# Onboard Demo Session
 
 ## Discussion
 
-We decided to go with a single-page layout for the landing page.
-Because it loads faster and has a cleaner conversion path.
-We ruled out the multi-tab design because mobile experience is poor.
-If the single-page bounce rate doesn't improve, we can go back to the old layout.
+User: We decided to go with a single-page layout for the landing page.
+User: Because it loads faster and has a cleaner conversion path.
+User: We ruled out the multi-tab design because mobile experience is poor.
+User: If the single-page bounce rate doesn't improve, we can go back to the old layout.
 
 That legacy auth module is not being maintained this quarter.
 """
@@ -210,6 +210,7 @@ def run_demo(root: Path) -> None:
 def onboard(
     skip_demo: bool = typer.Option(False, "--skip-demo", help="Skip the guided demo"),
     yes: bool = typer.Option(False, "--yes", "-y", help="Auto-confirm all prompts (non-interactive)"),
+    demo_in_project: bool = typer.Option(False, "--demo-in-project", help="Explicitly allow the demo to write into an existing FLG project"),
 ) -> None:
     """First-run onboarding: environment check, guided demo, and skill installation."""
     root = Path.cwd()
@@ -255,10 +256,12 @@ def onboard(
         console.print()
 
         if is_project:
-            do_demo = yes or Confirm.ask(
+            do_demo = demo_in_project and (yes or Confirm.ask(
                 "This directory is already an FLG project. Run the demo here?",
                 default=False,
-            )
+            ))
+            if not demo_in_project:
+                console.print("[dim]Skipping demo in an existing FLG project. Use --demo-in-project to allow writes.[/dim]")
         else:
             do_demo = yes or Confirm.ask(
                 "Run a 5-minute guided demo of the core FLG loop?",

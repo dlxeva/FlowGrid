@@ -33,6 +33,23 @@ from ..templates import (
 console = Console()
 
 
+_PROJECT_GITIGNORE = """# FlowGrid private project state\n.flg/\n\n# Local credentials\n.env\n.env.*\n!.env.example\n"""
+
+
+def _ensure_project_gitignore(root: Path) -> bool:
+    """Add a conservative privacy guard without overwriting user ignore rules."""
+    path = root / ".gitignore"
+    if path.exists():
+        current = path.read_text(encoding="utf-8")
+        if ".flg/" in current:
+            return False
+        suffix = "" if not current or current.endswith("\n") else "\n"
+        path.write_text(current + suffix + "\n" + _PROJECT_GITIGNORE, encoding="utf-8")
+        return True
+    path.write_text(_PROJECT_GITIGNORE, encoding="utf-8")
+    return True
+
+
 def init_project(
     project_name: str = typer.Argument(..., help="Project name"),
     project_type: str = typer.Option("proposal", "--type", "-t", help="Project type"),
@@ -228,6 +245,9 @@ def init_project(
     index_path = root / ".flg" / "index.json"
     index_path.write_text(json.dumps(index, indent=2, ensure_ascii=False), encoding="utf-8")
     results.append((".flg/index.json", "created"))
+
+    gitignore_written = _ensure_project_gitignore(root)
+    results.append((".gitignore", "created" if gitignore_written else "kept"))
     
     # Display results
     console.print()

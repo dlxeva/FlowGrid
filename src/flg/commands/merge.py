@@ -248,14 +248,9 @@ def merge_patch(
             console.print(f"    - {d['content'][:60]}...")
         console.print()
     
-    if risks:
-        console.print("[yellow]Medium Risk - SNAPSHOT.md:[/yellow]")
-        console.print(f"  {len(risks)} new risks")
-        console.print()
-
-    if next_actions:
-        console.print("[yellow]Medium Risk - SNAPSHOT.md:[/yellow]")
-        console.print(f"  {len(next_actions)} suggested next action(s)")
+    if risks or next_actions:
+        console.print("[yellow]Candidate risks/actions remain in the patch until separately confirmed.[/yellow]")
+        console.print("  They will not update SNAPSHOT.md during background merge.")
         console.print()
     
     if questions:
@@ -312,8 +307,11 @@ def merge_patch(
     from .closeout import _refresh_snapshot
 
     snapshot_decisions = decisions if reviewed_decisions_already_accepted else []
-    if snapshot_decisions or risks or next_actions:
-        _refresh_snapshot(root, snapshot_decisions, risks, next_actions, state)
+    if snapshot_decisions:
+        # A candidate patch is evidence, not formal project state. Risks and
+        # next actions need their own confirmation path before they can steer a
+        # future agent through SNAPSHOT.md.
+        _refresh_snapshot(root, snapshot_decisions, [], [], state)
         merge_log["merged_files"].append("SNAPSHOT.md")
         console.print("[green]✓ Refreshed SNAPSHOT.md from merged patch state[/green]")
     

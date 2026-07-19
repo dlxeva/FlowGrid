@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
+from unittest.mock import patch
 
 from flg.cli import app
 
@@ -102,6 +103,26 @@ def test_closeout_on_nonexistent_transcript(flg_project_with_demo):
     assert "not found" in result.output.lower()
 
 
+def test_closeout_requires_explicit_remote_llm_consent(tmp_path):
+    """Configured API credentials must not silently transmit a raw session."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Remote Consent Test"])
+        transcript = tmp_path / "session.md"
+        transcript.write_text("User: We decided to keep this local.\n", encoding="utf-8")
+
+        with patch("flg.commands.closeout.is_llm_available", return_value=True):
+            result = runner.invoke(app, ["closeout", "--transcript", str(transcript), "--llm", "openai"])
+
+        assert result.exit_code == 1
+        assert "--allow-remote-llm" in result.output
+        assert not list((tmp_path / ".flg" / "sessions").glob("*.md"))
+        assert not list((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
+    finally:
+        os.chdir(old_cwd)
+
+
 def test_closeout_rejects_structured_ledger_file(tmp_path):
     """Structured ledger files should be blocked as closeout input unless forced."""
     old_cwd = os.getcwd()
@@ -139,10 +160,10 @@ def test_closeout_preserves_snapshot_until_patch_is_merged(tmp_path):
         transcript = tmp_path / "session.md"
         transcript.write_text("""# Session
 
-我们确认了做A方案而不是B方案。不做C因为成本太高。
-风险是时间不够，可能导致延期。
+用户：我们确认了做A方案而不是B方案。不做C因为成本太高。
+用户：风险是时间不够，可能导致延期。
 
-下一步：完成原型。
+用户：下一步：完成原型。
 """, encoding="utf-8")
         snapshot_path = tmp_path / "SNAPSHOT.md"
         assert snapshot_path.exists()

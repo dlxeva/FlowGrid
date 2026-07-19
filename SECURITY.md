@@ -26,6 +26,13 @@ state, including:
 - `.flg/context/` — generated context packs
 
 Never commit `.flg/` contents to a public repository. This repository's
-`.gitignore` blocks these paths. FlowGrid projects initialized elsewhere do
-not currently receive a generated `.gitignore`; add equivalent rules before
-committing project files.
+`.gitignore` blocks these paths. `flg init` also creates or extends the target
+project's `.gitignore` with `.flg/` and common local credential rules. Verify
+the result before committing an existing project with unusual ignore rules.
+
+## Remote LLM extraction
+
+`flg closeout` does not automatically send transcripts to a configured remote
+LLM provider. A host must pass both `--llm <provider>` and
+`--allow-remote-llm` for that command. Review the provider's terms before
+using it with confidential project material.

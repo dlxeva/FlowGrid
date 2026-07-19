@@ -20,9 +20,9 @@ def test_review_accept_all_writes_decisions(tmp_path):
         transcript = tmp_path / "session.md"
         transcript.write_text("""# Session
 
-We decided to focus on content marketing.
-Because paid ads are too expensive for this phase.
-Next step is to confirm budget allocation.
+User: We decided to focus on content marketing.
+User: Because paid ads are too expensive for this phase.
+User: Next step is to confirm budget allocation.
 """, encoding="utf-8")
 
         result = runner.invoke(app, ["closeout", "--transcript", str(transcript)])
@@ -77,9 +77,9 @@ def test_review_marks_patch_state(tmp_path):
         transcript = tmp_path / "session.md"
         transcript.write_text("""# Session
 
-We decided to focus on lifecycle email.
-Because lifecycle email has higher retention impact for our stage.
-We ruled out paid ads because the budget is too tight this quarter.
+User: We decided to focus on lifecycle email.
+User: Because lifecycle email has higher retention impact for our stage.
+User: We ruled out paid ads because the budget is too tight this quarter.
 """, encoding="utf-8")
         runner.invoke(app, ["closeout", "--transcript", str(transcript)])
 
@@ -178,6 +178,30 @@ Assistant: 有，而且我建议把这件事从“找对标号”改成“建立
         os.chdir(old_cwd)
 
 
+def test_review_autonomous_skips_rich_assistant_proposal(tmp_path):
+    """A well-reasoned Assistant proposal still lacks authority to become a user decision."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Assistant Authority Test"])
+        transcript = tmp_path / "host-transcript.md"
+        transcript.write_text(
+            "Assistant: We decided to use the enterprise plan because it has audit logs.\n"
+            "Assistant: We rejected the starter plan because it lacks role controls.\n"
+            "Assistant: If the team stays under two people, we can revisit this.\n",
+            encoding="utf-8",
+        )
+        runner.invoke(app, ["closeout", "--transcript", str(transcript), "--no-llm"])
+        patch = next((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
+
+        result = runner.invoke(app, ["review", "--patch", patch.name, "--autonomous"])
+        assert result.exit_code == 0
+        assert "no explicit user-authored source" in result.output
+        assert "enterprise plan" not in (tmp_path / "DECISIONS.md").read_text(encoding="utf-8")
+    finally:
+        os.chdir(old_cwd)
+
+
 def test_review_accept_all_writes_rich_decisions(tmp_path):
     """--accept-all must still write decisions that HAVE real context.
 
@@ -190,9 +214,9 @@ def test_review_accept_all_writes_rich_decisions(tmp_path):
         transcript = tmp_path / "rich.md"
         transcript.write_text("""# Session
 
-我们确认采用方案A。
-因为方案A的ROI更高，预算也在可控范围内。
-放弃方案B，因为成本太高不可控。
+用户：我们确认采用方案A。
+用户：因为方案A的ROI更高，预算也在可控范围内。
+用户：放弃方案B，因为成本太高不可控。
 """, encoding="utf-8")
         runner.invoke(app, ["closeout", "--transcript", str(transcript)])
 
@@ -218,9 +242,9 @@ def test_review_autonomous_records_medium_authority(tmp_path):
         transcript = tmp_path / "rich.md"
         transcript.write_text("""# Session
 
-我们确认采用方案A。
-因为方案A的ROI更高，预算也在可控范围内。
-放弃方案B，因为成本太高不可控。
+用户：我们确认采用方案A。
+用户：因为方案A的ROI更高，预算也在可控范围内。
+用户：放弃方案B，因为成本太高不可控。
 """, encoding="utf-8")
         runner.invoke(app, ["closeout", "--transcript", str(transcript)])
 

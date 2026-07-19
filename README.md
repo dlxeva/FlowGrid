@@ -8,7 +8,7 @@
 ![Stage](https://img.shields.io/badge/stage-v0.4--validation-4c6ef5)
 ![Runtime](https://img.shields.io/badge/runtime-local--first-2b8a3e)
 ![Interface](https://img.shields.io/badge/interface-CLI%20%2B%20project%20protocol-495057)
-![Tests](https://img.shields.io/badge/tests-154%20passed-2f9e44)
+![Tests](https://img.shields.io/badge/tests-160%20passed-2f9e44)
 
 FlowGrid helps business-project knowledge workers turn messy AI work sessions into state-aware, traceable, and resumable project context.
 
@@ -59,9 +59,11 @@ After that, you will have:
 - a resumable handoff summary for the next session or agent
 
 In host-integrated use, the review and merge lines run in the background. The
-user continues the project in natural language; shell candidates never become
-formal decisions. A host closes their patch after preserving the audit trail,
-while a material unresolved ambiguity remains pending.
+user continues the project in natural language. Background automation only
+adopts candidates that preserve explicit user or client attribution; agent-authored,
+unattributed, shell, and ambiguous candidates remain pending. A host closes its
+patch after preserving the audit trail, while a material unresolved ambiguity
+remains pending.
 
 You can run that flow from Codex, Hermes, OpenClaw, Claude, or any AI agent work product that can read files and run commands.
 
@@ -285,9 +287,12 @@ FlowGrid uses a patch-first approach to avoid AI accidentally overwriting import
 
 All patches are stored in `.flg/patches/` and processed by the host in the
 background. `--report-only` is available for diagnostics; `--autonomous` adopts
-clear candidates with medium authority while shell candidates stay out of the
-formal ledger. The host then merges routine updates or discards a shell-only
-patch, keeping its raw source and closed patch for audit.
+only clear candidates with explicit user or client attribution, at medium
+authority. Agent-authored, unattributed, shell, and ambiguous candidates stay
+out of the formal ledger. Candidate risks and next actions remain in the patch
+until they have their own confirmation path. The host then merges routine
+updates or discards a non-adoptable patch, keeping its raw source and closed
+patch for audit.
 
 ### Two-Layer State (Agent Startup Protocol)
 
@@ -424,7 +429,9 @@ FlowGrid Core is a local-first, auditable, host-agnostic open-source core.
 - **User project data always belongs to the user.** FlowGrid has no mandatory
   hosted backend. Project state is stored in local files. If you enable a remote
   LLM provider, selected transcript content may be sent to that provider under
-  its terms. Use `--no-llm` or a local provider for fully local processing.
+  its terms. Remote extraction requires the explicit
+  `--allow-remote-llm` flag. Use the default local extraction or a local
+  provider for fully local processing.
 - **The public repository does not contain real user training data.** All tests
   and examples use synthetic data.
 - **Advanced hosted features, team collaboration, industry templates, and

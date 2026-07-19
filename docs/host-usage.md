@@ -55,6 +55,10 @@ FlowGrid `closeout` should ingest:
 - raw discussion logs
 - `.flg/sessions/` files
 
+Preserve speaker labels when the source has them (for example `User:` and
+`Assistant:`). Background review uses these labels to distinguish a user or
+client commitment from an agent-authored proposal.
+
 The host should not feed interpreted ledger files back into closeout by default:
 
 - `PROGRESS.md`
@@ -80,8 +84,10 @@ The host may discuss broadly with the user, but should call `flg` when it is tim
 ### 3. Preserve internal state boundaries
 
 The host must not turn routine ledger maintenance into a user-facing approval
-ceremony. It should silently adopt clear, well-supported judgments and keep
-ambiguous or shell candidates pending with their evidence.
+ceremony. It should silently adopt clear, well-supported judgments only when
+their source explicitly identifies a user or client commitment. It must keep
+agent-authored, unattributed, ambiguous, or shell candidates pending with
+their evidence.
 
 Expected sequence:
 
@@ -188,7 +194,20 @@ User says:
 - “Turn this meeting into a patch, don’t overwrite the ledger yet.”
 - “Extract what changed from this discussion.”
 
-Host should call closeout on the raw transcript:\n\n```bash\nflg closeout --transcript path/to/raw-session.md\n```\n\nExternal raw transcripts are automatically copied under `.flg/sessions/`. Use\n`flg session save` first only when a stable custom archive filename is needed.\n\n<!-- Legacy equivalent: save first, then closeout the archived path. -->\n\nHost should:
+Host should call closeout on the raw transcript:
+
+```bash
+flg closeout --transcript path/to/raw-session.md
+```
+
+External raw transcripts are automatically copied under `.flg/sessions/`. Use
+`flg session save` first only when a stable custom archive filename is needed.
+
+For a remote provider, the host must obtain explicit user authorization and
+then pass both `--llm <provider>` and `--allow-remote-llm`. Configured API keys
+do not opt a project in automatically.
+
+Host should:
 
 1. save raw session notes or transcript under `.flg/sessions/`
 2. call:
@@ -212,9 +231,11 @@ Then it processes eligible candidates in the background:
 flg review --patch <patch-file> --autonomous
 ```
 
-Rich candidates are adopted into the ledger with their source evidence. Shell
-or ambiguous candidates remain pending and must not drive an irreversible
-external action.
+Only rich candidates with explicit user/client attribution are adopted into the
+ledger with their source evidence. Agent-authored, unattributed, shell, or
+ambiguous candidates remain pending and must not drive an irreversible external
+action. Candidate risks and next actions remain in the patch until a separate
+confirmation path exists.
 
 ### Merge the rest of the patch
 

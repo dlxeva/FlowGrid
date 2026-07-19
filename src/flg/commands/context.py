@@ -12,7 +12,7 @@ import typer
 from rich.console import Console
 from rich.markdown import Markdown
 
-from ..core.evidence import parse_decisions_ledger, validate_project
+from ..core.evidence import load_evidence_index, parse_decisions_ledger, validate_project
 from ..core.files import is_flg_project, read_file_safe
 from ..core.state import load_state
 from .handoff import parse_patch_for_handoff
@@ -174,15 +174,27 @@ def _decision_subsection(block: str, heading: str) -> str:
     return "\n".join(lines[start:end]).strip()
 
 
-def _parse_confirmed_decisions(decisions_content: str, limit: int = 5) -> list[dict[str, str]]:
+_CURRENT_DECISION_STATUSES = {"confirmed", "accepted", "active"}
+
+
+def _parse_confirmed_decisions(
+    decisions_content: str,
+    evidence_items: Optional[dict] = None,
+    limit: int = 5,
+) -> list[dict[str, str]]:
     decisions = []
+    evidence_items = evidence_items or {}
     for item in parse_decisions_ledger(decisions_content):
-        if item.get("status") in {"superseded", "rejected"}:
+        if item.get("status") not in _CURRENT_DECISION_STATUSES:
             continue
+        evidence = evidence_items.get(item["decision_id"], {})
         decisions.append(
             {
                 "id": item["decision_id"],
                 "title": item["title"],
+                "status": item["status"],
+                "authority": evidence.get("authority", "unknown"),
+                "source_type": evidence.get("source_type", item.get("source_type", "unknown")),
                 "decision": item["what_decided"],
                 "rationale": item["rationale"] or "(rationale not recorded)",
                 "alternatives": _compact_lines(item["alternatives"]) or "(not recorded)",
@@ -314,7 +326,7 @@ def _render_confirmed_decisions(decisions: list[dict[str, str]]) -> str:
     for decision in decisions:
         out += f"### {decision['id']} | {decision['title']}\n"
         out += "- Status: confirmed\n"
-        out += "- Authority: high if accepted through review; otherwise check DECISIONS.md\n"
+        out += f"- Authority: {decision['authority']}\n"
         out += f"- Decision: {decision['decision']}\n"
         out += f"- Rationale: {decision['rationale']}\n"
         out += f"- Alternatives considered: {decision['alternatives']}\n"
@@ -358,7 +370,10 @@ def _render_pending_patches(patches: list[dict]) -> str:
 def _render_evidence_refs(decisions: list[dict[str, str]], patches: list[dict]) -> str:
     refs: list[str] = []
     for decision in decisions:
-        refs.append(f"- {decision['id']}: DECISIONS.md#{decision['id']} (source_type: review_action, status: confirmed)")
+        refs.append(
+            f"- {decision['id']}: DECISIONS.md#{decision['id']} "
+            f"(source_type: {decision['source_type']}, status: confirmed)"
+        )
     for patch in patches:
         refs.append(f"- {patch['filename']}: .flg/patches/{patch['filename']} (source_type: closeout_patch, status: pending_review)")
     if not refs:
@@ -434,7 +449,8 @@ def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> 
             "(not defined)",
         )
 
-    confirmed_decisions = _parse_confirmed_decisions(decisions_content)
+    evidence_items = load_evidence_index(root).get("items", {})
+    confirmed_decisions = _parse_confirmed_decisions(decisions_content, evidence_items)
     pending_patches = _pending_patch_summaries(root)
     source_health = validate_project(root)
 
@@ -465,10 +481,6 @@ def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> 
 
     superseded = _list_items(goal_evolution_content, limit=8)
     risks = _list_items(_section(snapshot_content, "Current Risks"), limit=8)
-    for patch in pending_patches:
-        for risk in patch.get("risks", [])[:3]:
-            if risk not in risks:
-                risks.append(risk)
     risks = risks[:8]
 
     next_actions = []
@@ -490,10 +502,6 @@ def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> 
             break
     if snapshot_next and snapshot_next not in next_actions:
         next_actions.append(snapshot_next)
-    for patch in pending_patches:
-        for action in patch.get("next_actions", [])[:3]:
-            if action not in next_actions:
-                next_actions.append(action)
     next_actions = next_actions[:10]
 
     recent_progress = _compact_lines(progress_content, limit_chars=900) or "(not recorded)"

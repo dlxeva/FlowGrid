@@ -47,6 +47,21 @@ def test_init_creates_project_structure(tmp_dir):
     assert (tmp_dir / ".flg" / "patches").is_dir()
     assert (tmp_dir / ".flg" / "sessions").is_dir()
     assert (tmp_dir / ".flg" / "memory").is_dir()
+    assert ".flg/" in (tmp_dir / ".gitignore").read_text(encoding="utf-8")
+
+
+def test_init_keeps_existing_gitignore_and_adds_flg_privacy_rule(tmp_path):
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        (tmp_path / ".gitignore").write_text("dist/\n", encoding="utf-8")
+        result = runner.invoke(app, ["init", "Gitignore Test"])
+        assert result.exit_code == 0
+        content = (tmp_path / ".gitignore").read_text(encoding="utf-8")
+        assert "dist/" in content
+        assert ".flg/" in content
+    finally:
+        os.chdir(old_cwd)
 
 
 def test_init_creates_valid_state(tmp_dir):

@@ -8,7 +8,7 @@
 ![阶段](https://img.shields.io/badge/stage-v0.4--validation-4c6ef5)
 ![运行方式](https://img.shields.io/badge/runtime-local--first-2b8a3e)
 ![接口](https://img.shields.io/badge/interface-CLI%20%2B%20project%20protocol-495057)
-![测试](https://img.shields.io/badge/tests-154%20passed-2f9e44)
+![测试](https://img.shields.io/badge/tests-160%20passed-2f9e44)
 
 FlowGrid 帮助业务项目型知识工作者，把混乱的 AI 协作过程转成有状态边界、可追溯、可恢复的项目上下文。
 
@@ -241,7 +241,7 @@ FlowGrid 默认不让 AI 直接覆盖重要项目文件。
 - **高风险：** 目标/边界/关键判断变更必须保留来源和明确的行动边界
 
 所有 patch 都放在 `.flg/patches/` 里，由宿主在后台处理。
-`--report-only` 用于诊断；`--autonomous` 会在后台以中等权威吸收有充分上下文的候选，空壳候选仍保持 pending。
+`--report-only` 用于诊断；`--autonomous` 只会在候选保留明确用户或客户来源时，以中等权威在后台吸收。Agent 自己提出、无来源、空壳或含糊的候选均保持 pending；候选风险与下一步也不会直接写入 `SNAPSHOT.md`。
 
 ### Two-Layer State（Agent 启动协议）
 

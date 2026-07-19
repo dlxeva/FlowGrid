@@ -31,6 +31,23 @@ _PLACEHOLDER_VALUES = {
     "(none detected)",
 }
 
+_USER_ACTOR_PATTERN = re.compile(
+    r"^\s*(?:user|human|client|customer|用户|客户|甲方)\s*[:：]",
+    re.IGNORECASE,
+)
+
+
+def _has_user_attribution(decision: dict) -> bool:
+    """Return whether a candidate's quoted source is explicitly user-authored.
+
+    Background review has no human at the prompt. It may only promote a
+    judgment when the raw excerpt preserves an unambiguous user/client label.
+    Unlabelled notes and Assistant/Agent proposals remain review candidates.
+    """
+    source = (decision.get("excerpt") or decision.get("what_decided") or "").strip()
+    actor = (decision.get("source_actor") or "").strip().lower()
+    return actor == "user" or bool(_USER_ACTOR_PATTERN.match(source))
+
 
 def _is_shell_decision_for_review(decision: dict) -> bool:
     """Detect a shell candidate decision that has no real context.
@@ -225,6 +242,7 @@ def review_patch(
     accepted_entries = []
     accepted_evidence_entries = []
     skipped_shells = 0
+    skipped_unattributed = 0
     reviewed_at = datetime.now().isoformat(timespec="seconds")
     background = autonomous or accept_all
 
@@ -250,6 +268,11 @@ def review_patch(
             console.print("  [dim]Background processing will not write shell decisions. Re-extract with more context instead.[/dim]")
             skipped_shells += 1
             continue
+        if background and not _has_user_attribution(decision):
+            console.print("  [yellow]⚠ Skipped (no explicit user-authored source excerpt).[/yellow]")
+            console.print("  [dim]Background processing keeps Assistant, Agent, and unlabelled candidates pending.[/dim]")
+            skipped_unattributed += 1
+            continue
         elif is_shell:
             console.print("  [yellow]⚠ Shell decision: no reasoning/alternatives/reversal detected.[/yellow]")
             console.print("  [dim]Recommended: reject and re-extract with more context, or fill in the why before accepting.[/dim]")
@@ -273,8 +296,12 @@ def review_patch(
             next_number += 1
 
     if not accepted_entries:
-        if skipped_shells:
-            console.print(f"[yellow]No decisions accepted. {skipped_shells} shell decision(s) skipped by background processing.[/yellow]")
+        if skipped_shells or skipped_unattributed:
+            console.print(
+                "[yellow]No decisions accepted. "
+                f"{skipped_shells} shell decision(s) and {skipped_unattributed} "
+                "unattributed decision(s) skipped by background processing.[/yellow]"
+            )
             console.print("[dim]Re-extract with more context before adopting any shell candidate.[/dim]")
         else:
             console.print("[yellow]No decisions accepted.[/yellow]")
@@ -304,5 +331,7 @@ def review_patch(
     console.print(f"[bold green]✓ Accepted {len(accepted_entries)} decision(s) into DECISIONS.md[/bold green]")
     if skipped_shells:
         console.print(f"[yellow]  {skipped_shells} shell decision(s) skipped (no reasoning/alternatives/reversal).[/yellow]")
+    if skipped_unattributed:
+        console.print(f"[yellow]  {skipped_unattributed} candidate decision(s) skipped (no explicit user source).[/yellow]")
     console.print(f"[bold green]✓ Evidence index updated:[/bold green] {evidence_index_path}")
     console.print("[dim]Run `flg merge --patch <file>` next to merge progress/risk/open-question updates.[/dim]")

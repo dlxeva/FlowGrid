@@ -179,11 +179,11 @@ def test_merge_does_not_rewarn_after_review(tmp_path):
         transcript = tmp_path / "session.md"
         transcript.write_text("""# Session
 
-We decided to focus on content marketing.
-Because content marketing has higher long-term ROI for our stage.
-We ruled out paid ads because the budget is too tight this quarter.
-There is a risk that KOLs are too expensive.
-Next step is to confirm budget.
+User: We decided to focus on content marketing.
+User: Because content marketing has higher long-term ROI for our stage.
+User: We ruled out paid ads because the budget is too tight this quarter.
+User: There is a risk that KOLs are too expensive.
+User: Next step is to confirm budget.
 """, encoding="utf-8")
 
         result = runner.invoke(app, ["closeout", "--transcript", str(transcript)])
@@ -197,5 +197,31 @@ Next step is to confirm budget.
         assert result.exit_code == 0
         assert "already accepted via flg review" in result.output
         assert "Please review and add to DECISIONS.md manually" not in result.output
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_background_merge_does_not_promote_candidate_risks_or_actions(tmp_path):
+    """Candidate risks/actions stay in the patch until a separate confirmation path exists."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Snapshot Boundary Test"])
+        transcript = tmp_path / "session.md"
+        transcript.write_text(
+            "User: We decided to use the smaller experiment because it is reversible.\n"
+            "User: The risk is that the timeline will slip.\n"
+            "Assistant: Next step is to buy a six-month vendor contract.\n",
+            encoding="utf-8",
+        )
+        runner.invoke(app, ["closeout", "--transcript", str(transcript), "--no-llm"])
+        patch = next((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
+        runner.invoke(app, ["review", "--patch", patch.name, "--autonomous"])
+        result = runner.invoke(app, ["merge", "--patch", patch.name, "--yes"])
+        assert result.exit_code == 0
+
+        snapshot = (tmp_path / "SNAPSHOT.md").read_text(encoding="utf-8")
+        assert "timeline will slip" not in snapshot
+        assert "six-month vendor contract" not in snapshot
     finally:
         os.chdir(old_cwd)

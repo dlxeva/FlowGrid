@@ -68,6 +68,9 @@ def parse_patch_for_handoff(content: str) -> dict:
             elif line.startswith("source_excerpt:"):
                 if current_decision:
                     current_decision["excerpt"] = line.split(":", 1)[1].strip().lstrip(">").strip()
+            elif line.startswith("source_actor:"):
+                if current_decision:
+                    current_decision["source_actor"] = line.split(":", 1)[1].strip().lower()
             elif line.startswith("suggested_action:"):
                 if current_decision:
                     current_decision["action"] = line.split(":", 1)[1].strip()
@@ -106,6 +109,7 @@ def parse_patch_for_handoff(content: str) -> dict:
                     "rejected": "",
                     "reversal": "",
                     "excerpt": "",
+                    "source_actor": "unknown",
                     "action": "needs_review",
                 }
                 info["decisions"].append(current_decision)

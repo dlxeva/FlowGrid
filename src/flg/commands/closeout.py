@@ -299,6 +299,16 @@ def is_revisit_or_question(segment: str) -> bool:
     )
 
 
+def source_actor_for_segment(segment: str) -> str:
+    """Classify the speaker label preserved in a raw transcript segment."""
+    normalized = segment.strip().lower()
+    if re.match(r"^(?:user|human|client|customer|用户|客户|甲方)\s*[:：]", normalized):
+        return "user"
+    if re.match(r"^(?:assistant|agent|ai|助手|系统)\s*[:：]", normalized):
+        return "assistant"
+    return "unknown"
+
+
 def is_criteria_prompt(segment: str) -> bool:
     """Return True for questions that ask what would justify a future move."""
     normalized = segment.strip().lower()
@@ -864,7 +874,7 @@ def extract_decision_context(context_text: str) -> dict:
             continue
         # Questions describe a prompt for reasoning, not evidence of the
         # decision itself. Do not treat "what should we reject?" as a rejection.
-        if "?" in sentence or "？" in sentence:
+        if "?" in sentence or "？" in sentence or is_revisit_or_question(sentence):
             continue
 
         for pattern in REASONING_PATTERNS:
@@ -950,6 +960,7 @@ def closeout_session(
     prompt_only: bool = typer.Option(False, "--prompt", "-p", help="Generate LLM prompt for decision extraction (no API call)"),
     llm: Optional[str] = typer.Option(None, "--llm", "-l", help="LLM provider: openai, claude, custom, local, or 'hermes' to delegate to current AI session"),
     no_llm: bool = typer.Option(False, "--no-llm", help="Force keyword-based extraction (skip LLM even if configured)"),
+    allow_remote_llm: bool = typer.Option(False, "--allow-remote-llm", help="Explicitly allow this command to send the transcript to a remote LLM provider"),
     llm_write: Optional[Path] = typer.Option(None, "--llm-write", help="Write a JSON decision file (from Hermes-assisted extraction) into a closeout patch"),
     force: bool = typer.Option(False, "--force", help="Allow closeout on structured ledger files (not recommended)"),
 ) -> None:
@@ -960,7 +971,8 @@ def closeout_session(
       2. --llm-write <json>: finalize a Hermes-assisted extraction
       3. --llm <provider>: call LLM API (or delegate to current AI session if provider='hermes')
       4. --no-llm: force keyword-based extraction
-      5. default: auto-detect — use LLM if API keys are configured, else keyword matching
+      5. default: keyword matching. Remote LLM extraction requires
+         --llm <provider> --allow-remote-llm so a transcript is never sent by surprise.
 
     Hermes-assisted mode (--llm hermes):
       Saves the extraction prompt to .flg/sessions/ and asks the current AI
@@ -987,6 +999,11 @@ def closeout_session(
     # Check transcript exists
     if not transcript.exists():
         console.print(f"[red]Transcript not found: {transcript}[/red]")
+        raise typer.Exit(1)
+
+    remote_provider = llm is not None and llm.lower() not in {"hermes", "local"}
+    if remote_provider and not allow_remote_llm:
+        console.print("[yellow]Remote LLM extraction requires --allow-remote-llm because it sends the raw transcript to that provider.[/yellow]")
         raise typer.Exit(1)
 
     transcript_name = transcript.name.lower()
@@ -1044,10 +1061,9 @@ def closeout_session(
         # Explicit --no-llm
         use_llm = False
     elif is_llm_available():
-        # Auto-detect: LLM configured → use it
-        use_llm = True
-        llm_provider = None  # let call_llm use default from config
-        console.print("[dim]LLM config detected, using LLM for decision extraction. Use --no-llm to force keyword mode.[/dim]")
+        # Never transmit a raw session only because an environment has a key.
+        use_llm = False
+        console.print("[dim]Remote LLM config detected but not used automatically. Pass --llm <provider> --allow-remote-llm to opt in.[/dim]")
     else:
         # No LLM config → keyword extraction
         use_llm = False
@@ -1577,6 +1593,7 @@ why_this_is_a_decision: {why_label}
 **Affected actions:** {affected_actions}
 **Supersedes:** {relations['supersedes']}
 source_excerpt: > {d['content']}
+source_actor: {source_actor_for_segment(d['content'])}
 suggested_action: {suggested_action}
 
 """

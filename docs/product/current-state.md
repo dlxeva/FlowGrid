@@ -1,6 +1,6 @@
 # FlowGrid Current State
 
-Last updated: 2026-07-16
+Last updated: 2026-07-20
 Primary branch: `master`
 Current code version: `v0.3.0`
 Current stage: `v0.4 core validation`
@@ -25,11 +25,13 @@ Its job is to let project state, boundaries, judgments, progress, and next actio
 
 ## Current Verification
 
-- `125` tests passed
+- `160` tests passed
 - `python scripts/smoke_test.py` passed
 - English-native deterministic gate passed
 - Real FlowGrid ledger audit passed with an expected undeclared-evidence-basis warning
-- Current PR: [#13](https://github.com/dlxeva/FlowGrid/pull/13), pending merge at the time of this update
+- Background review only promotes candidates with explicit user/client attribution; pending candidates, risks, and next actions do not become current truth
+- Remote LLM extraction requires explicit per-command consent with `--allow-remote-llm`
+- A disposable real-project replay verified that an `Assistant:` proposal remains auditable but cannot enter formal state through the background loop; see [host-like acceptance](../../evals/results/host-like-continuation-safety-20260720.md)
 
 ## Current Goal
 
@@ -45,6 +47,7 @@ Complete the v0.4 core loop:
 - Run isolated comparisons between no state, raw history, and FlowGrid Context Pack.
 - Measure repeated explanation, revived rejected directions, candidate/fact confusion, hallucinated project facts, and user correction count.
 - Keep `DECISIONS.md` as formal truth and avoid adding new cognitive abstractions until the loop is proven.
+- Run one explicitly authorized external-host continuation. Measure raw transcript availability, speaker-label preservation, candidate false positives/negatives, user CLI burden, and fresh-agent recovery.
 
 ## Deferred
 

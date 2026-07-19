@@ -24,6 +24,27 @@ _PROVENANCE_FIELDS = (
 )
 
 
+def normalize_decision_status(value: str) -> str:
+    """Normalize ledger status text without discarding historical annotations."""
+    normalized = value.strip().lower()
+    for status in (
+        "pending_review",
+        "needs_recheck",
+        "needs_review",
+        "superseded",
+        "rejected",
+        "contested",
+        "stale",
+        "confirmed",
+        "accepted",
+        "active",
+        "archived",
+    ):
+        if normalized.startswith(status):
+            return status
+    return normalized or "confirmed"
+
+
 def _section(block: str, headings: tuple[str, ...]) -> str:
     heading_pattern = "|".join(re.escape(heading) for heading in headings)
     match = re.search(
@@ -58,7 +79,7 @@ def parse_decisions_ledger(content: str) -> list[dict[str, str]]:
         alternatives = _section(block, ("备选方案", "Alternatives"))
         rejected = _section(block, ("放弃理由", "Rejected Alternatives"))
         reversal = _section(block, ("复盘入口", "Reversal Conditions"))
-        status = _section(block, ("决策状态", "Status")).lower() or "confirmed"
+        status = normalize_decision_status(_section(block, ("决策状态", "Status")))
         if _is_placeholder(title) or _is_placeholder(what_decided):
             continue
 

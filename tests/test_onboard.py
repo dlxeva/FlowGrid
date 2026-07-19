@@ -39,6 +39,20 @@ def test_onboard_env_check_on_existing_project(tmp_path):
         os.chdir(old_cwd)
 
 
+def test_onboard_yes_does_not_write_demo_into_existing_project(tmp_path):
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Existing Project"])
+        before = (tmp_path / "DECISIONS.md").read_text(encoding="utf-8")
+        result = runner.invoke(app, ["onboard", "--yes"])
+        assert result.exit_code == 0
+        assert "Skipping demo in an existing FLG project" in result.output
+        assert (tmp_path / "DECISIONS.md").read_text(encoding="utf-8") == before
+    finally:
+        os.chdir(old_cwd)
+
+
 def test_onboard_demo_full_loop(tmp_path):
     """The guided demo should produce DECISIONS.md content and a context pack."""
     old_cwd = os.getcwd()

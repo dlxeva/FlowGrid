@@ -109,13 +109,18 @@ default, so do **not** feed `PROGRESS.md`, `SNAPSHOT.md`,
 ledger files (closeout will refuse them unless you pass `--force`).
 
 The raw session must contain only the verbatim discussion or unstructured notes.
+Preserve speaker labels such as `User:` and `Assistant:` when they are present:
+background review relies on them to distinguish a human commitment from an
+agent proposal.
 Do not append an Agent-generated handoff, distilled signals, field labels such
 as `Type`, `Owner`, or `Status`, or an extraction summary to the same file.
 If a host has already appended such a section, keep the original file for audit
 but create a clean raw copy before closeout. FLG also excludes recognized
 generated summary sections from extraction without changing the raw source.
 
-If no LLM API keys are configured, add `--no-llm` to force keyword-based extraction.
+Keyword extraction is the default. Do not send a raw transcript to a remote
+provider unless the user explicitly authorized that provider for this command;
+then use `--llm <provider> --allow-remote-llm`.
 
 ### Background review and merge
 
@@ -125,18 +130,20 @@ step. In the normal host-integrated flow:
 1. Run `flg review --patch <patch-file> --report-only` in the background as an
    internal quality gate. It never interrupts the user or writes ledger state.
 2. Run `flg review --patch <patch-file> --autonomous` only after that gate.
-   Rich candidates with real reasoning are adopted into the ledger; shell
-   candidates with no context remain pending and are not written as decisions.
+   Only rich candidates with explicit user/client attribution are adopted into
+   the ledger. Agent-authored, unattributed, shell, or ambiguous candidates
+   remain pending and are not written as decisions.
 3. If the host used real-time capture, run `flg capture review --auto-confirm`
    in the background; this only processes captures explicitly marked
    `confirmed` and leaves inferred captures pending.
 4. Run `flg merge --patch <patch-file> --yes` in the background.
 
-If autonomous review skips only shell candidates, still close the patch in the
-background: merge it when it contains routine progress, risk, or next-action
-updates; otherwise run `flg patch discard <patch-file> --reason "shell-only
-candidate patch"`. The raw session and closed patch remain auditable. Keep a
-patch pending only when a material, non-shell ambiguity needs future evidence.
+If autonomous review skips all candidates, still close the patch in the
+background: merge it only for routine progress; candidate risks and next
+actions must remain in the patch until a separate confirmation path exists.
+Otherwise run `flg patch discard <patch-file> --reason "no adoptable candidate"`.
+The raw session and closed patch remain auditable. Keep a patch pending only
+when a material ambiguity needs future evidence.
 
 The user should continue speaking naturally. Report only material project
 changes, unresolved ambiguity, or an external action that requires a decision.
