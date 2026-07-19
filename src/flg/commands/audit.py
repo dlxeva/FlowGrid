@@ -34,6 +34,18 @@ OPTIONAL_FILES = [
     ".flg/index.json",
 ]
 
+# Generated dependencies and build outputs are not competing project documents.
+IGNORED_AUDIT_DIRECTORIES = {
+    ".flg",
+    ".git",
+    ".venv",
+    "build",
+    "coverage",
+    "dist",
+    "node_modules",
+    "venv",
+}
+
 
 def calculate_maturity(existing_files: list[str]) -> tuple[int, str]:
     """Calculate project maturity score (0-5)."""
@@ -73,7 +85,7 @@ def _parse_anchors_for_audit(root: Path) -> list[dict]:
             m = re.search(rf"\*\*{re.escape(field)}:\*\*\s*(.+)", block)
             return m.group(1).strip() if m else ""
         
-        file_path = _extract("File")
+        file_path = _extract("File").strip("`")
         if file_path and not (file_path.startswith("(") and file_path.endswith(")")):
             entries.append({
                 "topic": topic,
@@ -105,28 +117,16 @@ def _detect_multi_version_conflicts(root: Path, anchors: list[dict]) -> list[dic
     """Detect potential multi-version conflicts based on file naming patterns."""
     conflicts = []
     
-    # Collect all doc files (exclude .flg internal and docs/ materials zone)
+    # Collect all doc files, excluding generated/internal directories and docs/.
     # docs/ is the user's free zone for project materials (见 CONTRACT.md Rule 13).
     # FLG does not audit docs/ — materials there are reference, not truth.
     all_docs = []
-    for f in root.rglob("*.md"):
-        rel = f.relative_to(root)
-        rel_str = str(rel)
-        if rel_str.startswith(".flg") or rel_str.startswith("docs"):
-            continue
-        all_docs.append(rel)
-    for f in root.rglob("*.docx"):
-        rel = f.relative_to(root)
-        rel_str = str(rel)
-        if rel_str.startswith(".flg") or rel_str.startswith("docs"):
-            continue
-        all_docs.append(rel)
-    for f in root.rglob("*.html"):
-        rel = f.relative_to(root)
-        rel_str = str(rel)
-        if rel_str.startswith(".flg") or rel_str.startswith("docs"):
-            continue
-        all_docs.append(rel)
+    for pattern in ("*.md", "*.docx", "*.html"):
+        for f in root.rglob(pattern):
+            rel = f.relative_to(root)
+            if rel.parts and (rel.parts[0] == "docs" or any(part in IGNORED_AUDIT_DIRECTORIES for part in rel.parts[:-1])):
+                continue
+            all_docs.append(rel)
     
     # Group by similar names (fuzzy match on base name)
     from collections import defaultdict
