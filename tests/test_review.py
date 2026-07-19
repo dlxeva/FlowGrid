@@ -132,6 +132,49 @@ def test_review_accept_all_skips_shell_decisions(tmp_path):
         os.chdir(old_cwd)
 
 
+def test_review_autonomous_skips_assistant_execution_narration(tmp_path):
+    """Role-labelled host narration must not become a formal judgment.
+
+    A real Codex reference-host trial contained normal assistant updates such as
+    "I will change the runtime path" and "the ledger confirms the main line".
+    Role-aware extraction must ignore these operational updates. Even if a
+    patch is produced for the session, autonomous review must not write them
+    to the ledger.
+    """
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Assistant Narration Test"])
+        transcript = tmp_path / "host-transcript.md"
+        transcript.write_text(
+            """# Host transcript
+
+User: Continue.
+
+Assistant: The ledger confirms the current main line; do not let side projects displace it.
+
+Assistant: I will change the smoke test to use the current runtime path so an old checkout cannot produce a false pass.
+""",
+            encoding="utf-8",
+        )
+        result = runner.invoke(app, ["closeout", "--transcript", str(transcript), "--no-llm"])
+        assert result.exit_code == 0
+
+        patch = next((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
+        patch_content = patch.read_text(encoding="utf-8")
+        assert "The ledger confirms the current main line" not in patch_content
+        assert "I will change the smoke test" not in patch_content
+
+        result = runner.invoke(app, ["review", "--patch", patch.name, "--autonomous"])
+        assert result.exit_code == 0
+
+        decisions_content = (tmp_path / "DECISIONS.md").read_text(encoding="utf-8")
+        assert "The ledger confirms the current main line" not in decisions_content
+        assert "I will change the smoke test" not in decisions_content
+    finally:
+        os.chdir(old_cwd)
+
+
 def test_review_accept_all_writes_rich_decisions(tmp_path):
     """--accept-all must still write decisions that HAVE real context.
 
