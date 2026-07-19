@@ -94,6 +94,15 @@ def _first_meaningful_line(text: str, default: str = "(not defined)") -> str:
     return default
 
 
+def _first_section_line(text: str, headings: tuple[str, ...], default: str = "") -> str:
+    """Return the first usable line from the first populated section alias."""
+    for heading in headings:
+        value = _first_meaningful_line(_section(text, heading), "")
+        if value:
+            return value
+    return default
+
+
 def _list_items(text: str, limit: int = 8) -> list[str]:
     items: list[str] = []
     for raw in text.splitlines():
@@ -379,19 +388,46 @@ def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> 
     current_stage = state.get("current_stage") or _project_field(project_content, "Current Stage", "unknown")
     updated_at = datetime.now().isoformat(timespec="seconds")
 
-    review_object = _first_meaningful_line(_section(framing_content, "Review Objects"), "(not defined)")
-    proof_object = _first_meaningful_line(_section(framing_content, "Success Criteria"), "(not defined)")
-    current_goal = _first_meaningful_line(_section(snapshot_content, "Current Core Goal"), "")
+    review_object = _first_section_line(
+        framing_content,
+        ("Review Objects", "审核对象", "Core Observation Questions", "核心观察问题"),
+        "(not defined)",
+    )
+    proof_object = _first_section_line(framing_content, ("Success Criteria", "成功标准"), "(not defined)")
+    current_goal = _first_section_line(snapshot_content, ("Current Core Goal", "Current Goal", "当前核心目标", "当前目标"))
     if not current_goal:
-        current_goal = _first_meaningful_line(_section(framing_content, "Goals"), "(not defined)")
+        current_goal = _first_section_line(framing_content, ("Goals", "目标"), "(not defined)")
+
+    # A project can have a useful governing frame even when no current execution
+    # goal is declared. Keep the two concepts separate so an observation frame
+    # is not silently promoted into a formal goal.
+    project_frame = _first_section_line(
+        snapshot_content,
+        ("Project Positioning", "项目定位", "Primary Question", "主问题"),
+    )
+    if not project_frame:
+        project_frame = _first_section_line(
+            framing_content,
+            ("Project Positioning", "项目定位", "Primary Question", "主问题", "Problem Statement", "问题陈述"),
+            "(not defined)",
+        )
 
     confirmed_decisions = _parse_confirmed_decisions(decisions_content)
     pending_patches = _pending_patch_summaries(root)
     source_health = validate_project(root)
 
     assumptions = _list_items(_section(snapshot_content, "Unconfirmed"), limit=8)
+    assumptions += _list_items(_section(snapshot_content, "未确认"), limit=8)
     assumptions += _list_items(_section(framing_content, "Open Questions"), limit=5)
+    assumptions += _list_items(_section(framing_content, "未确认问题"), limit=5)
     assumptions = assumptions[:8]
+
+    # Do not infer contradictions from arbitrary prose. A project or host must
+    # mark a signal for recheck before it becomes startup-state guidance.
+    needs_recheck = _list_items(_section(snapshot_content, "Needs Recheck"), limit=8)
+    needs_recheck += _list_items(_section(snapshot_content, "待复查"), limit=8)
+    needs_recheck += _list_items(_section(snapshot_content, "待核验"), limit=8)
+    needs_recheck = needs_recheck[:8]
 
     rejected_alternatives: list[str] = []
     for decision in confirmed_decisions:
@@ -423,6 +459,9 @@ def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> 
         "Next Highest Priority Actions",
         "Next Highest-Priority Actions",
         "Next Actions",
+        "下一步最高优先级",
+        "下一步行动",
+        "下一步",
     ):
         snapshot_next = _first_meaningful_line(_section(snapshot_content, heading), "")
         if snapshot_next:
@@ -473,6 +512,10 @@ def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> 
 
 {current_goal}
 
+## Project Frame
+
+{project_frame}
+
 ## Confirmed Decisions
 
 {_render_confirmed_decisions(confirmed_decisions)}
@@ -482,6 +525,9 @@ def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> 
 ## Active Assumptions
 
 {_render_items(assumptions)}
+## Needs Recheck
+
+{_render_items(needs_recheck)}
 ## Rejected Alternatives
 
 {_render_items(rejected_alternatives)}
