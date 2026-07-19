@@ -132,14 +132,13 @@ def test_review_accept_all_skips_shell_decisions(tmp_path):
         os.chdir(old_cwd)
 
 
-def test_review_autonomous_skips_assistant_execution_narration(tmp_path):
-    """Role-labelled host narration must not become a formal judgment.
+def test_review_autonomous_skips_assistant_narration_shell_candidate(tmp_path):
+    """A role-labelled assistant proposal may remain a shell, never a decision.
 
-    A real Codex reference-host trial contained normal assistant updates such as
-    "I will change the runtime path" and "the ledger confirms the main line".
-    Role-aware extraction must ignore these operational updates. Even if a
-    patch is produced for the session, autonomous review must not write them
-    to the ledger.
+    The real Relationship Fable Lab replay contained an assistant's proposal,
+    not a user-confirmed judgment. Keyword extraction can preserve it as an
+    auditable low-confidence candidate, but background review and merge must
+    keep it out of DECISIONS.md and clear the pending-patch state.
     """
     old_cwd = os.getcwd()
     os.chdir(tmp_path)
@@ -151,9 +150,7 @@ def test_review_autonomous_skips_assistant_execution_narration(tmp_path):
 
 User: Continue.
 
-Assistant: The ledger confirms the current main line; do not let side projects displace it.
-
-Assistant: I will change the smoke test to use the current runtime path so an old checkout cannot produce a false pass.
+Assistant: 有，而且我建议把这件事从“找对标号”改成“建立选题证据链”。
 """,
             encoding="utf-8",
         )
@@ -162,15 +159,21 @@ Assistant: I will change the smoke test to use the current runtime path so an ol
 
         patch = next((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
         patch_content = patch.read_text(encoding="utf-8")
-        assert "The ledger confirms the current main line" not in patch_content
-        assert "I will change the smoke test" not in patch_content
+        assert "Assistant: 有，而且我建议" in patch_content
+        assert "low_confidence_shell" in patch_content
 
         result = runner.invoke(app, ["review", "--patch", patch.name, "--autonomous"])
         assert result.exit_code == 0
+        assert "shell decision" in result.output
+
+        result = runner.invoke(app, ["merge", "--patch", patch.name, "--yes"])
+        assert result.exit_code == 0
 
         decisions_content = (tmp_path / "DECISIONS.md").read_text(encoding="utf-8")
-        assert "The ledger confirms the current main line" not in decisions_content
-        assert "I will change the smoke test" not in decisions_content
+        assert "建立选题证据链" not in decisions_content
+
+        result = runner.invoke(app, ["status"])
+        assert "No pending patches needing review" in result.output
     finally:
         os.chdir(old_cwd)
 
