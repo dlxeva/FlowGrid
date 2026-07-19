@@ -307,7 +307,6 @@ def merge_patch(
             merge_log["high_risk_sections"].append("Candidate decisions")
             console.print("[yellow]⚠ Candidate decisions require background processing[/yellow]")
             console.print("  Keep them pending until the host has sufficient source context")
-
     # 3. SNAPSHOT.md is formal state. Refresh it only after this merge, and
     # never surface unreviewed candidate decisions as confirmed judgments.
     from .closeout import _refresh_snapshot
