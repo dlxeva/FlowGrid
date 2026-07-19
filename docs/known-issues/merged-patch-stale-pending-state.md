@@ -54,7 +54,7 @@ A minimal fix should do one or both of the following:
 Use the FlowGrid for OpenClaw competition repo:
 
 ```powershell
-cd C:\Users\夕颜\.openclaw\workspace\flowgrid-openclaw
+cd <your-workspace>\.openclaw\workspace\flowgrid-openclaw
 & "C:\Program Files\Git\bin\bash.exe" scripts/run_local_demo.sh
 cd .demo-runtime\ai-collaboration-sharing
 flg status
@@ -63,6 +63,6 @@ flg handoff
 
 ## Recommendation
 
-Do not prioritize this ahead of competition video recording.
+This issue has been addressed in v0.3.0 — `flg status` now filters patches by status, only showing `pending_review` patches in the warning table. Merged/rejected/superseded patches appear in a separate "Closed patches" summary line.
 
-Fix after the current demo package is submitted or when updating FlowGrid CLI polish.
+The original reproduction path referenced a specific competition workspace; it has been generalized above.

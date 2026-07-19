@@ -10,5 +10,38 @@ build/
 .DS_Store
 *.tmp
 *.log
+
+# Local project data — .flg/ runtime state must never be committed.
+# Only .flg/CONTRACT.md is safe to track (it ships with init).
 .flg/patches/
 .flg/merge_logs/
+.flg/sessions/
+.flg/captures/
+.flg/memory/
+.flg/context/
+.flg/exports/
+.flg/state.json
+.flg/index.json
+
+# Private FlowGrid research zones
+dogfood/private/
+evals/private/
+research/private/
+docs/private/
+private/
+.flowgrid-private/
+
+# User-specific profiles
+*_profile.local.yaml
+judgment_profile.local.yaml
+*.private.yaml
+*.private.json
+
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+secrets.*

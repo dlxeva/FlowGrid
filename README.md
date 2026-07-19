@@ -8,7 +8,7 @@
 ![Stage](https://img.shields.io/badge/stage-v0.4--validation-4c6ef5)
 ![Runtime](https://img.shields.io/badge/runtime-local--first-2b8a3e)
 ![Interface](https://img.shields.io/badge/interface-CLI%20%2B%20project%20protocol-495057)
-![Tests](https://img.shields.io/badge/tests-144%20passed-2f9e44)
+![Tests](https://img.shields.io/badge/tests-154%20passed-2f9e44)
 
 FlowGrid helps business-project knowledge workers turn messy AI work sessions into state-aware, traceable, and resumable project context.
 
@@ -416,6 +416,35 @@ FLG takes this same engineering philosophy and applies it to rationale-heavy, no
 | **Agent coordination** | Multi-agent code pipeline | Single-operator agent relay |
 
 The core idea is the same: *make the project directory the single source of truth so any agent can pick up where the last one left off.* The difference is whose work it serves.
+
+## Open Core Boundary
+
+FlowGrid Core is a local-first, auditable, host-agnostic open-source core.
+
+- **User project data always belongs to the user.** FlowGrid has no mandatory
+  hosted backend. Project state is stored in local files. If you enable a remote
+  LLM provider, selected transcript content may be sent to that provider under
+  its terms. Use `--no-llm` or a local provider for fully local processing.
+- **The public repository does not contain real user training data.** All tests
+  and examples use synthetic data.
+- **Advanced hosted features, team collaboration, industry templates, and
+  research data** may be offered in other versions, but the core protocol and
+  CLI remain open and independently usable.
+- **The protocol is designed for portability.** Your project state is plain-text
+  markdown — you can read it, edit it, and migrate it without lock-in.
+
+See [docs/governance/OPEN_SOURCE_BOUNDARY.md](./docs/governance/OPEN_SOURCE_BOUNDARY.md)
+for the full boundary definition.
+
+## Governance
+
+- [LICENSE](./LICENSE) — MIT
+- [CONTRIBUTING.md](./CONTRIBUTING.md) — contribution guidelines
+- [SECURITY.md](./SECURITY.md) — security reporting policy
+- [TRADEMARK.md](./TRADEMARK.md) — name and branding usage
+- [Open-Source Audit](./docs/governance/OPEN_SOURCE_AUDIT.md) — file classification report
+- [Open-Source Boundary](./docs/governance/OPEN_SOURCE_BOUNDARY.md) — public/private boundary definition
+- [Future Direction](./docs/product/future-direction.md) — product roadmap insights
 
 ## License
 
