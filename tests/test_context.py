@@ -241,3 +241,44 @@ def test_context_pack_surfaces_source_health_drift(tmp_path):
         assert "decisions_missing_from_index" in content
     finally:
         os.chdir(old_cwd)
+
+
+def test_context_pack_preserves_project_frame_and_explicit_recheck_items(tmp_path):
+    """An observation project must retain its frame without inventing a goal.
+
+    Regression for the 2026-07-19 real continuation evaluation: Project O had a
+    useful Chinese SNAPSHOT.md frame and a known data conflict, but its Context
+    Pack rendered the goal as undefined and dropped both pieces of state.
+    """
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Observation Context Test"])
+        (tmp_path / "FRAMING.md").write_text(
+            "# Framing\n\n"
+            "## 核心观察问题\n\n"
+            "- 注意力是否会转成真实资源？\n",
+            encoding="utf-8",
+        )
+        (tmp_path / "SNAPSHOT.md").write_text(
+            "# Project Snapshot\n\n"
+            "## 项目定位\n\n"
+            "外部行动探针观察：记录系统如何把公开行动转成资源。\n\n"
+            "## 下一步最高优先级\n\n"
+            "1. 补齐 Day 20-23 的交易与内容记录。\n\n"
+            "## 待复查\n\n"
+            "- Day 23 余额在两个来源中分别为 £999.25 与 £1049.25，先核对来源。\n",
+            encoding="utf-8",
+        )
+
+        content, _ = build_context_pack(tmp_path)
+
+        assert "## Current Goal\n\n(not defined)" in content
+        assert "## Project Frame" in content
+        assert "外部行动探针观察" in content
+        assert "注意力是否会转成真实资源？" in content
+        assert "## Needs Recheck" in content
+        assert "Day 23 余额在两个来源中分别为 £999.25 与 £1049.25" in content
+        assert "补齐 Day 20-23 的交易与内容记录" in content
+    finally:
+        os.chdir(old_cwd)
