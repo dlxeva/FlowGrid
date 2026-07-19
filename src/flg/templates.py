@@ -277,7 +277,9 @@ CONTRACT_MD = f"""# FlowGrid Contract
 5. **If pending patches are relevant to current task, Agent must process them in the background:**
    - Read only patches whose header is `status: pending_review`
    - Run `flg review --report-only` before autonomous adoption
-   - Keep shell and ambiguous candidates pending
+   - Keep only material, non-shell ambiguities pending; after background review,
+     merge routine updates or discard a shell-only false-positive patch while
+     preserving its raw source and audit history
    - Report only material state changes, unresolved ambiguity, or an external irreversible action
 
 6. **Before execution, check:**
