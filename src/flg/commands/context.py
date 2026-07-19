@@ -103,6 +103,26 @@ def _first_section_line(text: str, headings: tuple[str, ...], default: str = "")
     return default
 
 
+def _is_explicitly_obsolete(text: str) -> bool:
+    """Return whether a source says it is no longer current project truth.
+
+    A Context Pack may include historical files for traceability, but a file that
+    explicitly says it was superseded must not fill current-state fields. This
+    avoids reviving a pre-meeting framing when SNAPSHOT.md has already replaced it.
+    """
+    header = text[:1600].lower()
+    markers = (
+        "not current decision basis",
+        "not the current decision basis",
+        "current truth is in snapshot.md",
+        "不作为当前决策依据",
+        "当前真相见 snapshot.md",
+        "当前真相见snapshot.md",
+        "已被.*推翻",
+    )
+    return any(marker in header for marker in markers[:-1]) or bool(re.search(markers[-1], header))
+
+
 def _list_items(text: str, limit: int = 8) -> list[str]:
     items: list[str] = []
     for raw in text.splitlines():
@@ -381,6 +401,7 @@ def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> 
     progress_content = read_file_safe(root / "PROGRESS.md") or ""
     constraints_content = read_file_safe(root / "CONSTRAINTS.md") or ""
     goal_evolution_content = read_file_safe(root / "GOAL_EVOLUTION.md") or ""
+    framing_is_obsolete = _is_explicitly_obsolete(framing_content)
 
     project_name = state.get("project_name", "Unknown")
     project_type = _project_field(project_content, "Project Type", "unknown")
@@ -388,15 +409,16 @@ def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> 
     current_stage = state.get("current_stage") or _project_field(project_content, "Current Stage", "unknown")
     updated_at = datetime.now().isoformat(timespec="seconds")
 
+    current_framing = "" if framing_is_obsolete else framing_content
     review_object = _first_section_line(
-        framing_content,
+        current_framing,
         ("Review Objects", "审核对象", "Core Observation Questions", "核心观察问题"),
         "(not defined)",
     )
-    proof_object = _first_section_line(framing_content, ("Success Criteria", "成功标准"), "(not defined)")
+    proof_object = _first_section_line(current_framing, ("Success Criteria", "成功标准"), "(not defined)")
     current_goal = _first_section_line(snapshot_content, ("Current Core Goal", "Current Goal", "当前核心目标", "当前目标"))
     if not current_goal:
-        current_goal = _first_section_line(framing_content, ("Goals", "目标"), "(not defined)")
+        current_goal = _first_section_line(current_framing, ("Goals", "目标"), "(not defined)")
 
     # A project can have a useful governing frame even when no current execution
     # goal is declared. Keep the two concepts separate so an observation frame
@@ -407,7 +429,7 @@ def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> 
     )
     if not project_frame:
         project_frame = _first_section_line(
-            framing_content,
+            current_framing,
             ("Project Positioning", "项目定位", "Primary Question", "主问题", "Problem Statement", "问题陈述"),
             "(not defined)",
         )
@@ -418,8 +440,8 @@ def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> 
 
     assumptions = _list_items(_section(snapshot_content, "Unconfirmed"), limit=8)
     assumptions += _list_items(_section(snapshot_content, "未确认"), limit=8)
-    assumptions += _list_items(_section(framing_content, "Open Questions"), limit=5)
-    assumptions += _list_items(_section(framing_content, "未确认问题"), limit=5)
+    assumptions += _list_items(_section(current_framing, "Open Questions"), limit=5)
+    assumptions += _list_items(_section(current_framing, "未确认问题"), limit=5)
     assumptions = assumptions[:8]
 
     # Do not infer contradictions from arbitrary prose. A project or host must
@@ -475,11 +497,19 @@ def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> 
     next_actions = next_actions[:10]
 
     recent_progress = _compact_lines(progress_content, limit_chars=900) or "(not recorded)"
-    active_constraints = _compact_lines(constraints_content, limit_chars=700) or "(not recorded)"
+    snapshot_constraints = _list_items(_section(snapshot_content, "Hard Constraints"), limit=6)
+    snapshot_constraints += _list_items(_section(snapshot_content, "硬约束"), limit=6)
+    snapshot_non_goals = _list_items(_section(snapshot_content, "Current Non-Goals"), limit=6)
+    snapshot_non_goals += _list_items(_section(snapshot_content, "当前不做什么"), limit=6)
+    if snapshot_constraints or snapshot_non_goals:
+        active_constraints = _render_items(snapshot_constraints[:6])
+        if snapshot_non_goals:
+            active_constraints += "\nCurrent non-goals:\n" + _render_items(snapshot_non_goals[:6])
+    else:
+        active_constraints = _compact_lines(constraints_content, limit_chars=700) or "(not recorded)"
 
     sources_included = [
         "PROJECT.md",
-        "FRAMING.md",
         "SNAPSHOT.md",
         "DECISIONS.md",
         "PROGRESS.md",
@@ -488,6 +518,8 @@ def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> 
         ".flg/state.json",
         ".flg/patches/*.patch.md",
     ]
+    if not framing_is_obsolete:
+        sources_included.insert(1, "FRAMING.md")
 
     content = f"""# FLG Context Pack
 

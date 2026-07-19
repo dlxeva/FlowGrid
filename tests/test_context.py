@@ -282,3 +282,46 @@ def test_context_pack_preserves_project_frame_and_explicit_recheck_items(tmp_pat
         assert "补齐 Day 20-23 的交易与内容记录" in content
     finally:
         os.chdir(old_cwd)
+
+
+def test_context_pack_does_not_promote_explicitly_obsolete_framing(tmp_path):
+    """Current snapshots must override a framing document that names itself stale."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Stale Framing Test"])
+        (tmp_path / "FRAMING.md").write_text(
+            "# Framing\n\n"
+            "> This file is not the current decision basis. Current truth is in SNAPSHOT.md.\n\n"
+            "## Goals\n\n"
+            "- Ship the obsolete OCR product for $20k.\n\n"
+            "## Success Criteria\n\n"
+            "- Legacy scope is accepted.\n",
+            encoding="utf-8",
+        )
+        (tmp_path / "SNAPSHOT.md").write_text(
+            "# Project Snapshot\n\n"
+            "## 硬约束\n\n"
+            "- Do not enter development until a sample validates the revised scope.\n\n"
+            "## 当前不做什么\n\n"
+            "- Do not restart the obsolete OCR-only scope.\n\n"
+            "## 下一步最高优先级\n\n"
+            "1. Send the agreed case study and request a sample.\n",
+            encoding="utf-8",
+        )
+        (tmp_path / "CONSTRAINTS.md").write_text(
+            "# Constraints\n\n- Legacy OCR-only scope remains mandatory.\n",
+            encoding="utf-8",
+        )
+
+        content, metadata = build_context_pack(tmp_path)
+
+        assert "## Current Goal\n\n(not defined)" in content
+        assert "Ship the obsolete OCR product" not in content
+        assert "Legacy scope is accepted" not in content
+        assert "Do not enter development until a sample validates" in content
+        assert "Do not restart the obsolete OCR-only scope" in content
+        assert "Legacy OCR-only scope remains mandatory" not in content
+        assert "FRAMING.md" not in metadata["sources_included"]
+    finally:
+        os.chdir(old_cwd)

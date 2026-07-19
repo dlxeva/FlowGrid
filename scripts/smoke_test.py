@@ -48,6 +48,10 @@ def run_cmd(
 def resolve_flg_command() -> tuple[list[str], dict[str, str] | None, str]:
     """Use the current repo build, not an unrelated global installation."""
     exe_name = "flg.exe" if sys.platform.startswith("win") else "flg"
+    repo_venv_exe = REPO_ROOT / ".venv" / ("Scripts" if sys.platform.startswith("win") else "bin") / exe_name
+    if repo_venv_exe.exists():
+        return [str(repo_venv_exe)], None, "repository virtualenv console script"
+
     sibling_exe = Path(sys.executable).with_name(exe_name)
     if sibling_exe.exists():
         return [str(sibling_exe)], None, "editable-installed console script"
