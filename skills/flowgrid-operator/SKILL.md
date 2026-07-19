@@ -16,13 +16,21 @@ decide and execute the CLI calls. Do not tell the user to operate `flg` manually
 
 ## Command and scope
 
-Run `flg` from the target project root. The global command should be available
-on PATH. If command lookup fails, use the venv directly:
+Run a verified `flg` executable from the target project root. Do not assume the
+ambient `flg` on PATH is the current checkout. When `.flg/repo-map.json` exists,
+use its `code_repo` value and prefer `<code_repo>/.venv/bin/flg`.
 
 ```bash
-flg version          # verify install
-flg onboard          # first-run setup: env check + demo + skill install
+FLG_CMD="flg"
+if [ -f .flg/repo-map.json ]; then
+  code_repo=$(python3 -c 'import json; print(json.load(open(".flg/repo-map.json"))["code_repo"])')
+  [ -x "$code_repo/.venv/bin/flg" ] && FLG_CMD="$code_repo/.venv/bin/flg"
+fi
+"$FLG_CMD" version
+"$FLG_CMD" onboard
 ```
+
+Once resolved, use `$FLG_CMD` for the commands below.
 
 Never initialize a project outside the user-requested project directory. Use
 `--dir` to target a specific location:
