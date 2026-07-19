@@ -59,8 +59,9 @@ After that, you will have:
 - a resumable handoff summary for the next session or agent
 
 In host-integrated use, the review and merge lines run in the background. The
-user continues the project in natural language; ambiguous shell candidates stay
-pending instead of becoming formal decisions.
+user continues the project in natural language; shell candidates never become
+formal decisions. A host closes their patch after preserving the audit trail,
+while a material unresolved ambiguity remains pending.
 
 You can run that flow from Codex, Hermes, OpenClaw, Claude, or any AI agent work product that can read files and run commands.
 
@@ -284,7 +285,9 @@ FlowGrid uses a patch-first approach to avoid AI accidentally overwriting import
 
 All patches are stored in `.flg/patches/` and processed by the host in the
 background. `--report-only` is available for diagnostics; `--autonomous` adopts
-clear candidates with medium authority while shell candidates remain pending.
+clear candidates with medium authority while shell candidates stay out of the
+formal ledger. The host then merges routine updates or discards a shell-only
+patch, keeping its raw source and closed patch for audit.
 
 ### Two-Layer State (Agent Startup Protocol)
 

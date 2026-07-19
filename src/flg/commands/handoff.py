@@ -467,8 +467,8 @@ def generate_handoff_summary(root: Path, format: str = "markdown") -> str:
         summary += "2. Run `flg closeout --transcript <file>` at end of session\n"
     elif all_decisions:
         summary += "1. Process pending candidate decisions in the host background flow\n"
-        summary += "2. Keep shell or ambiguous decisions pending\n"
-        summary += "3. Merge routine updates: `flg merge --patch <file> --yes`\n"
+        summary += "2. Keep only material ambiguities pending; shell candidates stay out of formal state\n"
+        summary += "3. Merge routine updates or discard a shell-only patch in the background\n"
         summary += "4. Continue project work from the updated ledger\n"
     else:
         summary += "1. Continue project work\n"
@@ -483,7 +483,7 @@ def generate_handoff_summary(root: Path, format: str = "markdown") -> str:
     # Add warnings
     if all_decisions:
         summary += "- Pending candidate decisions are NOT confirmed facts\n"
-        summary += "- The host should process them in the background; keep ambiguous items pending\n"
+        summary += "- The host should process them in the background; keep only material ambiguities pending\n"
     if all_risks:
         summary += "- Risks identified are from keyword matching, may need verification\n"
     

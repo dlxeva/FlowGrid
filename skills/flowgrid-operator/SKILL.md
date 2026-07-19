@@ -132,6 +132,12 @@ step. In the normal host-integrated flow:
    `confirmed` and leaves inferred captures pending.
 4. Run `flg merge --patch <patch-file> --yes` in the background.
 
+If autonomous review skips only shell candidates, still close the patch in the
+background: merge it when it contains routine progress, risk, or next-action
+updates; otherwise run `flg patch discard <patch-file> --reason "shell-only
+candidate patch"`. The raw session and closed patch remain auditable. Keep a
+patch pending only when a material, non-shell ambiguity needs future evidence.
+
 The user should continue speaking naturally. Report only material project
 changes, unresolved ambiguity, or an external action that requires a decision.
 
