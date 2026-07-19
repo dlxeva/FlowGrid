@@ -8,6 +8,9 @@
 **LICENSE file present:** No (prior to this PR)
 **pyproject.toml license:** MIT
 
+> This is a historical audit snapshot. Its file count and test count describe
+> the audited base commit above, not later FlowGrid releases.
+
 ---
 
 ## Audit Methodology

@@ -8,7 +8,7 @@
 ![Stage](https://img.shields.io/badge/stage-v0.4--validation-4c6ef5)
 ![Runtime](https://img.shields.io/badge/runtime-local--first-2b8a3e)
 ![Interface](https://img.shields.io/badge/interface-CLI%20%2B%20project%20protocol-495057)
-![Tests](https://img.shields.io/badge/tests-144%20passed-2f9e44)
+![Tests](https://img.shields.io/badge/tests-154%20passed-2f9e44)
 
 FlowGrid helps business-project knowledge workers turn messy AI work sessions into state-aware, traceable, and resumable project context.
 
