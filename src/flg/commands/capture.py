@@ -141,6 +141,127 @@ def capture_add(
     console.print()
 
 
+_BIZ_AUTHORIZED_ROLES = {
+    "project_owner",
+    "authorized_client",
+    "authorized_representative",
+}
+
+
+def capture_import_biz(
+    input_path: Path = typer.Option(
+        ..., "--input", "-i", exists=True, readable=True,
+        help="BIZ handoff JSON produced from a meeting analysis",
+    ),
+) -> None:
+    """Import BIZ meeting judgments as reviewed or pending candidates.
+
+    BIZ remains responsible for transcript interpretation and role mapping.
+    This command only trusts an authorization mapping when it was supplied as
+    explicit source metadata, not inferred from the meeting content.
+    """
+    root = Path.cwd()
+    if not is_flg_project(root):
+        console.print("[red]Not a FLG project. Run 'flg init' first.[/red]")
+        raise typer.Exit(1)
+
+    try:
+        payload = json.loads(input_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        console.print(f"[red]Invalid BIZ handoff JSON: {exc}[/red]")
+        raise typer.Exit(1)
+
+    if not isinstance(payload, dict) or payload.get("schema_version") != "1.0":
+        console.print("[red]Unsupported BIZ handoff. Expected schema_version '1.0'.[/red]")
+        raise typer.Exit(1)
+
+    source = payload.get("source")
+    judgments = payload.get("judgments")
+    if not isinstance(source, dict) or not isinstance(judgments, list) or not judgments:
+        console.print("[red]BIZ handoff requires a source object and at least one judgment.[/red]")
+        raise typer.Exit(1)
+
+    source_ref = source.get("ref")
+    if not isinstance(source_ref, str) or not source_ref.strip():
+        console.print("[red]BIZ handoff source.ref is required.[/red]")
+        raise typer.Exit(1)
+
+    captures_dir = _ensure_captures_dir(root)
+    created = 0
+    pending = 0
+    confirmed = 0
+    now = datetime.now().isoformat(timespec="seconds")
+    validated_judgments: list[tuple[dict, str, str, str, str | None, str | None, bool]] = []
+
+    for index, judgment in enumerate(judgments, start=1):
+        if not isinstance(judgment, dict):
+            console.print(f"[red]Judgment {index} must be an object.[/red]")
+            raise typer.Exit(1)
+
+        claim = judgment.get("claim")
+        rationale = judgment.get("rationale")
+        anchor = judgment.get("source_anchor")
+        if not all(isinstance(value, str) and value.strip() for value in (claim, rationale, anchor)):
+            console.print(f"[red]Judgment {index} requires claim, rationale, and source_anchor.[/red]")
+            raise typer.Exit(1)
+
+        actor = judgment.get("actor") if isinstance(judgment.get("actor"), dict) else {}
+        role = actor.get("role")
+        role_basis = actor.get("role_basis")
+        status = judgment.get("status")
+        authorized = (
+            status == "Confirmed"
+            and role in _BIZ_AUTHORIZED_ROLES
+            and role_basis == "explicit_source_metadata"
+        )
+        validated_judgments.append((judgment, claim, rationale, anchor, role, role_basis, authorized))
+
+    for judgment, claim, rationale, anchor, role, role_basis, authorized in validated_judgments:
+        capture_id = _generate_id()
+        confidence = "confirmed" if authorized else "inferred"
+        frontmatter = {
+            "id": capture_id,
+            "created_at": now,
+            "type": "decision",
+            "status": "pending_review",
+            "confidence": confidence,
+            "source": "biz_retro",
+            "review_required": not authorized,
+            "question": judgment.get("question") or "(not specified)",
+            "claim": claim,
+            "rationale": rationale,
+            "raw_evidence": anchor,
+            "source_ref": source_ref,
+            "source_actor_role": role or "unknown",
+            "source_role_basis": role_basis or "unknown",
+            "biz_status": status or "Needs validation",
+        }
+        alternatives = judgment.get("alternatives")
+        if isinstance(alternatives, list) and all(isinstance(item, str) for item in alternatives):
+            frontmatter["alternatives"] = alternatives
+        risks = judgment.get("risks")
+        if isinstance(risks, str) and risks.strip():
+            frontmatter["risks"] = risks
+
+        yaml_block = yaml.dump(frontmatter, allow_unicode=True, default_flow_style=False, sort_keys=False)
+        content = (
+            f"---\n{yaml_block}---\n\n# {capture_id}\n\n"
+            f"**Claim:** {claim}\n\n**Rationale:** {rationale}\n\n"
+            f"**BIZ source:** {source_ref}\n\n**Evidence anchor:** {anchor}\n"
+        )
+        (captures_dir / f"{capture_id}.md").write_text(content, encoding="utf-8")
+        created += 1
+        if authorized:
+            confirmed += 1
+        else:
+            pending += 1
+
+    console.print(
+        f"[green]Imported {created} BIZ judgment candidate(s).[/green] "
+        f"{confirmed} eligible for background confirmation; {pending} kept pending."
+    )
+
+
 def capture_list(
     status_filter: Optional[str] = typer.Option(
         None, "--status", help="Filter by status: pending_review | confirmed | rejected"

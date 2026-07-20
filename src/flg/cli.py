@@ -15,7 +15,7 @@ from .commands.extract import extract_decisions_command
 from .commands.import_cmd import import_project
 from .commands.context import context_command
 from .commands.evidence import evidence_command
-from .commands.capture import capture_add, capture_list, capture_show, capture_review, capture_profile
+from .commands.capture import capture_add, capture_import_biz, capture_list, capture_show, capture_review, capture_profile
 from .commands.decision_cmd import decision_add
 from .commands.patch_cmd import patch_supersede, patch_discard
 from .commands.onboard import onboard
@@ -56,6 +56,7 @@ app.add_typer(session_app, name="session")
 # Capture subcommand group
 capture_app = typer.Typer(help="Real-time judgment candidate capture", no_args_is_help=True)
 capture_app.command(name="add", help="Capture a judgment candidate")(capture_add)
+capture_app.command(name="import-biz", help="Import role-aware meeting judgments from BIZ")(capture_import_biz)
 capture_app.command(name="list", help="List captured judgment candidates")(capture_list)
 capture_app.command(name="show", help="Show details of a captured judgment")(capture_show)
 capture_app.command(name="review", help="Background-process confirmed captures; keep inferred captures pending")(capture_review)
