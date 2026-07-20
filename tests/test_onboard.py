@@ -7,7 +7,13 @@ from unittest.mock import patch
 from typer.testing import CliRunner
 
 from flg.cli import app
-from flg.commands.onboard import detect_hosts, check_skill_installed, install_skill
+from flg.commands.onboard import (
+    check_skill_installed,
+    detect_hosts,
+    install_skill,
+    skill_content_hash,
+    skill_matches_source,
+)
 
 runner = CliRunner()
 
@@ -131,6 +137,21 @@ def test_install_skill_already_installed(tmp_path):
 
     result = install_skill(host_skills, skill_source)
     assert result is True  # already installed, returns True
+
+
+def test_skill_hash_detects_drift_and_force_install_updates(tmp_path):
+    source = tmp_path / "source" / "flowgrid-operator"
+    installed = tmp_path / "host" / "skills" / "flowgrid-operator"
+    source.mkdir(parents=True)
+    installed.mkdir(parents=True)
+    (source / "SKILL.md").write_text("# Current rules", encoding="utf-8")
+    (installed / "SKILL.md").write_text("# Old rules", encoding="utf-8")
+
+    assert skill_content_hash(source) != skill_content_hash(installed)
+    assert skill_matches_source(installed, source) is False
+
+    assert install_skill(installed.parent, source, force=True) is True
+    assert skill_matches_source(installed, source) is True
 
 
 def test_check_skill_installed(tmp_path):

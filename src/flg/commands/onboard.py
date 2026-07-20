@@ -8,6 +8,7 @@ Solves the "installed but now what?" gap. A new user runs `flg onboard` and gets
 
 from __future__ import annotations
 
+import hashlib
 import os
 import shutil
 from pathlib import Path
@@ -64,12 +65,30 @@ def _skill_source_path() -> Optional[Path]:
     return None
 
 
+def skill_content_hash(skill_dir: Path) -> Optional[str]:
+    """Return the bundled skill instruction hash, if the skill is readable."""
+    skill_file = skill_dir / "SKILL.md"
+    if not skill_file.is_file():
+        return None
+    return hashlib.sha256(skill_file.read_bytes()).hexdigest()
+
+
+def skill_matches_source(skill_path: Path, skill_source: Optional[Path]) -> bool:
+    """Check whether an installed skill has the same instructions as the source."""
+    if skill_source is None:
+        return False
+    source_hash = skill_content_hash(skill_source)
+    installed_hash = skill_content_hash(skill_path)
+    return source_hash is not None and source_hash == installed_hash
+
+
 def detect_hosts() -> list[dict]:
     """Detect installed AI hosts and whether the FLG skill is present in each.
 
     Returns a list of dicts with keys: name, home_marker, skills_dir, skill_installed.
     """
     home = Path.home()
+    skill_source = _skill_source_path()
     hosts = []
     for name, marker_rel, skills_subdir in _KNOWN_HOSTS:
         marker = home / marker_rel
@@ -79,12 +98,14 @@ def detect_hosts() -> list[dict]:
         skill_path = skills_dir / _SKILL_NAME
         # Check if skill exists (as symlink, dir, or file)
         skill_installed = skill_path.exists() or skill_path.is_symlink()
+        skill_current = skill_matches_source(skill_path, skill_source) if skill_installed else False
         hosts.append({
             "name": name,
             "home_marker": str(marker),
             "skills_dir": str(skills_dir),
             "skill_path": str(skill_path),
             "skill_installed": skill_installed,
+            "skill_current": skill_current,
         })
     return hosts
 
@@ -239,10 +260,15 @@ def onboard(
     if hosts:
         host_table = Table(title="Detected AI Hosts")
         host_table.add_column("Host", style="cyan")
-        host_table.add_column("Skill Installed", style="bold")
+        host_table.add_column("Skill Status", style="bold")
 
         for h in hosts:
-            status = "[green]✓ yes[/green]" if h["skill_installed"] else "[yellow]✗ no[/yellow]"
+            if not h["skill_installed"]:
+                status = "[yellow]✗ missing[/yellow]"
+            elif h["skill_current"]:
+                status = "[green]✓ current[/green]"
+            else:
+                status = "[yellow]⚠ drifted[/yellow]"
             host_table.add_row(h["name"], status)
 
         console.print(host_table)
@@ -297,20 +323,22 @@ def onboard(
     else:
         installed_count = 0
         for h in hosts:
-            if h["skill_installed"]:
-                console.print(f"  [green]✓ {h['name']}: skill already installed[/green]")
+            if h["skill_current"]:
+                console.print(f"  [green]✓ {h['name']}: skill is current[/green]")
                 installed_count += 1
                 continue
 
+            action = "Update" if h["skill_installed"] else "Install"
             should_install = yes or Confirm.ask(
-                f"Install flowgrid-operator skill into {h['name']}?",
+                f"{action} flowgrid-operator skill in {h['name']}?",
                 default=True,
             )
             if should_install:
                 skills_dir = Path(h["skills_dir"])
-                success = install_skill(skills_dir, skill_source)
+                success = install_skill(skills_dir, skill_source, force=h["skill_installed"])
                 if success:
-                    console.print(f"  [green]✓ {h['name']}: skill installed (symlink)[/green]")
+                    result = "updated" if h["skill_installed"] else "installed"
+                    console.print(f"  [green]✓ {h['name']}: skill {result}[/green]")
                     installed_count += 1
                 else:
                     console.print(f"  [red]✗ {h['name']}: installation failed[/red]")
