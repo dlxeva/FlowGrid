@@ -8,7 +8,7 @@
 ![Stage](https://img.shields.io/badge/stage-v0.4--validation-4c6ef5)
 ![Runtime](https://img.shields.io/badge/runtime-local--first-2b8a3e)
 ![Interface](https://img.shields.io/badge/interface-CLI%20%2B%20project%20protocol-495057)
-![Tests](https://img.shields.io/badge/tests-160%20passed-2f9e44)
+![Tests](https://img.shields.io/badge/tests-163%20passed-2f9e44)
 
 FlowGrid helps business-project knowledge workers turn messy AI work sessions into state-aware, traceable, and resumable project context.
 
@@ -26,6 +26,7 @@ It is built for long-running work where the deliverable is not just a document, 
 - [User pain model](./docs/product/user-pain-model.md)
 - [Protocol docs](./docs/protocol.md)
 - [Host usage](./docs/host-usage.md)
+- [Independent runtime experiments](#independent-runtime-experiments)
 - [Chinese README](./README.zh-CN.md)
 
 ## At a Glance
@@ -66,6 +67,25 @@ patch after preserving the audit trail, while a material unresolved ambiguity
 remains pending.
 
 You can run that flow from Codex, Hermes, OpenClaw, Claude, or any AI agent work product that can read files and run commands.
+
+## Independent Runtime Experiments
+
+FlowGrid's local-first CLI and protocol are the main product. Two hackathon
+repositories validate the same judgment-state semantics in bounded external
+runtimes:
+
+- [FlowGrid Memory Runtime](https://github.com/dlxeva/flowgrid-memory-runtime)
+  uses synthetic data to demonstrate confirmed, pending, and superseded
+  judgment state on CockroachDB and AWS.
+- [FlowGrid MemoryAgent for Qwen Cloud](https://github.com/dlxeva/flowgrid-qwen-memory-agent)
+  demonstrates Qwen-driven candidate extraction, human authorization, and
+  constrained confirmed-state retrieval on Alibaba Cloud.
+
+They show that the lifecycle can run across models and deployment stacks. They
+do not make AWS, CockroachDB, Qwen, or Alibaba Cloud dependencies of FlowGrid
+Core, and they do not establish user adoption, retention, or product-market
+fit. Core validation remains focused on natural-language host operation,
+rebuildable local ledger state, and real-project continuation.
 
 ## What is FlowGrid?
 
