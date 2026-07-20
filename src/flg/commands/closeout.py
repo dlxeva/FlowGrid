@@ -12,7 +12,7 @@ from ..core.files import is_flg_project, read_file_safe
 from ..core.patches import create_patch, generate_patch_id
 from ..core.state import add_pending_patch, load_state
 from ..templates import CLOSEOUT_PATCH_MD, DECISION_PROMPT_TEMPLATE, CLOSEOUT_LLM_PROMPT_TEMPLATE, get_iso_now
-from ..llm_client import call_llm, parse_llm_response, get_llm_config, is_llm_available, VALID_PROVIDERS
+from ..llm_client import call_llm, parse_llm_response, get_llm_config, is_llm_available, is_local_endpoint, VALID_PROVIDERS
 from .session import archive_session
 
 console = Console()
@@ -268,11 +268,33 @@ def strip_generated_transcript_sections(content: str) -> str:
 
 
 def iter_segments(content: str) -> list[str]:
-    """Split transcript into sentence-like segments while keeping questions."""
-    segments = []
-    for match in re.findall(r"[^.!?。！？\n]+[.!?。！？]?", content):
-        segment = match.strip()
-        if segment:
+    """Split a transcript while preserving speaker labels declared on their own line.
+
+    Many exported chat transcripts use ``User:`` followed by the utterance on
+    the next line. Keep that actor state on subsequent segments so background
+    review can distinguish a human commitment from an agent proposal.
+    """
+    segments: list[str] = []
+    current_actor = ""
+    actor_label = re.compile(
+        r"^\s*((?:user|human|client|customer|assistant|agent|ai|用户|客户|甲方|助手|系统))\s*[:：]\s*$",
+        re.IGNORECASE,
+    )
+    inline_actor = re.compile(
+        r"^\s*(?:user|human|client|customer|assistant|agent|ai|用户|客户|甲方|助手|系统)\s*[:：]",
+        re.IGNORECASE,
+    )
+    for line in content.splitlines():
+        label_match = actor_label.match(line)
+        if label_match:
+            current_actor = label_match.group(1)
+            continue
+        for match in re.findall(r"[^.!?。！？\n]+[.!?。！？]?", line):
+            segment = match.strip()
+            if not segment:
+                continue
+            if current_actor and not inline_actor.match(segment):
+                segment = f"{current_actor}: {segment}"
             segments.append(segment)
     return segments
 
@@ -955,7 +977,7 @@ def is_shell_decision(reasoning: str, rejected: str, reversal: str) -> bool:
 
 
 def closeout_session(
-    transcript: Path = typer.Option(..., "--transcript", "-t", help="Path to transcript markdown"),
+    transcript: Optional[Path] = typer.Option(None, "--transcript", "-t", help="Path to transcript markdown"),
     mode: str = typer.Option("concise", "--mode", "-m", help="Output mode: concise, full, or prompt"),
     prompt_only: bool = typer.Option(False, "--prompt", "-p", help="Generate LLM prompt for decision extraction (no API call)"),
     llm: Optional[str] = typer.Option(None, "--llm", "-l", help="LLM provider: openai, claude, custom, local, or 'hermes' to delegate to current AI session"),
@@ -991,6 +1013,10 @@ def closeout_session(
         _finalize_llm_result(root, llm_write, transcript, force)
         return
 
+    if transcript is None:
+        console.print("[red]--transcript is required unless --llm-write is used.[/red]")
+        raise typer.Exit(1)
+
     # Check if this is a FLG project
     if not is_flg_project(root):
         console.print("[red]Not a FLG project. Run 'flg init' first.[/red]")
@@ -1001,7 +1027,7 @@ def closeout_session(
         console.print(f"[red]Transcript not found: {transcript}[/red]")
         raise typer.Exit(1)
 
-    remote_provider = llm is not None and llm.lower() not in {"hermes", "local"}
+    remote_provider = llm is not None and llm.lower() != "hermes" and not is_local_endpoint(llm)
     if remote_provider and not allow_remote_llm:
         console.print("[yellow]Remote LLM extraction requires --allow-remote-llm because it sends the raw transcript to that provider.[/yellow]")
         raise typer.Exit(1)
@@ -1126,7 +1152,7 @@ def _delegate_to_hermes(root: Path, transcript: Path, content: str) -> None:
     console.print(f"  [cyan]flg closeout --llm-write .flg/sessions/llm-result-{ts}.json[/cyan]")
 
 
-def _finalize_llm_result(root: Path, json_path: Path, transcript: Path, force: bool) -> None:
+def _finalize_llm_result(root: Path, json_path: Path, transcript: Path | None, force: bool) -> None:
     """Write a JSON decision file (from AI extraction) into a closeout patch.
 
     The JSON file should be an array of objects with: what, type, confidence,
@@ -1203,6 +1229,7 @@ def _finalize_llm_result(root: Path, json_path: Path, transcript: Path, force: b
 
         candidate_decisions += f"""### Candidate Decision {i}: {title}
 
+candidate_id: {patch_id}-c-{i:03d}
 status: pending_review
 confidence: {confidence}
 decision_type: {d.get('type', 'llm_extracted')}
@@ -1402,6 +1429,7 @@ The LLM found no explicit decisions in this conversation.
 
         candidate_decisions += f"""### Candidate Decision {i}: {title}
 
+candidate_id: {patch_id}-c-{i:03d}
 status: pending_review
 confidence: {confidence}
 decision_type: {d.get('type', 'llm_extracted')}
@@ -1550,6 +1578,11 @@ def _do_keyword_closeout(
         summary_lines.append(f"- Highest-confidence decision signal: {generate_decision_title(decisions[0]['content'])}")
     summary = "\n".join(summary_lines[:5])
 
+    # Candidate IDs are written into the patch at construction time. They are
+    # the stable unit of review and prevent a partial review from promoting a
+    # sibling candidate during merge.
+    patch_id = generate_patch_id("closeout")
+
     # Build candidate decisions section
     candidate_decisions = ""
     if decisions:
@@ -1578,6 +1611,7 @@ def _do_keyword_closeout(
             candidate_decisions += f"""
 ### Candidate Decision {i}: {title}
 
+candidate_id: {patch_id}-c-{i:03d}
 status: pending_review
 confidence: {confidence}
 decision_type: {d['type']}
@@ -1662,7 +1696,6 @@ suggested_action: {suggested_action}
         lessons_text = "(none identified)\n"
 
     # Create patch
-    patch_id = generate_patch_id("closeout")
 
     patch_content = f"""# FLG Patch
 
@@ -1697,27 +1730,27 @@ mode: {mode}
 
 {questions_text}
 
-    ## 6. Goal Evolution Signals
+## 6. Goal Evolution Signals
 
-    {goal_shifts_text}
+{goal_shifts_text}
 
-    ## 7. Evidence Excerpts
+## 7. Evidence Excerpts
 
-    {evidence}
+{evidence}
 
-    ## 8. Rationale Excerpts (thinking process)
+## 8. Rationale Excerpts (thinking process)
 
-    {rationale_text}
+{rationale_text}
 
-    ## 9. Lessons Learned Trigger
+## 9. Lessons Learned Trigger
 
-    {lessons_text}
+{lessons_text}
 
-    ## 10. Background Processing
+## 10. Background Processing
 
-    - [ ] Process candidate decisions in the host background flow
-    - [ ] Preserve ambiguous candidates as pending
-    - [ ] Process goal evolution signals and suggested next actions
+- [ ] Process candidate decisions in the host background flow
+- [ ] Preserve ambiguous candidates as pending
+- [ ] Process goal evolution signals and suggested next actions
 - [ ] Evaluate risks
 - [ ] Address open questions
 - [ ] Fill in LESSONS_LEARNED.md if signals detected
@@ -1813,9 +1846,18 @@ def _refresh_snapshot(
     else:
         judgments = "- (no recent decisions)"
 
-    # Confirmed vs unconfirmed
-    confirmed = "- (review pending patches)"
-    unconfirmed = f"- {len(decisions)} candidate decisions pending background processing"
+    # This helper receives only reviewed formal decisions from merge. Do not
+    # describe them as pending: that would make SNAPSHOT contradict the ledger
+    # and hide valid state from handoff/context.
+    if decisions:
+        confirmed = "\n".join(
+            f"- {(d.get('content') if isinstance(d, dict) else str(d))[:120]}"
+            for d in decisions[:3]
+        )
+        unconfirmed = "- (none in this merged update)"
+    else:
+        confirmed = "- (no confirmed decisions in this update)"
+        unconfirmed = "- (no candidate decisions included)"
 
     # Risks
     if risks:

@@ -1,6 +1,8 @@
 """State management for FlowGrid state files."""
 
 import json
+import os
+import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -146,17 +148,35 @@ def load_state(root: Path) -> Optional[dict]:
     state_path = root / STATE_FILE
     if not state_path.exists():
         return None
-    raw_state = json.loads(state_path.read_text(encoding="utf-8"))
+    try:
+        raw_state = json.loads(state_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"State file is corrupt: {state_path}") from exc
     return normalize_state_dict(raw_state)
 
 
 def save_state(root: Path, state: dict) -> None:
-    """Save state to .flg/state.json."""
+    """Atomically save state to .flg/state.json.
+
+    ``os.replace`` prevents a process crash from leaving a truncated JSON file.
+    Higher-level multi-file operations still need a transaction boundary, but
+    every individual state write is now all-or-nothing.
+    """
     state_path = root / STATE_FILE
     state_path.parent.mkdir(parents=True, exist_ok=True)
     normalized = normalize_state_dict(state)
     normalized["updated_at"] = datetime.now().isoformat(timespec="seconds")
-    state_path.write_text(json.dumps(normalized, indent=2, ensure_ascii=False), encoding="utf-8")
+    payload = json.dumps(normalized, indent=2, ensure_ascii=False)
+    fd, temp_name = tempfile.mkstemp(prefix=".state-", suffix=".tmp", dir=state_path.parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temp_name, state_path)
+    finally:
+        if os.path.exists(temp_name):
+            os.unlink(temp_name)
 
 
 def update_state(root: Path, **kwargs) -> dict:
@@ -181,6 +201,8 @@ def add_pending_patch(
     if state is None:
         return
     state.setdefault("pending_patches", [])
+    if any(item.get("patch_id") == patch_id for item in state["pending_patches"]):
+        return
     state["pending_patches"].append({
         "patch_id": patch_id,
         "path": patch_path,

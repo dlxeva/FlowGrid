@@ -6,6 +6,7 @@ Supported providers: openai, anthropic, custom (OpenAI-compatible), local (OpenA
 import json
 import os
 from typing import Optional
+from urllib.parse import urlparse
 
 import httpx
 from rich.console import Console
@@ -21,7 +22,18 @@ DEFAULT_CONFIG = {
 }
 
 # Supported provider values for --llm flag
-VALID_PROVIDERS = {"openai", "anthropic", "custom", "local"}
+VALID_PROVIDERS = {"openai", "anthropic", "claude", "custom", "local"}
+_PROVIDER_ALIASES = {"claude": "anthropic"}
+_DEFAULT_MODELS = {
+    "openai": "gpt-4o-mini",
+    "anthropic": "claude-3-5-haiku-latest",
+    "custom": "gpt-4o-mini",
+    "local": "gpt-4o-mini",
+}
+
+
+def normalize_provider(provider: str) -> str:
+    return _PROVIDER_ALIASES.get(provider.lower(), provider.lower())
 
 
 def get_llm_config() -> dict:
@@ -30,11 +42,13 @@ def get_llm_config() -> dict:
     
     # Provider
     if provider := os.getenv("FLG_LLM_PROVIDER"):
-        config["provider"] = provider.lower()
+        config["provider"] = normalize_provider(provider)
     
     # Model
     if model := os.getenv("FLG_LLM_MODEL"):
         config["model"] = model
+    else:
+        config["model"] = _DEFAULT_MODELS.get(config["provider"], config["model"])
     
     # Temperature
     if temp := os.getenv("FLG_LLM_TEMPERATURE"):
@@ -62,7 +76,7 @@ def get_api_key(provider: str) -> Optional[str]:
         "local": "FLG_LLM_API_KEY",  # local uses same env var as custom
     }
 
-    env_var = env_vars.get(provider, "FLG_LLM_API_KEY")
+    env_var = env_vars.get(normalize_provider(provider), "FLG_LLM_API_KEY")
     return os.getenv(env_var)
 
 
@@ -79,7 +93,17 @@ def get_base_url(provider: str) -> str:
         "local": "http://localhost:11434/v1",  # Ollama default
     }
 
-    return urls.get(provider, "https://api.openai.com/v1")
+    return urls.get(normalize_provider(provider), "https://api.openai.com/v1")
+
+
+def is_local_endpoint(provider: str) -> bool:
+    """Return True only for an explicit loopback or Unix-socket endpoint."""
+    endpoint = get_base_url(provider)
+    if endpoint.startswith("unix://"):
+        return True
+    parsed = urlparse(endpoint)
+    host = (parsed.hostname or "").lower()
+    return host == "localhost" or host == "::1" or host.startswith("127.")
 
 
 def call_openai(prompt: str, config: dict) -> str:
@@ -204,7 +228,7 @@ def call_llm(prompt: str, provider: Optional[str] = None) -> str:
         provider = provider.lower()
         if provider not in VALID_PROVIDERS:
             raise ValueError(f"Unknown provider: {provider}. Supported: {', '.join(sorted(VALID_PROVIDERS))}")
-        config["provider"] = provider
+        config["provider"] = normalize_provider(provider)
 
     provider = config["provider"]
 

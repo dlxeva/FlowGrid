@@ -110,6 +110,31 @@ def test_handoff_shows_pending_capture_without_patch(tmp_path):
         os.chdir(old_cwd)
 
 
+def test_handoff_uses_review_evidence_for_formal_decisions(tmp_path):
+    """Confirmed handoff context must follow review evidence, not title text."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        assert runner.invoke(app, ["init", "Reviewed Handoff Test"]).exit_code == 0
+        transcript = tmp_path / "session.md"
+        transcript.write_text(
+            """User: We decided to keep project state local.\n
+User: Hosted memory would expose client data.\n
+User: Reopen this only if a customer explicitly requires managed hosting.\n""",
+            encoding="utf-8",
+        )
+        assert runner.invoke(app, ["closeout", "--transcript", str(transcript), "--no-llm"]).exit_code == 0
+        patch = next((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
+        assert runner.invoke(app, ["review", "--patch", patch.name, "--accept-all"]).exit_code == 0
+
+        result = runner.invoke(app, ["handoff"])
+        assert result.exit_code == 0
+        assert "keep project state local" in result.output.lower()
+        assert "Decision Context (from DECISIONS.md)" in result.output
+    finally:
+        os.chdir(old_cwd)
+
+
 def test_handoff_surfaces_snapshot_priority_risks_and_boundaries(tmp_path):
     """A fresh host needs the active project state, not only generic CLI advice."""
     from flg.commands.handoff import generate_handoff_summary

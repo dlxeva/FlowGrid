@@ -94,7 +94,7 @@ DECISIONS_MD = """# Decision Log
 
 <!-- 复制以下模板，每条决策一个 -->
 
-## D-001 | 标题
+## Decision Template | 标题
 
 ### 决策时间
 (日期)

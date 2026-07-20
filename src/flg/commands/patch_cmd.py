@@ -24,6 +24,7 @@ import typer
 from rich.console import Console
 
 from ..core.files import is_flg_project, read_file_safe
+from ..core.patches import resolve_managed_patch
 from ..core.state import load_state, save_state
 
 console = Console()
@@ -43,34 +44,7 @@ def _resolve_patch(root: Path, patch_id: str) -> Optional[Path]:
     - Filename (e.g. "closeout-xxx.patch.md")
     - Patch ID (e.g. "closeout-xxx")
     """
-    patches_dir = root / ".flg" / "patches"
-    if not patches_dir.exists():
-        return None
-
-    # 1. If the input itself is an existing path, use it directly
-    as_path = Path(patch_id)
-    if as_path.exists():
-        return as_path
-
-    # 2. Try exact filename match in .flg/patches/
-    candidates = [
-        patches_dir / patch_id,
-        patches_dir / f"{patch_id}.patch.md",
-    ]
-    for c in candidates:
-        if c.exists():
-            return c
-
-    # 3. Search by patch_id field inside file content
-    for f in patches_dir.glob("*.patch.md"):
-        content = read_file_safe(f)
-        if content:
-            for line in content.split("\n"):
-                if line.startswith("patch_id:"):
-                    if line.split(":", 1)[1].strip() == patch_id:
-                        return f
-                    break
-    return None
+    return resolve_managed_patch(root, patch_id)
 
 
 def _update_patch_file_status(patch_path: Path, new_status: str, reason: str) -> None:

@@ -75,6 +75,11 @@ def capture_add(
     source: str = typer.Option(
         "user_text", "--source", help="user_text | agent_summary"
     ),
+    confirmation_event_id: Optional[str] = typer.Option(
+        None,
+        "--confirmation-event-id",
+        help="Stable ID for the explicit user/client confirmation event",
+    ),
 ) -> None:
     """捕获一条候选判断（Judgment Candidate）."""
     root = Path.cwd()
@@ -92,6 +97,12 @@ def capture_add(
 
     if source not in ("user_text", "agent_summary"):
         console.print("[red]Source must be 'user_text' or 'agent_summary'.[/red]")
+        raise typer.Exit(1)
+
+    if confidence == "confirmed" and (source != "user_text" or not evidence or not confirmation_event_id):
+        console.print(
+            "[red]Confirmed captures require user_text source, raw evidence, and --confirmation-event-id.[/red]"
+        )
         raise typer.Exit(1)
 
     # Auto-calculate review_required
@@ -112,6 +123,7 @@ def capture_add(
         "status": "pending_review",
         "confidence": confidence,
         "source": source,
+        "source_actor": "user" if source == "user_text" else "agent",
         "review_required": review_required,
         "question": question or "(not specified)",
         "claim": claim,
@@ -123,6 +135,8 @@ def capture_add(
         frontmatter["risks"] = risks
     if evidence:
         frontmatter["raw_evidence"] = evidence
+    if confirmation_event_id:
+        frontmatter["confirmation_event_id"] = confirmation_event_id
 
     yaml_block = yaml.dump(frontmatter, allow_unicode=True, default_flow_style=False, sort_keys=False)
 
@@ -518,6 +532,20 @@ def _save_evidence_index(root: Path, index: dict) -> Path:
 
 # ── capture review command ──────────────────────────────────────────────
 
+def _is_auto_confirmable(meta: dict) -> bool:
+    """Return whether a capture carries explicit human authorization evidence."""
+    if meta.get("confidence") != "confirmed" or not meta.get("raw_evidence"):
+        return False
+    source = meta.get("source")
+    if source == "user_text":
+        return meta.get("source_actor") == "user" and bool(meta.get("confirmation_event_id"))
+    if source == "biz_retro":
+        return (
+            meta.get("source_actor_role") in _BIZ_AUTHORIZED_ROLES
+            and meta.get("source_role_basis") == "explicit_source_metadata"
+        )
+    return False
+
 def capture_review(
     auto_confirm: bool = typer.Option(
         False,
@@ -571,8 +599,8 @@ def capture_review(
             console.print(f"  Evidence: [dim]{meta['raw_evidence'][:80]}[/dim]")
         console.print()
 
-        if auto_confirm and meta.get("confidence") != "confirmed":
-            console.print("  [yellow]⚠ Kept pending (capture is inferred, not explicitly confirmed).[/yellow]")
+        if auto_confirm and not _is_auto_confirmable(meta):
+            console.print("  [yellow]⚠ Kept pending (capture lacks explicit human authorization evidence).[/yellow]")
             console.print()
             continue
 

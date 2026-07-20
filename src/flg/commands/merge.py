@@ -1,5 +1,6 @@
 """flg merge command - Merge pending patches into formal ledger."""
 
+import json
 import re
 from datetime import datetime
 from pathlib import Path
@@ -11,12 +12,43 @@ from rich.table import Table
 from rich.prompt import Confirm
 
 from ..core.files import is_flg_project, read_file_safe, safe_write
-from ..core.patches import list_patches
+from ..core.operations import atomic_write_text, serialized_project_operation
+from ..core.patches import list_patches, resolve_managed_patch
 from ..core.state import load_state, save_state
 from ..templates import get_iso_now
 from .patch_cmd import _update_patch_file_status
 
 console = Console()
+
+
+def _accepted_decisions_for_patch(root: Path, patch_id: str) -> list[dict]:
+    """Return only formal decisions backed by accepted review evidence.
+
+    A patch is a candidate container. Its raw candidate blocks are never a
+    source for SNAPSHOT. Evidence created by review is the explicit boundary
+    between proposal and formal state.
+    """
+    index_path = root / ".flg" / "context" / "evidence_index.json"
+    if not index_path.exists():
+        return []
+    try:
+        items = json.loads(index_path.read_text(encoding="utf-8")).get("items", {})
+    except (OSError, json.JSONDecodeError, AttributeError):
+        return []
+    accepted: list[dict] = []
+    for item in items.values():
+        if not isinstance(item, dict):
+            continue
+        if item.get("patch_id") != patch_id or item.get("status") != "confirmed":
+            continue
+        accepted.append(
+            {
+                "content": item.get("source_excerpt") or item.get("title") or "Confirmed decision",
+                "title": item.get("title") or "Confirmed decision",
+                "candidate_id": item.get("candidate_id", "unknown"),
+            }
+        )
+    return accepted
 
 
 def parse_patch_sections(content: str) -> dict:
@@ -160,6 +192,7 @@ def _patch_header_status(content: str) -> str:
     return ""
 
 
+@serialized_project_operation
 def merge_patch(
     patch_file: str = typer.Option(..., "--patch", "-p", help="Patch file to merge"),
     dry_run: bool = typer.Option(False, "--dry-run", "-d", help="Preview merge without changes"),
@@ -179,13 +212,10 @@ def merge_patch(
         raise typer.Exit(1)
     
     # Find patch file
-    patch_path = Path(patch_file)
-    if not patch_path.exists():
-        # Try in .flg/patches/
-        patch_path = root / ".flg" / "patches" / patch_file
-        if not patch_path.exists():
-            console.print(f"[red]Patch not found: {patch_file}[/red]")
-            raise typer.Exit(1)
+    patch_path = resolve_managed_patch(root, patch_file)
+    if patch_path is None:
+        console.print(f"[red]Managed patch not found or invalid: {patch_file}[/red]")
+        raise typer.Exit(1)
     
     # Read patch content
     content = read_file_safe(patch_path)
@@ -213,17 +243,12 @@ def merge_patch(
     risks = extract_risks(sections)
     questions = extract_open_questions(sections)
     next_actions = extract_next_actions(sections)
-    reviewed_decisions_already_accepted = False
     merge_patch_id = ""
     for line in content.split("\n"):
         if line.startswith("patch_id:"):
             merge_patch_id = line.split(":", 1)[1].strip()
             break
-    if state.get("pending_patches"):
-        for pending in state["pending_patches"]:
-            if pending.get("patch_id") == merge_patch_id and pending.get("decision_review_status") == "accepted":
-                reviewed_decisions_already_accepted = True
-                break
+    accepted_decisions = _accepted_decisions_for_patch(root, merge_patch_id)
     
     # Display merge preview
     console.print()
@@ -240,8 +265,8 @@ def merge_patch(
     # Medium risk: decisions, risks, questions
     if decisions:
         console.print("[yellow]Medium Risk - DECISIONS.md:[/yellow]")
-        if reviewed_decisions_already_accepted:
-            console.print(f"  {len(decisions)} candidate decisions already accepted via flg review")
+        if accepted_decisions:
+            console.print(f"  {len(accepted_decisions)} candidate decision(s) accepted via flg review")
         else:
             console.print(f"  {len(decisions)} candidate decisions (background processing pending)")
         for d in decisions[:3]:
@@ -289,13 +314,13 @@ def merge_patch(
             progress_content = read_file_safe(progress_path)
             # Append before last line
             progress_content += f"\n\n{progress_entry}\n"
-            progress_path.write_text(progress_content, encoding="utf-8")
+            atomic_write_text(progress_path, progress_content)
             merge_log["merged_files"].append("PROGRESS.md")
             console.print("[green]✓ Appended to PROGRESS.md[/green]")
     
     # 2. High risk: decisions - generate report only
     if decisions:
-        if reviewed_decisions_already_accepted:
+        if accepted_decisions:
             merge_log["skipped_sections"].append("Candidate decisions (already accepted via review)")
             console.print("[green]✓ Candidate decisions already accepted via flg review[/green]")
         else:
@@ -306,7 +331,7 @@ def merge_patch(
     # never surface unreviewed candidate decisions as confirmed judgments.
     from .closeout import _refresh_snapshot
 
-    snapshot_decisions = decisions if reviewed_decisions_already_accepted else []
+    snapshot_decisions = accepted_decisions
     if snapshot_decisions:
         # A candidate patch is evidence, not formal project state. Risks and
         # next actions need their own confirmation path before they can steer a
@@ -343,7 +368,7 @@ def merge_patch(
 patch_id: {merge_log['patch_id']}
 source_patch: {patch_path.name}
 merged_at: {now}
-operator: user
+operator: {"autonomous_host" if yes else "user"}
 
 ## Merged Files
 
@@ -364,7 +389,7 @@ operator: user
     
     log_filename = f"{now.replace(':', '-')}-merge.md"
     log_path = merge_logs_dir / log_filename
-    log_path.write_text(merge_log_content, encoding="utf-8")
+    atomic_write_text(log_path, merge_log_content)
     
     console.print()
     console.print(f"[bold green]✓ Merge complete[/bold green]")

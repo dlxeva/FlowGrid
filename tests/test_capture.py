@@ -54,6 +54,10 @@ def test_auto_confirm_processes_explicitly_confirmed_capture(tmp_path):
                 "It is cheaper and reversible",
                 "--confidence",
                 "confirmed",
+                "--evidence",
+                "User: Use the smaller experiment because it is cheaper and reversible.",
+                "--confirmation-event-id",
+                "session-001-turn-4",
             ],
         )
         assert result.exit_code == 0
@@ -63,6 +67,31 @@ def test_auto_confirm_processes_explicitly_confirmed_capture(tmp_path):
         assert result.exit_code == 0
         assert "decision(s) written" in result.output
         assert "Use the smaller experiment" in (tmp_path / "DECISIONS.md").read_text()
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_agent_summary_cannot_auto_confirm_even_if_it_claims_confirmed(tmp_path):
+    """Agent-authored summaries cannot self-authorize formal project state."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        assert runner.invoke(app, ["init", "Capture Authority Test"]).exit_code == 0
+        result = runner.invoke(
+            app,
+            [
+                "capture", "add",
+                "--claim", "Adopt plan A",
+                "--rationale", "The agent prefers it",
+                "--source", "agent_summary",
+                "--confidence", "confirmed",
+                "--evidence", "Assistant: Adopt plan A",
+                "--confirmation-event-id", "agent-turn-1",
+            ],
+        )
+        assert result.exit_code == 1
+        assert "require user_text" in result.output
+        assert "Adopt plan A" not in (tmp_path / "DECISIONS.md").read_text(encoding="utf-8")
     finally:
         os.chdir(old_cwd)
 

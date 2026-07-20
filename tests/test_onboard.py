@@ -72,7 +72,7 @@ def test_onboard_demo_full_loop(tmp_path):
         assert (tmp_path / "DECISIONS.md").exists()
         assert (tmp_path / ".flg" / "context" / "startup.md").exists()
 
-        # DECISIONS.md should have at least the template D-001 placeholder
+        # DECISIONS.md should contain a template and one real demo decision.
         decisions = (tmp_path / "DECISIONS.md").read_text(encoding="utf-8")
         assert "## D-" in decisions
     finally:

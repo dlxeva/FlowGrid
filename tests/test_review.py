@@ -1,12 +1,70 @@
 """Tests for flg review command."""
 
 import os
+import json
+import re
 
 from typer.testing import CliRunner
 
 from flg.cli import app
 
 runner = CliRunner()
+
+
+def _write_two_candidate_patch(project_root):
+    patch_id = "closeout-partial-review"
+    patch = project_root / ".flg" / "patches" / f"{patch_id}.patch.md"
+    patch.write_text(
+        f"""# FLG Patch
+
+patch_id: {patch_id}
+status: pending_review
+source_command: flg closeout
+risk_level: medium
+
+---
+
+## 2. Candidate Decisions
+
+### Candidate Decision 1: Keep local state
+
+candidate_id: {patch_id}-c-001
+status: pending_review
+source_actor: user
+source_excerpt: > User: Keep project state local because privacy matters.
+**What was decided:** Keep project state local.
+**Why:** Privacy matters for client work.
+**Alternatives mentioned:** Hosted memory service.
+**Rejected because:** It would expose project data.
+**Could reverse if:** A customer explicitly requires managed hosting.
+
+### Candidate Decision 2: Add cloud sync
+
+candidate_id: {patch_id}-c-002
+status: pending_review
+source_actor: user
+source_excerpt: > User: Add cloud sync because it seems convenient.
+**What was decided:** Add cloud sync.
+**Why:** It seems convenient.
+**Alternatives mentioned:** Keep local only.
+**Rejected because:** Not discussed.
+**Could reverse if:** Cost becomes unacceptable.
+""",
+        encoding="utf-8",
+    )
+    state_path = project_root / ".flg" / "state.json"
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    state["pending_patches"].append(
+        {
+            "patch_id": patch_id,
+            "path": str(patch),
+            "risk_level": "medium",
+            "source_command": "flg closeout",
+            "status": "pending_review",
+        }
+    )
+    state_path.write_text(json.dumps(state), encoding="utf-8")
+    return patch
 
 
 def test_review_accept_all_writes_decisions(tmp_path):
@@ -96,6 +154,65 @@ User: We ruled out paid ads because the budget is too tight this quarter.
         os.chdir(old_cwd)
 
 
+def test_partial_review_only_refreshes_snapshot_from_accepted_candidate(tmp_path):
+    """A rejected sibling candidate must never enter SNAPSHOT through merge."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        assert runner.invoke(app, ["init", "Partial Review Test"]).exit_code == 0
+        patch = _write_two_candidate_patch(tmp_path)
+
+        result = runner.invoke(app, ["review", "--patch", patch.name], input="y\nn\n")
+        assert result.exit_code == 0, result.output
+        assert runner.invoke(app, ["merge", "--patch", patch.name, "--yes"]).exit_code == 0
+
+        decisions = (tmp_path / "DECISIONS.md").read_text(encoding="utf-8")
+        snapshot = (tmp_path / "SNAPSHOT.md").read_text(encoding="utf-8")
+        assert "Keep project state local" in decisions
+        assert "Add cloud sync" not in decisions
+        assert "Keep project state local" in snapshot
+        assert "Add cloud sync" not in snapshot
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_review_is_idempotent_per_candidate(tmp_path):
+    """Re-running review on the same candidate cannot duplicate a decision."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        assert runner.invoke(app, ["init", "Idempotent Review Test"]).exit_code == 0
+        patch = _write_two_candidate_patch(tmp_path)
+
+        first = runner.invoke(app, ["review", "--patch", patch.name, "--accept-all"])
+        second = runner.invoke(app, ["review", "--patch", patch.name, "--accept-all"])
+        assert first.exit_code == 0, first.output
+        assert second.exit_code == 0, second.output
+        decisions = (tmp_path / "DECISIONS.md").read_text(encoding="utf-8")
+        titles = re.findall(r"## D-\d+ \| (Keep local state|Add cloud sync)", decisions)
+        assert titles == ["Keep local state", "Add cloud sync"]
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_review_rejects_patch_outside_managed_directory(tmp_path):
+    """A lifecycle command must never treat an arbitrary Markdown file as a patch."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        assert runner.invoke(app, ["init", "Path Confinement Test"]).exit_code == 0
+        outside = tmp_path / "unrelated.patch.md"
+        original = "patch_id: unrelated\nstatus: pending_review\n"
+        outside.write_text(original, encoding="utf-8")
+
+        result = runner.invoke(app, ["review", "--patch", str(outside), "--accept-all"])
+        assert result.exit_code == 1
+        assert "Managed patch not found" in result.output
+        assert outside.read_text(encoding="utf-8") == original
+    finally:
+        os.chdir(old_cwd)
+
+
 def test_review_accept_all_skips_shell_decisions(tmp_path):
     """--accept-all must NOT write shell decisions (no reasoning/alternatives/reversal) into DECISIONS.md.
 
@@ -124,8 +241,8 @@ def test_review_accept_all_skips_shell_decisions(tmp_path):
 
         decisions_content = (tmp_path / "DECISIONS.md").read_text(encoding="utf-8")
         # The shell decision content must NOT have been written into DECISIONS.md.
-        # (The init template ships with a "## D-001 | 标题" placeholder, so we
-        # check for the shell content rather than absence of any D- entry.)
+        # The initialized ledger contains a non-numbered decision template, so
+        # check for the shell content rather than relying on entry count.
         assert "这个功能本期不做" not in decisions_content
         assert "那个支付模块暂时也不做" not in decisions_content
     finally:

@@ -1,6 +1,7 @@
 """flg handoff command - Generate agent handoff summary."""
 
 import json
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -15,6 +16,27 @@ from ..core.state import load_state
 from .capture import _read_frontmatter
 
 console = Console()
+
+
+def _confirmed_decision_ids(root: Path) -> set[str]:
+    """Return formal decision IDs from review evidence, not prose markers.
+
+    DECISIONS.md remains human-editable and its headings do not carry an
+    "accepted" token. The evidence index is the review record that tells a
+    fresh host which entries reached confirmed project state.
+    """
+    index_path = root / ".flg" / "context" / "evidence_index.json"
+    if not index_path.exists():
+        return set()
+    try:
+        items = json.loads(index_path.read_text(encoding="utf-8")).get("items", {})
+    except (OSError, json.JSONDecodeError, AttributeError):
+        return set()
+    return {
+        decision_id
+        for decision_id, item in items.items()
+        if isinstance(item, dict) and item.get("status") == "confirmed"
+    }
 
 
 def parse_patch_for_handoff(content: str) -> dict:
@@ -53,7 +75,10 @@ def parse_patch_for_handoff(content: str) -> dict:
         
         # Parse candidate decisions
         if current_section and "Candidate Decision" in current_section:
-            if line.startswith("status:"):
+            if line.startswith("candidate_id:"):
+                if current_decision:
+                    current_decision["candidate_id"] = line.split(":", 1)[1].strip()
+            elif line.startswith("status:"):
                 if current_decision:
                     current_decision["status"] = line.split(":", 1)[1].strip()
             elif line.startswith("confidence:"):
@@ -77,29 +102,30 @@ def parse_patch_for_handoff(content: str) -> dict:
             # New bold-label fields from Phase 1 closeout output
             elif line.startswith("**What was decided:**"):
                 if current_decision:
-                    val = line.split(":", 2)[-1].strip().lstrip("*").strip()
+                    val = line.split(":", 1)[1].strip().lstrip("*").strip()
                     current_decision["what_decided"] = val
             elif line.startswith("**Why:**"):
                 if current_decision:
-                    val = line.split(":", 2)[-1].strip().lstrip("*").strip()
+                    val = line.split(":", 1)[1].strip().lstrip("*").strip()
                     current_decision["why"] = val
             elif line.startswith("**Alternatives mentioned:**"):
                 if current_decision:
-                    val = line.split(":", 2)[-1].strip().lstrip("*").strip()
+                    val = line.split(":", 1)[1].strip().lstrip("*").strip()
                     current_decision["alternatives"] = val
             elif line.startswith("**Rejected because:**"):
                 if current_decision:
-                    val = line.split(":", 2)[-1].strip().lstrip("*").strip()
+                    val = line.split(":", 1)[1].strip().lstrip("*").strip()
                     current_decision["rejected"] = val
             elif line.startswith("**Could reverse if:**"):
                 if current_decision:
-                    val = line.split(":", 2)[-1].strip().lstrip("*").strip()
+                    val = line.split(":", 1)[1].strip().lstrip("*").strip()
                     current_decision["reversal"] = val
             elif line.startswith("### Candidate Decision"):
                 # New decision
                 title = line.split(":", 1)[1].strip() if ":" in line else line
                 current_decision = {
                     "title": title,
+                    "candidate_id": "",
                     "status": "pending_review",
                     "confidence": "unknown",
                     "type": "unknown",
@@ -128,6 +154,11 @@ def parse_patch_for_handoff(content: str) -> dict:
             if line.startswith("- ") and line != "- (none identified)":
                 info["next_actions"].append(line[2:])
     
+    # Historical patches may predate candidate IDs. Derive a stable fallback
+    # from their ordered position so reviews remain idempotent after upgrade.
+    for index, decision in enumerate(info["decisions"], start=1):
+        if not decision.get("candidate_id"):
+            decision["candidate_id"] = f"{info['patch_id'] or 'unknown'}-c-{index:03d}"
     return info
 
 
@@ -258,8 +289,11 @@ def generate_handoff_summary(root: Path, format: str = "markdown") -> str:
                 all_questions.append(q)
                 seen.add(q.lower().strip())
     
-    # Extract confirmed facts from core files
+    # Extract confirmed facts from core files. Formal decisions are selected
+    # through review evidence, never by a title that happens to contain a
+    # status word.
     confirmed_facts = []
+    confirmed_decision_ids = _confirmed_decision_ids(root)
     
     # From SNAPSHOT
     in_confirmed = False
@@ -275,7 +309,8 @@ def generate_handoff_summary(root: Path, format: str = "markdown") -> str:
     
     # From DECISIONS
     for line in decisions_content.split("\n"):
-        if line.startswith("## D-") and "accepted" in line:
+        match = re.match(r"^##\s+(D-\d+)\b", line)
+        if match and match.group(1) in confirmed_decision_ids:
             confirmed_facts.append(line.strip())
     
     recent_updated = created_at
@@ -338,7 +373,7 @@ def generate_handoff_summary(root: Path, format: str = "markdown") -> str:
         summary += "(no anchors defined — edit ANCHORS.md to add)\n"
     
     # --- Decision Context from DECISIONS.md ---
-    decision_context_items = _extract_decisions_context(decisions_content)
+    decision_context_items = _extract_decisions_context(decisions_content, confirmed_decision_ids)
     if decision_context_items:
         summary += "\n## Decision Context (from DECISIONS.md)\n\n"
         for item in decision_context_items[:5]:
@@ -649,7 +684,7 @@ def _extract_markdown_section_lines(content: str, heading: str) -> list[str]:
     return lines
 
 
-def _extract_decisions_context(decisions_content: str) -> list:
+def _extract_decisions_context(decisions_content: str, confirmed_ids: set[str] | None = None) -> list:
     """Extract confirmed decision context from DECISIONS.md.
 
     Returns a list of dicts with keys: title, what_decided, why, alternatives, rejected, reversal.
@@ -670,8 +705,13 @@ def _extract_decisions_context(decisions_content: str) -> list:
         if not title_match:
             continue
         title = title_match.group(1).strip()
-        # Only include accepted/confirmed decisions (look for 'accepted' or 'confirmed' marker)
-        if "accepted" not in block.lower() and "confirmed" not in block.lower():
+        decision_id = title.split("|", 1)[0].strip()
+        # New ledgers use review evidence. Keep the legacy text-marker fallback
+        # only when no evidence index exists.
+        if confirmed_ids is not None:
+            if decision_id not in confirmed_ids:
+                continue
+        elif "accepted" not in block.lower() and "confirmed" not in block.lower():
             continue
 
         def _extract_subsection(heading: str) -> str:

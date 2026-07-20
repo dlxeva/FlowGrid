@@ -12,6 +12,8 @@ from rich.console import Console
 from rich.prompt import Confirm
 
 from ..core.files import is_flg_project, read_file_safe
+from ..core.operations import atomic_write_text, serialized_project_operation
+from ..core.patches import resolve_managed_patch
 from ..core.state import load_state, save_state
 from .handoff import parse_patch_for_handoff
 
@@ -148,7 +150,7 @@ def _load_evidence_index(root: Path) -> dict:
 def _save_evidence_index(root: Path, index: dict) -> Path:
     index_path = root / EVIDENCE_INDEX_PATH
     index_path.parent.mkdir(parents=True, exist_ok=True)
-    index_path.write_text(json.dumps(index, ensure_ascii=False, indent=2), encoding="utf-8")
+    atomic_write_text(index_path, json.dumps(index, ensure_ascii=False, indent=2))
     return index_path
 
 
@@ -167,16 +169,20 @@ def _evidence_entry(
     patch_content: str,
     reviewed_at: str,
     autonomous: bool = False,
+    accept_all: bool = False,
 ) -> dict:
     return {
         "decision_id": decision_id,
         "status": "confirmed",
-        "authority": "medium" if autonomous else "high",
-        "source_type": "closeout_patch" if autonomous else "review_action",
+        # Both non-interactive paths skip a person at the review prompt. Keep
+        # their authority distinct from an explicitly reviewed confirmation.
+        "authority": "medium" if (autonomous or accept_all) else "high",
+        "source_type": "closeout_patch" if (autonomous or accept_all) else "review_action",
         "source_patch": str(Path(".flg") / "patches" / patch_path.name),
         "source_session": _extract_source_session_from_patch(patch_content),
         "source_excerpt": decision.get("excerpt") or decision.get("what_decided") or "",
         "patch_id": patch_info.get("patch_id", "unknown"),
+        "candidate_id": decision.get("candidate_id", "unknown"),
         "source_command": patch_info.get("source_command", "unknown"),
         "reviewed_at": reviewed_at,
         "title": decision.get("title") or "Accepted decision",
@@ -186,6 +192,7 @@ def _evidence_entry(
     }
 
 
+@serialized_project_operation
 def review_patch(
     patch_file: str = typer.Option(..., "--patch", "-p", help="Patch file to review"),
     accept_all: bool = typer.Option(False, "--accept-all", help="Accept all candidate decisions without prompting"),
@@ -202,12 +209,10 @@ def review_patch(
         console.print("[red]Not a FLG project. Run 'flg init' first.[/red]")
         raise typer.Exit(1)
 
-    patch_path = Path(patch_file)
-    if not patch_path.exists():
-        patch_path = root / ".flg" / "patches" / patch_file
-        if not patch_path.exists():
-            console.print(f"[red]Patch not found: {patch_file}[/red]")
-            raise typer.Exit(1)
+    patch_path = resolve_managed_patch(root, patch_file)
+    if patch_path is None:
+        console.print(f"[red]Managed patch not found or invalid: {patch_file}[/red]")
+        raise typer.Exit(1)
 
     content = read_file_safe(patch_path)
     if not content:
@@ -215,6 +220,9 @@ def review_patch(
         raise typer.Exit(1)
 
     patch_info = parse_patch_for_handoff(content)
+    if patch_info.get("status") != "pending_review":
+        console.print(f"[red]Patch is closed ({patch_info.get('status')}) and cannot be reviewed.[/red]")
+        raise typer.Exit(1)
     decisions = patch_info["decisions"]
     if not decisions:
         console.print("[yellow]No candidate decisions found in this patch.[/yellow]")
@@ -236,6 +244,19 @@ def review_patch(
         console.print("[dim]Report only: no DECISIONS.md, evidence index, or state files were changed.[/dim]")
         raise typer.Exit(0)
 
+    state = load_state(root)
+    if state is None:
+        console.print("[red]No readable state found. Run 'flg init' first.[/red]")
+        raise typer.Exit(1)
+    patch_state = next(
+        (p for p in state.get("pending_patches", []) if p.get("patch_id") == patch_info.get("patch_id")),
+        None,
+    )
+    if patch_state is None:
+        console.print("[red]Patch is not registered as pending project state.[/red]")
+        raise typer.Exit(1)
+    candidate_results = dict(patch_state.get("candidate_results") or {})
+
     decisions_path = root / "DECISIONS.md"
     decisions_content = read_file_safe(decisions_path) or "# Decision Log\n"
     next_number = _next_decision_number(decisions_content)
@@ -251,6 +272,11 @@ def review_patch(
     console.print()
 
     for decision in decisions:
+        candidate_id = decision["candidate_id"]
+        prior_result = candidate_results.get(candidate_id)
+        if prior_result in {"accepted", "rejected"}:
+            console.print(f"[dim]Skipping {candidate_id}: already {prior_result}.[/dim]")
+            continue
         console.print(f"[cyan]{decision.get('title', 'Untitled decision')}[/cyan]")
         if decision.get("what_decided"):
             console.print(f"  What: {decision['what_decided']}")
@@ -291,11 +317,27 @@ def review_patch(
                     patch_content=content,
                     reviewed_at=reviewed_at,
                     autonomous=autonomous,
+                    accept_all=accept_all,
                 )
             )
+            candidate_results[candidate_id] = "accepted"
             next_number += 1
+        elif not background:
+            candidate_results[candidate_id] = "rejected"
+
+    reviewed_at = datetime.now().isoformat(timespec="seconds")
+    if candidate_results:
+        patch_state["candidate_results"] = candidate_results
+        patch_state["decision_reviewed_at"] = reviewed_at
+        outcomes = {candidate_results.get(d["candidate_id"]) for d in decisions}
+        if outcomes and outcomes.issubset({"accepted", "rejected"}):
+            patch_state["decision_review_status"] = "accepted" if outcomes == {"accepted"} else "partial"
+        else:
+            patch_state["decision_review_status"] = "partial"
 
     if not accepted_entries:
+        if candidate_results:
+            save_state(root, state)
         if skipped_shells or skipped_unattributed:
             console.print(
                 "[yellow]No decisions accepted. "
@@ -308,7 +350,7 @@ def review_patch(
         raise typer.Exit(0)
 
     decisions_content = decisions_content.rstrip() + "\n\n" + "\n\n---\n".join(accepted_entries) + "\n"
-    decisions_path.write_text(decisions_content, encoding="utf-8")
+    atomic_write_text(decisions_path, decisions_content)
 
     evidence_index = _load_evidence_index(root)
     for item in accepted_evidence_entries:
@@ -316,16 +358,9 @@ def review_patch(
     evidence_index["updated_at"] = datetime.now().isoformat(timespec="seconds")
     evidence_index_path = _save_evidence_index(root, evidence_index)
 
-    state = load_state(root)
-    if state and state.get("pending_patches"):
-        for patch in state["pending_patches"]:
-            if patch.get("patch_id") == patch_info.get("patch_id"):
-                patch["decision_reviewed_at"] = reviewed_at
-                patch["decision_review_status"] = "accepted"
-                patch["decision_adoption_mode"] = "autonomous" if autonomous else "interactive"
-                patch["evidence_index"] = str(EVIDENCE_INDEX_PATH)
-                break
-        save_state(root, state)
+    patch_state["decision_adoption_mode"] = "autonomous" if autonomous else ("accept_all" if accept_all else "interactive")
+    patch_state["evidence_index"] = str(EVIDENCE_INDEX_PATH)
+    save_state(root, state)
 
     console.print()
     console.print(f"[bold green]✓ Accepted {len(accepted_entries)} decision(s) into DECISIONS.md[/bold green]")

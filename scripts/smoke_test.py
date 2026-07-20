@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -118,7 +119,7 @@ def main() -> int:
         # The deterministic demo contains shell decisions, which --accept-all
         # intentionally skips. Exercise the confirmed-evidence path explicitly
         # instead of treating skipped low-context candidates as decisions.
-        run_cmd(
+        decision_result = run_cmd(
             flg_cmd
             + [
                 "decision",
@@ -137,7 +138,11 @@ def main() -> int:
         if not evidence_index.exists():
             print(f"[FAIL] Evidence index not generated: {evidence_index}", file=sys.stderr)
             return 1
-        run_cmd(flg_cmd + ["evidence", "D-002"], cwd=project_dir, env_overrides=env_overrides)
+        decision_match = re.search(r"\b(D-\d+)\b", decision_result.stdout)
+        if not decision_match:
+            print("[FAIL] Could not determine the generated decision ID", file=sys.stderr)
+            return 1
+        run_cmd(flg_cmd + ["evidence", decision_match.group(1)], cwd=project_dir, env_overrides=env_overrides)
 
         # Capture pipeline smoke test
         run_cmd(

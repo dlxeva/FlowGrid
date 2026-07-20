@@ -9,8 +9,16 @@ from typer.testing import CliRunner
 from unittest.mock import patch
 
 from flg.cli import app
+from flg.commands.closeout import iter_segments
 
 runner = CliRunner()
+
+
+def test_iter_segments_keeps_actor_when_label_is_on_its_own_line():
+    """Exported chat transcripts must preserve actor attribution across lines."""
+    segments = iter_segments("User:\nWe decided to keep the ledger local.\n\nAssistant:\nI will implement it.")
+    assert "User: We decided to keep the ledger local." in segments
+    assert "Assistant: I will implement it." in segments
 
 
 @pytest.fixture
@@ -119,6 +127,23 @@ def test_closeout_requires_explicit_remote_llm_consent(tmp_path):
         assert "--allow-remote-llm" in result.output
         assert not list((tmp_path / ".flg" / "sessions").glob("*.md"))
         assert not list((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_closeout_local_provider_with_remote_base_url_requires_consent(tmp_path, monkeypatch):
+    """Provider labels cannot bypass raw-transcript remote transfer consent."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        assert runner.invoke(app, ["init", "Remote Local Test"]).exit_code == 0
+        transcript = tmp_path / "session.md"
+        transcript.write_text("User: We decided to keep the ledger local.", encoding="utf-8")
+        monkeypatch.setenv("FLG_LLM_BASE_URL", "https://remote.example.com/v1")
+        with patch("flg.commands.closeout.is_llm_available", return_value=True):
+            result = runner.invoke(app, ["closeout", "--transcript", str(transcript), "--llm", "local"])
+        assert result.exit_code == 1
+        assert "--allow-remote-llm" in result.output
     finally:
         os.chdir(old_cwd)
 
@@ -928,11 +953,14 @@ def test_closeout_llm_write_flags_shell_decision(tmp_path):
         json_path = tmp_path / "llm-result.json"
         json_path.write_text(json.dumps(llm_result, ensure_ascii=False), encoding="utf-8")
 
-        result = runner.invoke(app, ["closeout", "--llm-write", str(json_path), "--transcript", str(transcript)])
+        result = runner.invoke(app, ["closeout", "--llm-write", str(json_path)])
         assert result.exit_code == 0
 
         patch = next((tmp_path / ".flg" / "patches").glob("closeout-hermes-*.patch.md"))
         content = patch.read_text()
+
+        assert "candidate_id:" in content
+        assert content.count("candidate_id:") == 2
 
         # Shell decision should be flagged
         assert "low_confidence_shell" in content

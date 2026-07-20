@@ -84,7 +84,7 @@ DECISIONS_MD = """# Decision Log
 
 <!-- Copy this template for each decision. -->
 
-## D-001 | Decision title
+## Decision Template | Decision title
 
 ### Decision Date
 (date)

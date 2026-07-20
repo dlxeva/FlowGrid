@@ -3,6 +3,9 @@
 import hashlib
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
+
+from .files import read_file_safe
 
 
 def generate_patch_id(prefix: str) -> str:
@@ -58,3 +61,46 @@ def list_patches(root: Path) -> list[dict]:
         patches.append(patch_info)
     
     return patches
+
+
+def resolve_managed_patch(root: Path, reference: str) -> Optional[Path]:
+    """Resolve a patch reference without permitting writes outside .flg/patches.
+
+    Lifecycle and merge commands mutate their patch artifact. Accepting an
+    arbitrary existing path here would allow an agent to overwrite unrelated
+    project files, so every accepted path must resolve inside the managed patch
+    directory and retain the expected extension and header.
+    """
+    patches_dir = (root / ".flg" / "patches").resolve()
+    if not patches_dir.is_dir():
+        return None
+
+    supplied = Path(reference)
+    candidates: list[Path] = []
+    if supplied.is_absolute():
+        candidates.append(supplied)
+    else:
+        candidates.extend((root / supplied, patches_dir / supplied, patches_dir / f"{reference}.patch.md"))
+
+    for candidate in candidates:
+        if not candidate.exists():
+            continue
+        resolved = candidate.resolve()
+        if resolved.suffixes[-2:] != [".patch", ".md"]:
+            continue
+        try:
+            resolved.relative_to(patches_dir)
+        except ValueError:
+            continue
+        content = read_file_safe(resolved) or ""
+        if "patch_id:" not in content or "status:" not in content:
+            continue
+        return resolved
+
+    # A patch ID is resolved only by inspecting managed patch files.
+    for candidate in patches_dir.glob("*.patch.md"):
+        content = read_file_safe(candidate) or ""
+        for line in content.splitlines():
+            if line.startswith("patch_id:") and line.split(":", 1)[1].strip() == reference:
+                return candidate.resolve()
+    return None
