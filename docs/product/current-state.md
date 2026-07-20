@@ -1,6 +1,6 @@
 # FlowGrid Current State
 
-Last updated: 2026-07-20
+Last updated: 2026-07-21
 Primary branch: `master`
 Current code version: `v0.3.0`
 Current stage: `v0.4 core validation`
@@ -20,12 +20,13 @@ Its job is to let project state, boundaries, judgments, progress, and next actio
 - Explicit `decision add` for strong user commitments
 - `doctor` and `reindex` for cross-file consistency and rebuildable evidence indexes
 - Bounded Context Pack, evidence lookup, handoff, onboarding, and host-agnostic Agent Skill
+- Optional BIZ meeting handoff import with explicit role-metadata promotion gates
 - Advisory evidence-basis quality signal for complete `FRAMING.md` files
 - Patch lifecycle parsing that preserves rejected and superseded states
 
 ## Current Verification
 
-- `160` tests passed
+- `162` tests passed
 - `python scripts/smoke_test.py` passed
 - English-native deterministic gate passed
 - Real FlowGrid ledger audit passed with an expected undeclared-evidence-basis warning
@@ -43,11 +44,12 @@ Complete the v0.4 core loop:
 
 ## Immediate Priorities
 
-- Validate automatic session capture across Codex, ZCode, Hermes, and other supported hosts.
-- Run isolated comparisons between no state, raw history, and FlowGrid Context Pack.
-- Measure repeated explanation, revived rejected directions, candidate/fact confusion, hallucinated project facts, and user correction count.
-- Keep `DECISIONS.md` as formal truth and avoid adding new cognitive abstractions until the loop is proven.
-- Run one explicitly authorized external-host continuation. Measure raw transcript availability, speaker-label preservation, candidate false positives/negatives, user CLI burden, and fresh-agent recovery.
+1. Validate automatic session capture across Codex, ZCode, Hermes, and other supported hosts.
+2. Run isolated comparisons between no state, raw history, and FlowGrid Context Pack.
+3. Measure repeated explanation, revived rejected directions, candidate/fact confusion, hallucinated project facts, and user correction count.
+4. Run one explicitly authorized external-host continuation. Measure raw transcript availability, speaker-label preservation, candidate false positives/negatives, user CLI burden, and fresh-agent recovery.
+5. Validate BIZ-to-FLG handoff with a real meeting that has explicit participant metadata. This is one meeting-input path, not the v0.4 product center.
+6. Keep `DECISIONS.md` as formal truth and avoid adding new cognitive abstractions until the loop is proven.
 
 ## Deferred
 
