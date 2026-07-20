@@ -33,6 +33,7 @@ Its job is to let project state, boundaries, judgments, progress, and next actio
 - Background review only promotes candidates with explicit user/client attribution; pending candidates, risks, and next actions do not become current truth
 - Remote LLM extraction requires explicit per-command consent with `--allow-remote-llm`
 - A disposable real-project replay verified that an `Assistant:` proposal remains auditable but cannot enter formal state through the background loop; see [host-like acceptance](../../evals/results/host-like-continuation-safety-20260720.md)
+- A Codex host-operated session run archived raw discussion, rejected assistant and unattributed candidates, and preserved formal ledger hashes; see [Codex protocol acceptance](../../evals/results/codex-host-protocol-acceptance-20260721.md)
 
 ## Current Goal
 
