@@ -8,7 +8,6 @@
 ![Stage](https://img.shields.io/badge/stage-v0.4--validation-4c6ef5)
 ![Runtime](https://img.shields.io/badge/runtime-local--first-2b8a3e)
 ![Interface](https://img.shields.io/badge/interface-CLI%20%2B%20protocol-495057)
-
 [![CI](https://github.com/dlxeva/FlowGrid/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/dlxeva/FlowGrid/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-%3E%3D3.10-3776AB?logo=python&logoColor=white)
 [![License](https://img.shields.io/github/license/dlxeva/FlowGrid)](./LICENSE)
