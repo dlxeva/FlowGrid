@@ -7,8 +7,11 @@
 
 ![阶段](https://img.shields.io/badge/stage-v0.4--validation-4c6ef5)
 ![运行方式](https://img.shields.io/badge/runtime-local--first-2b8a3e)
-![接口](https://img.shields.io/badge/interface-CLI%20%2B%20project%20protocol-495057)
-![测试](https://img.shields.io/badge/tests-163%20passed-2f9e44)
+![接口](https://img.shields.io/badge/interface-CLI%20%2B%20protocol-495057)
+
+[![CI](https://github.com/dlxeva/FlowGrid/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/dlxeva/FlowGrid/actions/workflows/ci.yml)
+![Python](https://img.shields.io/badge/python-%3E%3D3.10-3776AB?logo=python&logoColor=white)
+[![License](https://img.shields.io/github/license/dlxeva/FlowGrid)](./LICENSE)
 
 FlowGrid 帮助业务项目型知识工作者，把混乱的 AI 协作过程转成有状态边界、可追溯、可恢复的项目上下文。
 
