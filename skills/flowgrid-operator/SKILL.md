@@ -122,6 +122,22 @@ Keyword extraction is the default. Do not send a raw transcript to a remote
 provider unless the user explicitly authorized that provider for this command;
 then use `--llm <provider> --allow-remote-llm`.
 
+### Verification-only segments
+
+Do not manufacture a new formal decision merely because a session verified an
+existing result. When a segment only confirms a prior build, evaluation, or
+handoff outcome:
+
+1. Preserve the raw evidence when it materially strengthens the audit trail.
+2. Keep the result as verification evidence or an iteration-log observation.
+3. Do not promote a candidate unless the user/client made a new attributed
+   choice, changed a boundary, or supplied a new reversal condition.
+4. If closeout generated shell candidates from a verification-only transcript,
+   close the patch without adopting those candidates and retain the raw source.
+
+This prevents routine validation from polluting `DECISIONS.md` while keeping
+the evidence available for `flg trace`.
+
 ### Background review and merge
 
 `closeout` output is an internal candidate state, not a user-facing approval

@@ -20,6 +20,7 @@ from .commands.decision_cmd import decision_add
 from .commands.patch_cmd import patch_supersede, patch_discard
 from .commands.onboard import onboard
 from .commands.doctor import doctor, reindex
+from .commands.trace import trace_command
 from .commands.session import save_session
 from .core.state import load_state, get_state_schema_info
 
@@ -47,6 +48,7 @@ app.command(name="evidence", help="Show evidence behind a reviewed decision")(ev
 app.command(name="onboard", help="First-run setup: env check, guided demo, and skill installation")(onboard)
 app.command(name="doctor", help="Check cross-file project consistency")(doctor)
 app.command(name="reindex", help="Rebuild evidence index from DECISIONS.md")(reindex)
+app.command(name="trace", help="Trace a judgment through source episodes")(trace_command)
 
 # Session archive group
 session_app = typer.Typer(help="Archive raw session evidence", no_args_is_help=True)

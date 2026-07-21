@@ -356,7 +356,8 @@ This ensures multi-agent relay works correctly: Agent B can see Agent A's closeo
 | `flg capture review` | Process candidates in the background → accept or keep pending |
 | `flg decision add -d <decision> -r <reason>` | Direct decision write (strong commitment only) |
 
-> `flg trace` is planned future work and is not implemented in the current CLI.
+> `flg trace D-002` shows the formal ledger entry together with rebuildable
+> source episodes from raw sessions, captures, closeout patches, and review actions.
 
 ## Current v0.4 Validation Focus
 

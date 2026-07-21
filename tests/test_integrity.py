@@ -109,6 +109,85 @@ A. 云端记忆
         os.chdir(old_cwd)
 
 
+def test_reindex_builds_stable_source_episodes_and_trace_reads_them(tmp_path):
+    old_cwd = _project(tmp_path)
+    try:
+        session = tmp_path / ".flg" / "sessions" / "decision.md"
+        session.parent.mkdir(parents=True, exist_ok=True)
+        session.write_text("User: Keep the ledger local.\n", encoding="utf-8")
+        result = runner.invoke(
+            app,
+            [
+                "decision",
+                "add",
+                "--decision",
+                "Keep the ledger local",
+                "--rationale",
+                "The project owner needs an inspectable record",
+                "--evidence",
+                "User: Keep the ledger local.",
+            ],
+        )
+        assert result.exit_code == 0
+
+        index_path = tmp_path / ".flg" / "context" / "evidence_index.json"
+        index = json.loads(index_path.read_text(encoding="utf-8"))
+        index["items"]["D-001"]["source_session"] = ".flg/sessions/decision.md"
+        index_path.write_text(json.dumps(index), encoding="utf-8")
+
+        result = runner.invoke(app, ["reindex"])
+        assert result.exit_code == 0
+        rebuilt = json.loads(index_path.read_text(encoding="utf-8"))
+        episodes = rebuilt["items"]["D-001"]["source_episodes"]
+        assert rebuilt["version"] >= 2
+        assert any(episode["source_type"] == "raw_session" for episode in episodes)
+        assert any(episode["source_ref"] == "DECISIONS.md#D-001" for episode in episodes)
+
+        trace = runner.invoke(app, ["trace", "D-001"])
+        assert trace.exit_code == 0
+        assert "Source Episodes" in trace.output
+        assert "DECISIONS.md#D-001" in trace.output
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_doctor_reports_broken_source_episode(tmp_path):
+    old_cwd = _project(tmp_path)
+    try:
+        result = runner.invoke(
+            app,
+            [
+                "decision",
+                "add",
+                "--decision",
+                "Preserve evidence",
+                "--rationale",
+                "Future agents need a trace",
+            ],
+        )
+        assert result.exit_code == 0
+        index_path = tmp_path / ".flg" / "context" / "evidence_index.json"
+        index = json.loads(index_path.read_text(encoding="utf-8"))
+        index["items"]["D-001"]["source_episodes"].append(
+            {
+                "source_id": "S-missing",
+                "source_type": "raw_session",
+                "source_ref": ".flg/sessions/missing.md",
+                "relation": "derived_from",
+                "content_hash": "missing",
+            }
+        )
+        index_path.write_text(json.dumps(index), encoding="utf-8")
+
+        result = runner.invoke(app, ["doctor"])
+        assert result.exit_code == 0
+        assert "Broken source episodes" in result.output
+        assert "broken_source_episodes:" in result.output
+        assert "missing.md" in result.output
+    finally:
+        os.chdir(old_cwd)
+
+
 def test_doctor_reports_legacy_decision_entries_instead_of_false_ok(tmp_path):
     """Legacy short-form decisions must be visible as migration work."""
     old_cwd = _project(tmp_path)

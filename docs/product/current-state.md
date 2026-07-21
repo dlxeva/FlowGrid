@@ -26,7 +26,7 @@ Its job is to let project state, boundaries, judgments, progress, and next actio
 
 ## Current Verification
 
-- `163` tests passed
+- `173` tests passed
 - `python scripts/smoke_test.py` passed
 - English-native deterministic gate passed
 - Real FlowGrid ledger audit passed with an expected undeclared-evidence-basis warning
@@ -57,7 +57,7 @@ Complete the v0.4 core loop:
 
 - Quadrant tags and protocol routing
 - Blindspot pass and unknown-unknown discovery engine
-- Multi-source provenance graph and `flg trace`
+- Multi-source provenance graph beyond the current rebuildable Source Episode index
 - Graph database, ABAC, GUI, cloud sync, SaaS, and generic project management features
 
 ## Non-Goals

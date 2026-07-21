@@ -16,6 +16,7 @@ from rich.panel import Panel
 from rich.prompt import Confirm
 from rich.table import Table
 
+from ..core.evidence import load_evidence_index, save_evidence_index
 from ..core.files import is_flg_project, read_file_safe
 from ..core.i18n import localize_ledger_entry, project_language
 
@@ -510,24 +511,11 @@ A. {alt_str}
 
 
 def _load_evidence_index(root: Path) -> dict:
-    path = root / EVIDENCE_INDEX_PATH
-    if not path.exists():
-        return {"version": 1, "items": {}}
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        return {"version": 1, "items": {}}
-    if not isinstance(data, dict) or "items" not in data:
-        return {"version": 1, "items": {}}
-    return data
+    return load_evidence_index(root)
 
 
 def _save_evidence_index(root: Path, index: dict) -> Path:
-    path = root / EVIDENCE_INDEX_PATH
-    path.parent.mkdir(parents=True, exist_ok=True)
-    index["updated_at"] = datetime.now().isoformat(timespec="seconds")
-    path.write_text(json.dumps(index, ensure_ascii=False, indent=2), encoding="utf-8")
-    return path
+    return save_evidence_index(root, index)
 
 
 # ── capture review command ──────────────────────────────────────────────

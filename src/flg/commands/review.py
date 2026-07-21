@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import re
 from datetime import datetime
 from pathlib import Path
@@ -11,6 +10,7 @@ import typer
 from rich.console import Console
 from rich.prompt import Confirm
 
+from ..core.evidence import load_evidence_index, save_evidence_index
 from ..core.files import is_flg_project, read_file_safe
 from ..core.operations import atomic_write_text, serialized_project_operation
 from ..core.patches import resolve_managed_patch
@@ -133,25 +133,11 @@ A. {alternatives}
 
 
 def _load_evidence_index(root: Path) -> dict:
-    index_path = root / EVIDENCE_INDEX_PATH
-    if not index_path.exists():
-        return {"version": 1, "items": {}}
-    try:
-        data = json.loads(index_path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        return {"version": 1, "items": {}}
-    if not isinstance(data, dict):
-        return {"version": 1, "items": {}}
-    if "items" not in data or not isinstance(data["items"], dict):
-        data["items"] = {}
-    return data
+    return load_evidence_index(root)
 
 
 def _save_evidence_index(root: Path, index: dict) -> Path:
-    index_path = root / EVIDENCE_INDEX_PATH
-    index_path.parent.mkdir(parents=True, exist_ok=True)
-    atomic_write_text(index_path, json.dumps(index, ensure_ascii=False, indent=2))
-    return index_path
+    return save_evidence_index(root, index)
 
 
 def _extract_source_session_from_patch(content: str) -> str:

@@ -32,7 +32,27 @@ Required files:
 
 ## Evaluation Setup
 
-Run each scenario three times with the same model if possible.
+Run each scenario at least five times with the same model and reasoning setting.
+Use distinct clean sessions for every run/mode pair. Report both mean score and
+`Pass^k`: a mode only passes stability when every run reaches the minimum score
+and produces no critical failure.
+
+Prepare sealed, hash-addressed input packs before opening any evaluator session:
+
+```bash
+python evals/continuation_stability.py prepare \
+  --output /tmp/flowgrid-continuation-stability \
+  --runs 5
+```
+
+Each evaluator receives one `input.md` only and writes its response to the
+matching `response.md`. A separate scorer fills each `score.json`; do not let
+the continuation agent score itself. After scoring, aggregate the result with:
+
+```bash
+python evals/continuation_stability.py summarize \
+  --output /tmp/flowgrid-continuation-stability --strict
+```
 
 Prepare the deterministic FlowGrid Context Packs with the repository-local
 runtime before opening the manual model sessions:

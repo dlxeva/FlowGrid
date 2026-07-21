@@ -33,11 +33,16 @@ def doctor(
     table.add_row("Missing index entries", str(len(report["missing_index"])))
     table.add_row("Orphan index entries", str(len(report["orphan_index"])))
     table.add_row("Broken evidence refs", str(len(report["broken_references"])))
+    table.add_row("Missing source episodes", str(len(report["missing_source_episodes"])))
+    table.add_row("Broken source episodes", str(len(report["broken_source_episodes"])))
     table.add_row("Legacy paths", str(len(report["legacy_paths"])))
     table.add_row("Closed patches still pending", str(len(report["merged_pending"])))
     console.print(table)
 
-    for key in ("missing_index", "orphan_index", "broken_references", "legacy_paths", "merged_pending", "unparsed_decisions"):
+    for key in (
+        "missing_index", "orphan_index", "broken_references", "missing_source_episodes",
+        "broken_source_episodes", "legacy_paths", "merged_pending", "unparsed_decisions",
+    ):
         values = report[key]
         if values:
             console.print(f"[yellow]{key}:[/yellow]")
@@ -61,3 +66,5 @@ def reindex(
     path = save_evidence_index(root, index)
     console.print(f"[green]Rebuilt evidence index:[/green] {path}")
     console.print(f"Indexed {len(index['items'])} formal decision(s) from DECISIONS.md.")
+    source_count = sum(len(item.get("source_episodes", [])) for item in index["items"].values())
+    console.print(f"Rebuilt {source_count} source episode(s).")

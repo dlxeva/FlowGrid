@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import re
 from datetime import datetime
 from pathlib import Path
@@ -11,13 +10,11 @@ from typing import Optional
 import typer
 from rich.console import Console
 
+from ..core.evidence import load_evidence_index, save_evidence_index
 from ..core.files import is_flg_project, read_file_safe
 from ..core.i18n import localize_ledger_entry, project_language
 
 console = Console()
-EVIDENCE_INDEX_PATH = Path(".flg") / "context" / "evidence_index.json"
-
-
 def decision_add(
     decision: str = typer.Option(
         ..., "-d", "--decision", help="Decision content (required)"
@@ -110,13 +107,7 @@ A. {alt_str}
     decisions_path.write_text(decisions_content, encoding="utf-8")
 
     # Update evidence index
-    evidence_index_path = root / EVIDENCE_INDEX_PATH
-    evidence_index: dict = {"version": 1, "items": {}}
-    if evidence_index_path.exists():
-        try:
-            evidence_index = json.loads(evidence_index_path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError:
-            pass
+    evidence_index = load_evidence_index(root)
     evidence_index.setdefault("items", {})[decision_id] = {
         "decision_id": decision_id,
         "status": "confirmed",
@@ -128,9 +119,7 @@ A. {alt_str}
         "rationale": rationale,
         "rejected_alternatives": ", ".join(alt_list),
     }
-    evidence_index["updated_at"] = reviewed_at
-    evidence_index_path.parent.mkdir(parents=True, exist_ok=True)
-    evidence_index_path.write_text(json.dumps(evidence_index, ensure_ascii=False, indent=2), encoding="utf-8")
+    save_evidence_index(root, evidence_index)
 
     console.print()
     console.print(f"[bold green]✓ Decision recorded:[/bold green] [cyan]{decision_id}[/cyan]")

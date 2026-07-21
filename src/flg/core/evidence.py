@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+from hashlib import sha256
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -22,6 +23,85 @@ _PROVENANCE_FIELDS = (
     "source_command",
     "reviewed_at",
 )
+
+
+def _source_id(source_type: str, source_ref: str, content_hash: str) -> str:
+    """Create a stable ID for an evidence episode without depending on a path alone."""
+    digest = sha256(f"{source_type}\0{source_ref}\0{content_hash}".encode("utf-8")).hexdigest()
+    return f"S-{digest[:12]}"
+
+
+def _episode_content_hash(root: Path, source_ref: str, excerpt: str) -> str:
+    """Prefer the archived source bytes; fall back to the retained excerpt."""
+    path = Path(source_ref)
+    if source_ref and not source_ref.startswith("DECISIONS.md#"):
+        if not path.is_absolute():
+            path = root / path
+        try:
+            return sha256(path.read_bytes()).hexdigest()
+        except OSError:
+            pass
+    return sha256(excerpt.encode("utf-8")).hexdigest()
+
+
+def build_source_episodes(root: Path, decision_id: str, item: dict[str, Any]) -> list[dict[str, str]]:
+    """Build source episodes for a decision from durable evidence references.
+
+    The formal ledger remains the source of truth. Episodes are a rebuildable
+    index that lets a caller walk from a reviewed judgment to the raw material
+    and the review event that made it usable project state.
+    """
+    excerpt = str(item.get("source_excerpt") or item.get("what_decided") or "")
+    candidates: list[tuple[str, str, str]] = []
+    for field, source_type in (
+        ("source_session", "raw_session"),
+        ("source_capture", "capture"),
+        ("source_patch", "closeout_patch"),
+    ):
+        value = str(item.get(field) or "").strip()
+        if value and value != "unknown":
+            candidates.append((source_type, value, "derived_from"))
+
+    patch_id = str(item.get("patch_id") or "").strip()
+    reviewed_at = str(item.get("reviewed_at") or "").strip()
+    if patch_id or reviewed_at:
+        candidates.append(("review_action", f"review:{patch_id or decision_id}", "confirmed_by"))
+
+    # Every decision has at least an inspectable ledger anchor, even when an
+    # older manual entry has no archived raw discussion.
+    candidates.append(("formal_ledger", f"DECISIONS.md#{decision_id}", "recorded_in"))
+
+    episodes: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for source_type, source_ref, relation in candidates:
+        content_hash = _episode_content_hash(root, source_ref, excerpt)
+        source_id = _source_id(source_type, source_ref, content_hash)
+        if source_id in seen:
+            continue
+        seen.add(source_id)
+        episode = {
+            "source_id": source_id,
+            "source_type": source_type,
+            "source_ref": source_ref,
+            "relation": relation,
+            "content_hash": content_hash,
+        }
+        if excerpt:
+            episode["excerpt"] = excerpt
+        if reviewed_at and source_type == "review_action":
+            episode["recorded_at"] = reviewed_at
+        episodes.append(episode)
+    return episodes
+
+
+def enrich_source_episodes(root: Path, index: dict[str, Any]) -> dict[str, Any]:
+    """Attach rebuildable, multi-source provenance to every indexed decision."""
+    items = index.setdefault("items", {})
+    for decision_id, item in items.items():
+        if isinstance(item, dict):
+            item["source_episodes"] = build_source_episodes(root, decision_id, item)
+    index["version"] = max(int(index.get("version", 1)), 2)
+    return index
 
 
 def normalize_decision_status(value: str) -> str:
@@ -139,6 +219,7 @@ def load_evidence_index(root: Path) -> dict[str, Any]:
 def save_evidence_index(root: Path, index: dict[str, Any]) -> Path:
     path = root / EVIDENCE_INDEX_PATH
     path.parent.mkdir(parents=True, exist_ok=True)
+    enrich_source_episodes(root, index)
     index["updated_at"] = datetime.now().isoformat(timespec="seconds")
     path.write_text(json.dumps(index, ensure_ascii=False, indent=2), encoding="utf-8")
     return path
@@ -170,12 +251,12 @@ def rebuild_evidence_index(root: Path) -> dict[str, Any]:
                 item[field] = old[field]
         items[decision_id] = item
 
-    return {
-        "version": 1,
+    return enrich_source_episodes(root, {
+        "version": 2,
         "rebuilt_from": "DECISIONS.md",
         "items": items,
         "updated_at": datetime.now().isoformat(timespec="seconds"),
-    }
+    })
 
 
 def _path_exists(root: Path, value: str) -> bool:
@@ -201,11 +282,25 @@ def validate_project(root: Path) -> dict[str, Any]:
     missing_index = sorted(decision_ids - index_ids)
     orphan_index = sorted(index_ids - decision_ids)
     broken_references: list[str] = []
+    missing_source_episodes: list[str] = []
+    broken_source_episodes: list[str] = []
     for decision_id, item in index_items.items():
         for field in ("source_patch", "source_session", "source_capture"):
             value = item.get(field)
             if value and not _path_exists(root, str(value)):
                 broken_references.append(f"{decision_id}:{field}={value}")
+        episodes = item.get("source_episodes")
+        if not isinstance(episodes, list) or not episodes:
+            missing_source_episodes.append(decision_id)
+            continue
+        for episode in episodes:
+            if not isinstance(episode, dict):
+                broken_source_episodes.append(f"{decision_id}:invalid_episode")
+                continue
+            source_ref = str(episode.get("source_ref") or "")
+            source_type = str(episode.get("source_type") or "")
+            if source_type in {"raw_session", "capture", "closeout_patch"} and source_ref and not _path_exists(root, source_ref):
+                broken_source_episodes.append(f"{decision_id}:{source_type}={source_ref}")
 
     state_path = root / ".flg" / "state.json"
     state_text = state_path.read_text(encoding="utf-8") if state_path.exists() else ""
@@ -256,6 +351,10 @@ def validate_project(root: Path) -> dict[str, Any]:
         issues.append("orphan_index_entries")
     if broken_references:
         issues.append("broken_evidence_references")
+    if missing_source_episodes:
+        issues.append("missing_source_episodes")
+    if broken_source_episodes:
+        issues.append("broken_source_episodes")
     if legacy_paths:
         issues.append("legacy_paths")
     if merged_pending:
@@ -272,6 +371,8 @@ def validate_project(root: Path) -> dict[str, Any]:
         "missing_index": missing_index,
         "orphan_index": orphan_index,
         "broken_references": broken_references,
+        "missing_source_episodes": missing_source_episodes,
+        "broken_source_episodes": broken_source_episodes,
         "legacy_paths": legacy_paths,
         "merged_pending": merged_pending,
     }

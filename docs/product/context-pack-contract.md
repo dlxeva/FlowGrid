@@ -68,7 +68,8 @@ The pack should include:
 
 The pack should include evidence references, not full source history.
 
-The agent should be able to retrieve evidence on demand through future `flg evidence` and `flg trace` commands.
+The agent should be able to retrieve evidence on demand through `flg evidence`
+and `flg trace` commands.
 
 ## Required Sections
 
