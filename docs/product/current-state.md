@@ -36,6 +36,7 @@ Its job is to let project state, boundaries, judgments, progress, and next actio
 - A Codex host-operated session run archived raw discussion, rejected assistant and unattributed candidates, and preserved formal ledger hashes; see [Codex protocol acceptance](../../evals/results/codex-host-protocol-acceptance-20260721.md)
 - `flg onboard` detects missing, current, and drifted host Skills by content hash; an explicit update replaces drifted local instructions
 - Five isolated `gpt-5.4` campaign continuations and separately scored results show Context Pack is stable and better than no state, but not superior to clean raw history; see [the stability result](../../evals/results/continuation-stability-20260722.md)
+- Three repeated iteration-feedback patterns are now mapped to executable rules and verification in [the closure note](iteration-feedback-20260722.md)
 
 ## Current Goal
 
