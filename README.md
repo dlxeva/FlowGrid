@@ -474,6 +474,7 @@ for the full boundary definition.
 - [TRADEMARK.md](./TRADEMARK.md) — name and branding usage
 - [Open-Source Audit](./docs/governance/OPEN_SOURCE_AUDIT.md) — file classification report
 - [Open-Source Boundary](./docs/governance/OPEN_SOURCE_BOUNDARY.md) — public/private boundary definition
+- [Dev Log](./docs/devlog/README.md) — failures, fixes, evidence, and open boundaries
 - [Future Direction](./docs/product/future-direction.md) — product roadmap insights
 
 ## License
