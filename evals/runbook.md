@@ -46,8 +46,21 @@ python evals/continuation_stability.py prepare \
 ```
 
 Each evaluator receives one `input.md` only and writes its response to the
-matching `response.md`. A separate scorer fills each `score.json`; do not let
-the continuation agent score itself. After scoring, aggregate the result with:
+matching `response.md`. A separate scorer writes machine-readable scores to
+`scorer-output.json`; do not let the continuation agent score itself. Link that
+output to the scorecard so the harness can verify the input, response, and
+scorer-output hashes:
+
+```bash
+python evals/continuation_stability.py record \
+  --scorecard /tmp/flowgrid-continuation-stability/run-01/campaign-proposal/mode-c/score.json \
+  --scorer-output /tmp/flowgrid-continuation-stability/run-01/campaign-proposal/mode-c/scorer-output.json \
+  --evaluator independent-scorer \
+  --continuation-model gpt-5.4 \
+  --scorer-model gpt-5.6-terra
+```
+
+After every scorecard is linked, aggregate the result with:
 
 ```bash
 python evals/continuation_stability.py summarize \

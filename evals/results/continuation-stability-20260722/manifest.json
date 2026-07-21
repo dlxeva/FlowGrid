@@ -1,0 +1,129 @@
+{
+  "schema_version": 1,
+  "runs": 5,
+  "scenarios": [
+    "campaign-proposal"
+  ],
+  "entries": [
+    {
+      "run": 1,
+      "scenario": "campaign-proposal",
+      "mode": "A",
+      "path": "run-01/campaign-proposal/mode-a",
+      "input_bytes": 896,
+      "input_sha256": "8048e1b49d0421a8209c8c9946938aac6d56eb7b08e43b46db3a012d6ad9332e"
+    },
+    {
+      "run": 1,
+      "scenario": "campaign-proposal",
+      "mode": "B",
+      "path": "run-01/campaign-proposal/mode-b",
+      "input_bytes": 3436,
+      "input_sha256": "59aad7b33af0ecb4e3fee5d3fcf3c6f7495b52723b8905735ac354c84454e5a0"
+    },
+    {
+      "run": 1,
+      "scenario": "campaign-proposal",
+      "mode": "C",
+      "path": "run-01/campaign-proposal/mode-c",
+      "input_bytes": 4520,
+      "input_sha256": "ae05004363d3d7df704ed6c641ddf6b50a26adb3202be8579344ebbffbe9de53"
+    },
+    {
+      "run": 2,
+      "scenario": "campaign-proposal",
+      "mode": "A",
+      "path": "run-02/campaign-proposal/mode-a",
+      "input_bytes": 896,
+      "input_sha256": "8048e1b49d0421a8209c8c9946938aac6d56eb7b08e43b46db3a012d6ad9332e"
+    },
+    {
+      "run": 2,
+      "scenario": "campaign-proposal",
+      "mode": "B",
+      "path": "run-02/campaign-proposal/mode-b",
+      "input_bytes": 3436,
+      "input_sha256": "59aad7b33af0ecb4e3fee5d3fcf3c6f7495b52723b8905735ac354c84454e5a0"
+    },
+    {
+      "run": 2,
+      "scenario": "campaign-proposal",
+      "mode": "C",
+      "path": "run-02/campaign-proposal/mode-c",
+      "input_bytes": 4520,
+      "input_sha256": "ae05004363d3d7df704ed6c641ddf6b50a26adb3202be8579344ebbffbe9de53"
+    },
+    {
+      "run": 3,
+      "scenario": "campaign-proposal",
+      "mode": "A",
+      "path": "run-03/campaign-proposal/mode-a",
+      "input_bytes": 896,
+      "input_sha256": "8048e1b49d0421a8209c8c9946938aac6d56eb7b08e43b46db3a012d6ad9332e"
+    },
+    {
+      "run": 3,
+      "scenario": "campaign-proposal",
+      "mode": "B",
+      "path": "run-03/campaign-proposal/mode-b",
+      "input_bytes": 3436,
+      "input_sha256": "59aad7b33af0ecb4e3fee5d3fcf3c6f7495b52723b8905735ac354c84454e5a0"
+    },
+    {
+      "run": 3,
+      "scenario": "campaign-proposal",
+      "mode": "C",
+      "path": "run-03/campaign-proposal/mode-c",
+      "input_bytes": 4520,
+      "input_sha256": "ae05004363d3d7df704ed6c641ddf6b50a26adb3202be8579344ebbffbe9de53"
+    },
+    {
+      "run": 4,
+      "scenario": "campaign-proposal",
+      "mode": "A",
+      "path": "run-04/campaign-proposal/mode-a",
+      "input_bytes": 896,
+      "input_sha256": "8048e1b49d0421a8209c8c9946938aac6d56eb7b08e43b46db3a012d6ad9332e"
+    },
+    {
+      "run": 4,
+      "scenario": "campaign-proposal",
+      "mode": "B",
+      "path": "run-04/campaign-proposal/mode-b",
+      "input_bytes": 3436,
+      "input_sha256": "59aad7b33af0ecb4e3fee5d3fcf3c6f7495b52723b8905735ac354c84454e5a0"
+    },
+    {
+      "run": 4,
+      "scenario": "campaign-proposal",
+      "mode": "C",
+      "path": "run-04/campaign-proposal/mode-c",
+      "input_bytes": 4520,
+      "input_sha256": "ae05004363d3d7df704ed6c641ddf6b50a26adb3202be8579344ebbffbe9de53"
+    },
+    {
+      "run": 5,
+      "scenario": "campaign-proposal",
+      "mode": "A",
+      "path": "run-05/campaign-proposal/mode-a",
+      "input_bytes": 896,
+      "input_sha256": "8048e1b49d0421a8209c8c9946938aac6d56eb7b08e43b46db3a012d6ad9332e"
+    },
+    {
+      "run": 5,
+      "scenario": "campaign-proposal",
+      "mode": "B",
+      "path": "run-05/campaign-proposal/mode-b",
+      "input_bytes": 3436,
+      "input_sha256": "59aad7b33af0ecb4e3fee5d3fcf3c6f7495b52723b8905735ac354c84454e5a0"
+    },
+    {
+      "run": 5,
+      "scenario": "campaign-proposal",
+      "mode": "C",
+      "path": "run-05/campaign-proposal/mode-c",
+      "input_bytes": 4520,
+      "input_sha256": "ae05004363d3d7df704ed6c641ddf6b50a26adb3202be8579344ebbffbe9de53"
+    }
+  ]
+}

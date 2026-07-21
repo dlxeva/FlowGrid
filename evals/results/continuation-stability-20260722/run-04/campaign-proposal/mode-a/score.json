@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "scenario": "campaign-proposal",
+  "mode": "A",
+  "run": 4,
+  "input_bytes": 896,
+  "input_sha256": "8048e1b49d0421a8209c8c9946938aac6d56eb7b08e43b46db3a012d6ad9332e",
+  "model": "gpt-5.4 / medium",
+  "evaluator": "independent-gpt-5.6-terra",
+  "scores": {
+    "continuity_accuracy": 0,
+    "judgment_boundary_control": 0,
+    "rejected_alternative_suppression": 1,
+    "revision_reasoning": 0,
+    "evidence_awareness": 1,
+    "action_usefulness": 1,
+    "hallucination_resistance": 2
+  },
+  "critical_failures": [],
+  "notes": "It preserves uncertainty but misses the established proposal revision, user-proof/conversion direction, and prior KOL rejection; it incorrectly resets KOL to unresolved rather than treating any revisit as bounded pending review.",
+  "response_sha256": "b8213123a7fa1fa1f3654a5a10c83b4288a5fbcb883b70ea9d0dfe557f600917",
+  "scorer_output_sha256": "bbcb84e185129f35ed406a58367898e529bb169d47e1728ccfd77105ac6fc242",
+  "scorer_model": "gpt-5.6-terra / medium"
+}

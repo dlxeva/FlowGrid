@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "scenario": "campaign-proposal",
+  "mode": "C",
+  "run": 3,
+  "input_bytes": 4520,
+  "input_sha256": "ae05004363d3d7df704ed6c641ddf6b50a26adb3202be8579344ebbffbe9de53",
+  "model": "gpt-5.4 / medium",
+  "evaluator": "independent-gpt-5.6-terra",
+  "scores": {
+    "continuity_accuracy": 1,
+    "judgment_boundary_control": 2,
+    "rejected_alternative_suppression": 2,
+    "revision_reasoning": 2,
+    "evidence_awareness": 2,
+    "action_usefulness": 2,
+    "hallucination_resistance": 2
+  },
+  "critical_failures": [],
+  "notes": "Accurately preserves the proof-led revision and KOL boundary, but does not explicitly state that the revision followed the first critique.",
+  "response_sha256": "30a424a07ee59b0dbadbbf30a7f4785c265343f0ff1e7a9cf0e1206b0bd9f161",
+  "scorer_output_sha256": "9990a349019c0c147cd8628562123f7afc275bd709cdb0c5792d7d2a2dea7604",
+  "scorer_model": "gpt-5.6-terra / medium"
+}

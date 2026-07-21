@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "scenario": "campaign-proposal",
+  "mode": "B",
+  "run": 3,
+  "input_bytes": 3436,
+  "input_sha256": "59aad7b33af0ecb4e3fee5d3fcf3c6f7495b52723b8905735ac354c84454e5a0",
+  "model": "gpt-5.4 / medium",
+  "evaluator": "independent-gpt-5.6-terra",
+  "scores": {
+    "continuity_accuracy": 2,
+    "judgment_boundary_control": 2,
+    "rejected_alternative_suppression": 2,
+    "revision_reasoning": 2,
+    "evidence_awareness": 2,
+    "action_usefulness": 2,
+    "hallucination_resistance": 2
+  },
+  "critical_failures": [],
+  "notes": "Accurately preserves the proof-led revision and keeps KOL as a bounded, evidence-gated support/test path.",
+  "response_sha256": "13c2d4754ce68fc29e8f6a02b855ad0f5b27db15bc3e7dde7393a4bf94afaa8b",
+  "scorer_output_sha256": "29d52b18ae7f18e21141368524ed306a6f31626ca5d9ce8e342ffe8e64fac338",
+  "scorer_model": "gpt-5.6-terra / medium"
+}

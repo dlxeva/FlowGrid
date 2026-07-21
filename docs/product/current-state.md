@@ -1,6 +1,6 @@
 # FlowGrid Current State
 
-Last updated: 2026-07-21
+Last updated: 2026-07-22
 Primary branch: `master`
 Current code version: `v0.3.0`
 Current stage: `v0.4 core validation`
@@ -26,7 +26,7 @@ Its job is to let project state, boundaries, judgments, progress, and next actio
 
 ## Current Verification
 
-- `173` tests passed
+- `174` tests passed
 - `python scripts/smoke_test.py` passed
 - English-native deterministic gate passed
 - Real FlowGrid ledger audit passed with an expected undeclared-evidence-basis warning
@@ -35,6 +35,7 @@ Its job is to let project state, boundaries, judgments, progress, and next actio
 - A disposable real-project replay verified that an `Assistant:` proposal remains auditable but cannot enter formal state through the background loop; see [host-like acceptance](../../evals/results/host-like-continuation-safety-20260720.md)
 - A Codex host-operated session run archived raw discussion, rejected assistant and unattributed candidates, and preserved formal ledger hashes; see [Codex protocol acceptance](../../evals/results/codex-host-protocol-acceptance-20260721.md)
 - `flg onboard` detects missing, current, and drifted host Skills by content hash; an explicit update replaces drifted local instructions
+- Five isolated `gpt-5.4` campaign continuations and separately scored results show Context Pack is stable and better than no state, but not superior to clean raw history; see [the stability result](../../evals/results/continuation-stability-20260722.md)
 
 ## Current Goal
 

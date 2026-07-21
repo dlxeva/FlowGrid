@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "scenario": "campaign-proposal",
+  "mode": "C",
+  "run": 2,
+  "input_bytes": 4520,
+  "input_sha256": "ae05004363d3d7df704ed6c641ddf6b50a26adb3202be8579344ebbffbe9de53",
+  "model": "gpt-5.4 / medium",
+  "evaluator": "independent-gpt-5.6-terra",
+  "scores": {
+    "continuity_accuracy": 2,
+    "judgment_boundary_control": 2,
+    "rejected_alternative_suppression": 2,
+    "revision_reasoning": 2,
+    "evidence_awareness": 2,
+    "action_usefulness": 2,
+    "hallucination_resistance": 2
+  },
+  "critical_failures": [],
+  "notes": "Accurately preserves the proof-led revision, keeps KOL pending and bounded, and gives evidence-based reopening criteria.",
+  "response_sha256": "7b005b8ef9d6c9d8e3520f6cc3cd1340c01f7c7c69fd20d436c98405bd45b635",
+  "scorer_output_sha256": "4d5d20a63daffe7939fdfef7640b646793948a010c384a9ba3ec7f6da75cb026",
+  "scorer_model": "gpt-5.6-terra / medium"
+}

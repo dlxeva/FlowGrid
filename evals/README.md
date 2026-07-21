@@ -1,6 +1,9 @@
 # FlowGrid Eval Scenarios
 
-FlowGrid's product claim is that a bounded Context Pack helps an agent resume rationale-heavy business projects better than raw history or no project state.
+FlowGrid's hypothesis is that a bounded Context Pack helps an agent resume
+rationale-heavy business projects better than no state and provides a smaller,
+more legible continuation surface than raw history. It must be evaluated per
+scenario; Context Pack is not assumed to outperform a clean raw history.
 
 This directory contains scenario fixtures for evaluating that claim.
 
@@ -51,3 +54,6 @@ scoring-notes.md
 The eval set is part of the product.
 
 If Context Pack does not improve agent continuation under evaluation, FlowGrid's core claim has not been proven yet.
+
+See the first five-run independently scored result in
+[`results/continuation-stability-20260722.md`](results/continuation-stability-20260722.md).

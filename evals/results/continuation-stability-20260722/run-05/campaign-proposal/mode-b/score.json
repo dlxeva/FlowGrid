@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "scenario": "campaign-proposal",
+  "mode": "B",
+  "run": 5,
+  "input_bytes": 3436,
+  "input_sha256": "59aad7b33af0ecb4e3fee5d3fcf3c6f7495b52723b8905735ac354c84454e5a0",
+  "model": "gpt-5.4 / medium",
+  "evaluator": "independent-gpt-5.6-terra",
+  "scores": {
+    "continuity_accuracy": 2,
+    "judgment_boundary_control": 2,
+    "rejected_alternative_suppression": 2,
+    "revision_reasoning": 2,
+    "evidence_awareness": 2,
+    "action_usefulness": 2,
+    "hallucination_resistance": 2
+  },
+  "critical_failures": [],
+  "notes": "Accurately preserves the proof-led revision, keeps KOL bounded pending new evidence, and gives a concrete deck plan.",
+  "response_sha256": "5ddcabe4718b2800a822e72bdbc5e3d8128c40e0b4f7f197529ca0ba259aa882",
+  "scorer_output_sha256": "0dec17579dce730961e1286d97273d29ee6ff8fba5ec9d81c18a018cab3c50fc",
+  "scorer_model": "gpt-5.6-terra / medium"
+}

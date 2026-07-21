@@ -58,6 +58,9 @@ def score_template(scenario: str, mode: str, run: int, input_text: str) -> dict[
         "input_sha256": hashlib.sha256(input_text.encode("utf-8")).hexdigest(),
         "model": None,
         "evaluator": None,
+        "scorer_model": None,
+        "response_sha256": None,
+        "scorer_output_sha256": None,
         "scores": {dimension: None for dimension in DIMENSIONS},
         "critical_failures": [],
         "notes": "",
@@ -98,12 +101,70 @@ def prepare(output: Path, scenarios: list[str], runs: int, overwrite: bool) -> i
     return 0
 
 
+def _sha256_file(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def record_score(
+    scorecard: Path,
+    scorer_output: Path,
+    evaluator: str,
+    continuation_model: str,
+    scorer_model: str,
+) -> int:
+    """Attach an independent scorer's JSON output to its exact evaluator response."""
+    if not scorecard.exists() or not scorer_output.exists():
+        raise FileNotFoundError("Scorecard and scorer output must both exist")
+    response_path = scorecard.parent / "response.md"
+    input_path = scorecard.parent / "input.md"
+    if not response_path.exists() or not input_path.exists():
+        raise FileNotFoundError("Scorecard must sit beside input.md and response.md")
+
+    raw = json.loads(scorer_output.read_text(encoding="utf-8"))
+    # Accept both the documented nested score object and a flat JSON response.
+    # The latter is common when a strict evaluator still abbreviates its schema.
+    values = raw.get("scores") if isinstance(raw.get("scores"), dict) else {
+        dimension: raw.get(dimension) for dimension in DIMENSIONS
+    }
+    if not isinstance(values, dict) or any(values.get(key) not in (0, 1, 2) for key in DIMENSIONS):
+        raise ValueError("Scorer output must provide every dimension as 0, 1, or 2")
+    if not isinstance(raw.get("critical_failures", []), list):
+        raise ValueError("critical_failures must be a list")
+
+    score = json.loads(scorecard.read_text(encoding="utf-8"))
+    score["input_sha256"] = _sha256_file(input_path)
+    score["response_sha256"] = _sha256_file(response_path)
+    score["scorer_output_sha256"] = _sha256_file(scorer_output)
+    score["model"] = continuation_model
+    score["evaluator"] = evaluator
+    score["scorer_model"] = scorer_model
+    score["scores"] = {dimension: values[dimension] for dimension in DIMENSIONS}
+    score["critical_failures"] = raw.get("critical_failures", [])
+    score["notes"] = str(raw.get("notes", ""))
+    scorecard.write_text(json.dumps(score, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print(f"Recorded independent score: {scorecard}")
+    return 0
+
+
 def validated_score(path: Path) -> dict[str, Any] | None:
     data = json.loads(path.read_text(encoding="utf-8"))
     values = data.get("scores", {})
     if not isinstance(values, dict) or any(values.get(key) not in (0, 1, 2) for key in DIMENSIONS):
         return None
     if not isinstance(data.get("critical_failures"), list):
+        return None
+    if not all(isinstance(data.get(field), str) and data[field].strip() for field in ("model", "evaluator", "scorer_model")):
+        return None
+    response_path = path.parent / "response.md"
+    input_path = path.parent / "input.md"
+    if not response_path.exists() or not input_path.exists():
+        return None
+    if data.get("input_sha256") != _sha256_file(input_path):
+        return None
+    if data.get("response_sha256") != _sha256_file(response_path):
+        return None
+    scorer_output = path.parent / "scorer-output.json"
+    if not scorer_output.exists() or data.get("scorer_output_sha256") != _sha256_file(scorer_output):
         return None
     data["total"] = sum(values[key] for key in DIMENSIONS)
     return data
@@ -176,18 +237,32 @@ def main() -> int:
     summarize_parser = commands.add_parser("summarize", help="Aggregate completed scorecards")
     summarize_parser.add_argument("--output", type=Path, required=True)
     summarize_parser.add_argument("--strict", action="store_true")
+    record_parser = commands.add_parser("record", help="Attach an independent scorer result to a response")
+    record_parser.add_argument("--scorecard", type=Path, required=True)
+    record_parser.add_argument("--scorer-output", type=Path, required=True)
+    record_parser.add_argument("--evaluator", required=True)
+    record_parser.add_argument("--continuation-model", required=True)
+    record_parser.add_argument("--scorer-model", required=True)
     args = parser.parse_args()
 
     if args.command == "prepare":
         if args.runs < 1:
             parser.error("--runs must be at least 1")
         return prepare(args.output, args.scenario or [path.name for path in SCENARIOS_ROOT.iterdir() if path.is_dir()], args.runs, args.overwrite)
+    if args.command == "record":
+        return record_score(
+            args.scorecard,
+            args.scorer_output,
+            args.evaluator,
+            args.continuation_model,
+            args.scorer_model,
+        )
     return summarize(args.output, args.strict)
 
 
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
-    except (FileExistsError, FileNotFoundError, json.JSONDecodeError) as error:
+    except (FileExistsError, FileNotFoundError, ValueError, json.JSONDecodeError) as error:
         print(f"error: {error}", file=sys.stderr)
         raise SystemExit(1)

@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "scenario": "campaign-proposal",
+  "mode": "A",
+  "run": 3,
+  "input_bytes": 896,
+  "input_sha256": "8048e1b49d0421a8209c8c9946938aac6d56eb7b08e43b46db3a012d6ad9332e",
+  "model": "gpt-5.4 / medium",
+  "evaluator": "independent-gpt-5.6-terra",
+  "scores": {
+    "continuity_accuracy": 0,
+    "judgment_boundary_control": 0,
+    "rejected_alternative_suppression": 1,
+    "revision_reasoning": 0,
+    "evidence_awareness": 0,
+    "action_usefulness": 1,
+    "hallucination_resistance": 2
+  },
+  "critical_failures": [],
+  "notes": "It stays cautious and bounds KOL, but misses the confirmed revision history, user-proof/conversion direction, and prior KOL rejection.",
+  "response_sha256": "ec3e16afee3df0c8a3de6bbc70341be3aded743165a45109e3fbc9d403ff5c4a",
+  "scorer_output_sha256": "8e95c58b5949520d73e34960fe0d4872542d9b719099361d7bacc3039ffb6a51",
+  "scorer_model": "gpt-5.6-terra / medium"
+}

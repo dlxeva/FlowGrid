@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "scenario": "campaign-proposal",
+  "mode": "B",
+  "run": 1,
+  "input_bytes": 3436,
+  "input_sha256": "59aad7b33af0ecb4e3fee5d3fcf3c6f7495b52723b8905735ac354c84454e5a0",
+  "model": "gpt-5.4 / medium",
+  "evaluator": "independent-gpt-5.6-terra",
+  "scores": {
+    "continuity_accuracy": 2,
+    "judgment_boundary_control": 2,
+    "rejected_alternative_suppression": 2,
+    "revision_reasoning": 2,
+    "evidence_awareness": 2,
+    "action_usefulness": 2,
+    "hallucination_resistance": 2
+  },
+  "critical_failures": [],
+  "notes": "Accurately preserves the proof-first revision, contains KOL to a bounded test, and specifies evidence gates without inventing facts.",
+  "response_sha256": "87ae4ab0167ce3a38ac71ab3d3fe2adc6f95b0f57fe2b1b26a5c5705e33f0f1e",
+  "scorer_output_sha256": "7ff6615775e61b1d56089c071167a0f02513bf5cb0adfdb99c1ab925bf81f8d7",
+  "scorer_model": "gpt-5.6-terra / medium"
+}
