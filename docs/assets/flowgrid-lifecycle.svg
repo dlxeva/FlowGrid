@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="620" viewBox="0 0 1440 620" fill="none" role="img" aria-labelledby="title desc">
+  <title id="title">FlowGrid carries project judgment across agent sessions</title>
+  <desc id="desc">Natural-language collaboration becomes reviewable candidate state, a formal local ledger, a bounded context pack, and a reliable continuation for the next agent.</desc>
+  <defs>
+    <linearGradient id="bg" x1="70" y1="35" x2="1370" y2="590" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#10161E"/>
+      <stop offset="1" stop-color="#172A2B"/>
+    </linearGradient>
+    <linearGradient id="ledger" x1="920" y1="209" x2="1196" y2="417" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#174D45"/>
+      <stop offset="1" stop-color="#0F6B55"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="180%">
+      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#020609" flood-opacity="0.34"/>
+    </filter>
+  </defs>
+  <rect width="1440" height="620" rx="30" fill="url(#bg)"/>
+  <circle cx="1290" cy="95" r="222" fill="#2D6B5A" fill-opacity="0.17"/>
+  <circle cx="117" cy="571" r="210" fill="#395D9D" fill-opacity="0.13"/>
+  <path d="M72 133H1368" stroke="#A9C8C2" stroke-opacity="0.22"/>
+  <text x="72" y="83" fill="#D8E8E3" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18" letter-spacing="3">FLOWGRID / PROJECT CONTINUATION</text>
+  <text x="72" y="118" fill="#FFFFFF" font-family="Georgia, serif" font-size="31">One project state, carried safely across agents and models.</text>
+
+  <g filter="url(#shadow)">
+    <rect x="72" y="205" width="212" height="225" rx="18" fill="#1D2731" stroke="#7B93A0" stroke-opacity="0.45"/>
+    <rect x="96" y="232" width="74" height="27" rx="13.5" fill="#394957"/>
+    <text x="108" y="251" fill="#D7E2E8" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12">INPUT</text>
+    <text x="96" y="298" fill="#FFFFFF" font-family="Georgia, serif" font-size="24">Natural</text>
+    <text x="96" y="327" fill="#FFFFFF" font-family="Georgia, serif" font-size="24">collaboration</text>
+    <text x="96" y="370" fill="#AAC0CA" font-family="ui-sans-serif, system-ui, sans-serif" font-size="14">Chats, meetings,</text>
+    <text x="96" y="391" fill="#AAC0CA" font-family="ui-sans-serif, system-ui, sans-serif" font-size="14">documents, signals</text>
+  </g>
+
+  <path d="M304 317H354" stroke="#84B7A9" stroke-width="3" stroke-linecap="round"/>
+  <path d="M346 307L358 317L346 327" stroke="#84B7A9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <g filter="url(#shadow)">
+    <rect x="376" y="205" width="248" height="225" rx="18" fill="#26333A" stroke="#90AA9F" stroke-opacity="0.48"/>
+    <rect x="400" y="232" width="109" height="27" rx="13.5" fill="#805C2E"/>
+    <text x="412" y="251" fill="#FFE8C3" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12">CANDIDATE</text>
+    <text x="400" y="298" fill="#FFFFFF" font-family="Georgia, serif" font-size="24">Capture with</text>
+    <text x="400" y="327" fill="#FFFFFF" font-family="Georgia, serif" font-size="24">state boundaries</text>
+    <text x="400" y="370" fill="#BED0C7" font-family="ui-sans-serif, system-ui, sans-serif" font-size="14">Source + confidence + status</text>
+    <text x="400" y="391" fill="#E7B96C" font-family="ui-sans-serif, system-ui, sans-serif" font-size="14">Ambiguous stays pending</text>
+  </g>
+
+  <path d="M644 317H694" stroke="#84B7A9" stroke-width="3" stroke-linecap="round"/>
+  <path d="M686 307L698 317L686 327" stroke="#84B7A9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <g filter="url(#shadow)">
+    <rect x="716" y="185" width="310" height="265" rx="18" fill="url(#ledger)" stroke="#8BC9B9" stroke-opacity="0.72"/>
+    <rect x="740" y="212" width="102" height="27" rx="13.5" fill="#0C3A32"/>
+    <text x="751" y="231" fill="#D5F2E7" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12">LEDGER</text>
+    <text x="740" y="279" fill="#FFFFFF" font-family="Georgia, serif" font-size="25">Formal local truth</text>
+    <path d="M740 309H1002" stroke="#A3E1CF" stroke-opacity="0.42"/>
+    <circle cx="754" cy="337" r="5" fill="#69E2B0"/>
+    <text x="770" y="342" fill="#D6F3E9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="14">confirmed judgments</text>
+    <circle cx="754" cy="370" r="5" fill="#F2BF69"/>
+    <text x="770" y="375" fill="#D6F3E9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="14">pending and assumptions</text>
+    <circle cx="754" cy="403" r="5" fill="#83B9E8"/>
+    <text x="770" y="408" fill="#D6F3E9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="14">rejected and superseded paths</text>
+  </g>
+
+  <path d="M1046 317H1096" stroke="#84B7A9" stroke-width="3" stroke-linecap="round"/>
+  <path d="M1088 307L1100 317L1088 327" stroke="#84B7A9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <g filter="url(#shadow)">
+    <rect x="1118" y="205" width="250" height="225" rx="18" fill="#263249" stroke="#92A7D5" stroke-opacity="0.55"/>
+    <rect x="1142" y="232" width="122" height="27" rx="13.5" fill="#374D7C"/>
+    <text x="1154" y="251" fill="#E1EBFF" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12">CONTINUE</text>
+    <text x="1142" y="298" fill="#FFFFFF" font-family="Georgia, serif" font-size="24">Bounded context</text>
+    <text x="1142" y="327" fill="#FFFFFF" font-family="Georgia, serif" font-size="24">for the next host</text>
+    <text x="1142" y="370" fill="#C2D3F1" font-family="ui-sans-serif, system-ui, sans-serif" font-size="14">What is true, pending,</text>
+    <text x="1142" y="391" fill="#C2D3F1" font-family="ui-sans-serif, system-ui, sans-serif" font-size="14">rejected, and next</text>
+  </g>
+
+  <text x="72" y="525" fill="#A9C8C2" font-family="ui-sans-serif, system-ui, sans-serif" font-size="16">FLG does not replay every conversation. It compiles the smallest trustworthy state for the next move.</text>
+  <text x="72" y="560" fill="#6FE0B2" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14">LOCAL-FIRST  /  REVIEWABLE  /  HOST-AGNOSTIC</text>
+</svg>

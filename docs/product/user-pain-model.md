@@ -6,7 +6,7 @@ FlowGrid should not define its primary users by job title alone.
 
 The core ICP is defined by work structure:
 
-**business-project-oriented, non-coding knowledge workers who must maintain defensible judgment chains over time.**
+**business-project-oriented, non-coding knowledge workers who use multiple AI agents or models and must maintain defensible judgment chains over time.**
 
 Typical roles include operations, marketing, strategy, growth, creative, solution, research-oriented content work, independent consultants, and small-team owners.
 
@@ -18,7 +18,7 @@ FlowGrid should serve the shared work structure, not separate these roles into a
 
 ### Business Project Knowledge Workers
 
-They own fuzzy business projects and must repeatedly clarify, judge, revise, explain, and hand off the project state.
+They own fuzzy business projects and move them across different AI agents or models while repeatedly clarifying, judging, revising, explaining, and handing off project state.
 
 Typical work:
 
@@ -123,11 +123,16 @@ Users may describe the pain as:
 
 The deeper problem is:
 
-**The judgment chain cannot be maintained across long-running AI collaboration.**
+**The judgment chain cannot be maintained across long-running, multi-agent AI collaboration.**
 
 The project history grows, but the current project state becomes less trustworthy.
 
 Raw discussion, candidate judgment, confirmed decision, reversed conclusion, open question, and current state are not separated.
+
+The user may deliberately select different models for complex reasoning,
+implementation, long-running work, lower cost, or remaining subscription
+capacity. Without a shared project state, every agent reconstructs the project
+differently.
 
 ## What FlowGrid Must Preserve
 
@@ -151,6 +156,7 @@ FlowGrid should not start with:
 - generic token compression
 - generic meeting notes
 - enterprise project management
+- model routing or agent-team management
 - coding repo context
 - vector database search
 - high-compliance professional workflows

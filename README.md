@@ -2,8 +2,8 @@
 
 [English](./README.md) | [简体中文](./README.zh-CN.md)
 
-> A local project-state context engine for rationale-heavy, non-coding business projects.
-> Designed for AI agents to preserve state-aware judgments, project state, and reasoning chains in local files.
+> A local project-state context engine for people who use multiple AI agents and models on rationale-heavy, non-coding business projects.
+> It gives those agents one auditable local judgment state instead of asking each one to reconstruct project history.
 
 ![Stage](https://img.shields.io/badge/stage-v0.4--validation-4c6ef5)
 ![Runtime](https://img.shields.io/badge/runtime-local--first-2b8a3e)
@@ -18,10 +18,56 @@ FlowGrid helps business-project knowledge workers turn messy AI work sessions in
 
 It is built for long-running work where the deliverable is not just a document, but a defensible judgment chain: why this proposal makes sense, why this direction was chosen, what alternatives were rejected, and when a past judgment should be revised.
 
+## How It Carries a Project Forward
+
+![FlowGrid project continuation lifecycle](./docs/assets/flowgrid-lifecycle.svg)
+
+FlowGrid does not replay every conversation. It keeps raw evidence available,
+separates unconfirmed candidates from formal project state, and compiles the
+smallest trustworthy Context Pack for whichever host or model continues next.
+
+<details>
+<summary><strong>See the current protocol system map</strong></summary>
+
+<br />
+
+![FlowGrid current system map](./docs/assets/flowgrid-system-map.svg)
+
+The map distinguishes implemented protocol state from rebuildable caches and
+health checks. It does not describe a generic agent-memory platform or model
+orchestration system.
+
+</details>
+
+## Start in Your AI Host
+
+For Codex, Claude, Hermes, or another local agent host, the recommended entry
+point is the operator skill rather than manual CLI operation. FlowGrid lets a
+single knowledge worker carry the same reviewed state across those tools; it
+does not select models or orchestrate an agent team.
+
+```bash
+pip install -e .
+flg onboard --yes
+```
+
+`flg onboard` detects supported hosts and installs the `flowgrid-operator`
+skill. `FLG` and `FlowGrid` are both supported natural-language triggers. Then
+continue in your usual host, for example:
+
+> Use FLG to manage and continue this project.
+
+The agent operates the protocol in the background. You should not need to
+learn a new ledger workflow to keep project state durable. See the
+[first-run host guide](./docs/first-run-in-hosts.md) for the expected flow and
+current host boundaries.
+
 ## Quick Links
 
 - [Why it exists](#what-is-flowgrid)
-- [30-second demo](#30-second-demo)
+- [Start in an AI host](#start-in-your-ai-host)
+- [Synthetic client-solution use case](./docs/use-cases/client-solution-continuation.md)
+- [30-second CLI demo](#30-second-cli-demo)
 - [Who it is for](#who-is-it-for)
 - [Quick start](#quick-start)
 - [CLI commands](#cli-commands)
@@ -37,10 +83,19 @@ It is built for long-running work where the deliverable is not just a document, 
 - **Context-first:** agent startup should load bounded project state, not raw history dumps
 - **Judgment-aware:** decisions store why, rejected options, assumptions, and reversal conditions
 - **Background-safe writes:** the host processes routine patches without making the user operate a ledger workflow
-- **Host-agnostic:** works inside Codex, Hermes, OpenClaw, Claude, or any agent shell that can read files and run commands
+- **Host- and model-agnostic:** continue the same reviewed ledger from Codex, Hermes, OpenClaw, Claude, or any agent shell that can read files and run commands
 - **Business-project oriented:** built for proposals, campaigns, briefs, strategies, mechanisms, and retrospectives
 
-## 30-Second Demo
+## Synthetic Use Case: A Client Project Changes Direction
+
+After a client meeting disproves the original problem diagnosis, a different
+agent or model must not keep polishing the old proposal. FlowGrid keeps the
+changed direction, the evidence behind it, the rejected path, and the next
+action distinct.
+
+[Read the synthetic client-solution continuation example →](./docs/use-cases/client-solution-continuation.md)
+
+## 30-Second CLI Demo
 
 ```bash
 mkdir demo && cd demo
@@ -91,9 +146,12 @@ rebuildable local ledger state, and real-project continuation.
 
 ## What is FlowGrid?
 
-FlowGrid (FLG) is a local project-state context engine for rationale-heavy, non-coding business projects.
+FlowGrid (FLG) is a local project-state context engine for people who use
+multiple AI agents and models on rationale-heavy, non-coding business projects.
 
-It gives AI agents a durable local protocol for preserving project judgments, current state, pending changes, and handoff context across sessions.
+It gives those agents a durable local protocol for sharing project judgments,
+current state, pending changes, and handoff context across sessions and hosts.
+FlowGrid does not route models or manage an agent team.
 
 The core problem it addresses:
 
@@ -103,7 +161,9 @@ FlowGrid separates raw discussion, candidate judgments, reviewed decisions, pend
 
 ## Who is it for?
 
-FlowGrid is for business-project knowledge workers who own fuzzy projects and must repeatedly clarify, judge, revise, explain, and hand off project state.
+FlowGrid is for business-project knowledge workers who own fuzzy projects and
+move them across different AI agents or models as they repeatedly clarify,
+judge, revise, explain, and hand off project state.
 
 Typical roles include:
 
