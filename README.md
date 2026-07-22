@@ -48,12 +48,14 @@ does not select models or orchestrate an agent team.
 
 ```bash
 pip install -e .
-flg onboard --yes
+flg onboard --skip-demo --yes
 ```
 
 `flg onboard` detects supported hosts and installs the `flowgrid-operator`
-skill. `FLG` and `FlowGrid` are both supported natural-language triggers. Then
-continue in your usual host, for example:
+skill. This safe setup path does not create a demo project in the current
+directory. To run the optional guided demo, first enter a disposable directory
+and run `flg onboard` there. `FLG` and `FlowGrid` are both supported
+natural-language triggers. Then continue in your usual host, for example:
 
 > Use FLG to manage and continue this project.
 
