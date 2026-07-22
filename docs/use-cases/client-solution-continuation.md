@@ -52,11 +52,12 @@ true before the old direction can return.
 
 ## Run the Included Demo
 
-For a small CLI walkthrough, use the synthetic proposal project:
+For a small CLI walkthrough, use the separate synthetic launch-campaign
+project included in this repository. It is not the Client A narrative above:
 
 ```bash
 cd examples/demo-proposal-project
-flg init "Client A solution proposal" --type proposal --client "Client A"
+flg init "AI Product Launch Campaign" --type proposal --client "TechCorp"
 flg frame
 flg closeout --transcript demo_transcript.md
 ```
