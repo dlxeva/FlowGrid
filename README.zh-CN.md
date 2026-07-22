@@ -33,9 +33,9 @@ pip install -e .
 flg onboard --yes
 ```
 
-`flg onboard` 会检测已支持的宿主并安装 `flowgrid-operator` Skill。之后直接在你习惯的宿主里用自然语言继续，例如：
+`flg onboard` 会检测已支持的宿主并安装 `flowgrid-operator` Skill。`FLG` 和 `FlowGrid` 都是支持的自然语言触发词。之后直接在你习惯的宿主里用自然语言继续，例如：
 
-> 用 FlowGrid 管理并继续这个项目。
+> 用 FLG 管理并继续这个项目。
 
 Agent 会在后台运行协议。用户不应该为了保存项目状态而学习一套新的账本操作流程。预期体验与当前宿主边界见[首次宿主使用说明](./docs/first-run-in-hosts.md)。
 

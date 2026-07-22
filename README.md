@@ -37,9 +37,10 @@ flg onboard --yes
 ```
 
 `flg onboard` detects supported hosts and installs the `flowgrid-operator`
-skill. Then continue in your usual host with natural language, for example:
+skill. `FLG` and `FlowGrid` are both supported natural-language triggers. Then
+continue in your usual host, for example:
 
-> Use FlowGrid to manage and continue this project.
+> Use FLG to manage and continue this project.
 
 The agent operates the protocol in the background. You should not need to
 learn a new ledger workflow to keep project state durable. See the
