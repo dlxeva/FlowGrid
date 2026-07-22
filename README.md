@@ -18,10 +18,40 @@ FlowGrid helps business-project knowledge workers turn messy AI work sessions in
 
 It is built for long-running work where the deliverable is not just a document, but a defensible judgment chain: why this proposal makes sense, why this direction was chosen, what alternatives were rejected, and when a past judgment should be revised.
 
+## How It Carries a Project Forward
+
+![FlowGrid project continuation lifecycle](./docs/assets/flowgrid-lifecycle.svg)
+
+FlowGrid does not replay every conversation. It keeps raw evidence available,
+separates unconfirmed candidates from formal project state, and compiles the
+smallest trustworthy Context Pack for the next agent.
+
+## Start in Your AI Host
+
+For Codex, Claude, Hermes, or another local agent host, the recommended entry
+point is the operator skill rather than manual CLI operation:
+
+```bash
+pip install -e .
+flg onboard --yes
+```
+
+`flg onboard` detects supported hosts and installs the `flowgrid-operator`
+skill. Then continue in your usual host with natural language, for example:
+
+> Use FlowGrid to manage and continue this project.
+
+The agent operates the protocol in the background. You should not need to
+learn a new ledger workflow to keep project state durable. See the
+[first-run host guide](./docs/first-run-in-hosts.md) for the expected flow and
+current host boundaries.
+
 ## Quick Links
 
 - [Why it exists](#what-is-flowgrid)
-- [30-second demo](#30-second-demo)
+- [Start in an AI host](#start-in-your-ai-host)
+- [Synthetic client-solution use case](./docs/use-cases/client-solution-continuation.md)
+- [30-second CLI demo](#30-second-cli-demo)
 - [Who it is for](#who-is-it-for)
 - [Quick start](#quick-start)
 - [CLI commands](#cli-commands)
@@ -40,7 +70,15 @@ It is built for long-running work where the deliverable is not just a document, 
 - **Host-agnostic:** works inside Codex, Hermes, OpenClaw, Claude, or any agent shell that can read files and run commands
 - **Business-project oriented:** built for proposals, campaigns, briefs, strategies, mechanisms, and retrospectives
 
-## 30-Second Demo
+## Synthetic Use Case: A Client Project Changes Direction
+
+After a client meeting disproves the original problem diagnosis, a new agent
+must not keep polishing the old proposal. FlowGrid keeps the changed direction,
+the evidence behind it, the rejected path, and the next action distinct.
+
+[Read the synthetic client-solution continuation example →](./docs/use-cases/client-solution-continuation.md)
+
+## 30-Second CLI Demo
 
 ```bash
 mkdir demo && cd demo
