@@ -10,7 +10,7 @@
   "complexity_after": "Two full transcript segmentations per closeout, with shared segment lists for all extractors and decision relation inference.",
   "files": [
     {
-      "path": "/Users/hu/Projects/Oh-My-Project/framing-ledger/src/flg/commands/closeout.py",
+      "path": "<repo>/src/flg/commands/closeout.py",
       "line": 1357,
       "summary": "Share original and code-stripped transcript segments across the keyword closeout pipeline."
     }
@@ -34,9 +34,9 @@
   ],
   "workload": "207 KB campaign-proposal transcript fixture, 2 warmups and 15 measured runs per side, clean baseline source from git archive HEAD, fixed PYTHONHASHSEED=0.",
   "reproduce": [
-    "python3 scripts/benchmark_command.py --label before-fixed --warmups 2 --runs 15 --cwd /tmp/flg-speedup-baseline-fixed --output /tmp/flg-speedup-before-fixed.json -- env PYTHONHASHSEED=0 PYTHONPATH=/tmp/flg-baseline-src/src .venv/bin/python -m flg.cli closeout --transcript /tmp/flg-speedup-transcript.md --no-llm",
-    "python3 scripts/benchmark_command.py --label after-fixed --warmups 2 --runs 15 --cwd /tmp/flg-speedup-optimized-fixed --output /tmp/flg-speedup-after-fixed.json -- env PYTHONHASHSEED=0 PYTHONPATH=/Users/hu/Projects/Oh-My-Project/framing-ledger/src .venv/bin/python -m flg.cli closeout --transcript /tmp/flg-speedup-transcript.md --no-llm",
-    "python3 scripts/compare_results.py /tmp/flg-speedup-before-fixed.json /tmp/flg-speedup-after-fixed.json /tmp/flg-speedup-comparison-fixed.json --correctness passed"
+    "python3 scripts/benchmark_command.py --label before-fixed --warmups 2 --runs 15 --cwd <temp>/flg-speedup-baseline-fixed --output <temp>/flg-speedup-before-fixed.json -- env PYTHONHASHSEED=0 PYTHONPATH=<repo>/src <python> -m flg.cli closeout --transcript <temp>/flg-speedup-transcript.md --no-llm",
+    "python3 scripts/benchmark_command.py --label after-fixed --warmups 2 --runs 15 --cwd <temp>/flg-speedup-optimized-fixed --output <temp>/flg-speedup-after-fixed.json -- env PYTHONHASHSEED=0 PYTHONPATH=<repo>/src <python> -m flg.cli closeout --transcript <temp>/flg-speedup-transcript.md --no-llm",
+    "python3 scripts/compare_results.py <temp>/flg-speedup-before-fixed.json <temp>/flg-speedup-after-fixed.json <temp>/flg-speedup-comparison-fixed.json --correctness passed"
   ],
   "limitations": [
     "The workload is a deterministic local transcript and does not include LLM latency or remote I/O.",

@@ -17,16 +17,16 @@
     "command": [
       "env",
       "PYTHONHASHSEED=0",
-      "PYTHONPATH=/tmp/flg-baseline-src/src",
-      "/Users/hu/Projects/Oh-My-Project/framing-ledger/.venv/bin/python",
+      "PYTHONPATH=<repo>/src",
+      "<python>",
       "-m",
       "flg.cli",
       "closeout",
       "--transcript",
-      "/tmp/flg-speedup-transcript.md",
+      "<temp>/flg-speedup-transcript.md",
       "--no-llm"
     ],
-    "cwd": "/private/tmp/flg-speedup-baseline-fixed",
+    "cwd": "<temp>/flg-speedup-baseline-fixed",
     "warmups": 2,
     "timeout_seconds": 120.0,
     "samples_ms": [
@@ -63,16 +63,16 @@
     "command": [
       "env",
       "PYTHONHASHSEED=0",
-      "PYTHONPATH=/Users/hu/Projects/Oh-My-Project/framing-ledger/src",
-      "/Users/hu/Projects/Oh-My-Project/framing-ledger/.venv/bin/python",
+      "PYTHONPATH=<repo>/src",
+      "<python>",
       "-m",
       "flg.cli",
       "closeout",
       "--transcript",
-      "/tmp/flg-speedup-transcript.md",
+      "<temp>/flg-speedup-transcript.md",
       "--no-llm"
     ],
-    "cwd": "/private/tmp/flg-speedup-optimized-fixed",
+    "cwd": "<temp>/flg-speedup-optimized-fixed",
     "warmups": 2,
     "timeout_seconds": 120.0,
     "samples_ms": [

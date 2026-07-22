@@ -96,7 +96,7 @@ alternatives:
   - "MongoDB"
   - "MySQL"
 risks: "团队 PostgreSQL 运维经验不足"
-raw_evidence: "板子原话：'我觉得应该用 PG 而不是 Mongo，因为后面肯定要做复杂查询，Mongo 那个文档模型搞不了 JOIN'"
+raw_evidence: "项目负责人原话：'我觉得应该用 PG 而不是 Mongo，因为后面肯定要做复杂查询，Mongo 那个文档模型搞不了 JOIN'"
 
 # 扩展字段（P1+）
 tags: ["tech", "infra"]
@@ -152,7 +152,7 @@ flg capture add \
   -r "数据关系复杂需要 JOIN" \
   -t judgment \
   -q "技术栈选型" \
-  -e "板子原话：我觉得应该用 PG"
+  -e "项目负责人原话：我觉得应该用 PG"
 
 flg capture list                  # 列出所有 candidate（按状态筛选）
 flg capture list --status pending_review
@@ -308,7 +308,7 @@ capture 命令实现应排在 v0.3 基础稳定之后。设计文档可以先落
 ### Phase 0 — Design Lock（当前）
 
 - [x] 调研现有 FLG 设计文档
-- [ ] Design RFC 完成并由板子终审
+- [ ] Design RFC 完成并由项目负责人终审
 - [ ] v0.3-plan.md 插入 Phase 1.5 占位
 
 ### Phase 1 — CLI 骨架
@@ -341,7 +341,7 @@ capture 命令实现应排在 v0.3 基础稳定之后。设计文档可以先落
 
 ## 9. 设计决策记录
 
-以下是我主动做出的判断（板子可以推翻）：
+以下是我主动做出的判断（项目负责人可以推翻）：
 
 | # | 决策 | 理由 |
 |---|------|------|
@@ -355,12 +355,12 @@ capture 命令实现应排在 v0.3 基础稳定之后。设计文档可以先落
 
 ---
 
-## 10. 待板子拍板的问题
+## 10. 待项目负责人拍板的问题
 
 1. **命令名用 `flg capture` 还是 `flg judgment`？** 我的建议是 capture（动词，直观），但 judgment 和现有文档术语一致。
 
-2. **decision add 直接写 DECISIONS.md 是否接受？** 这打破了 patch-first 原则，但理由是"用户明确指令"。如果板子认为不妥，可以改为"decision add 也生成 patch，但 auto-approved"。
+2. **decision add 直接写 DECISIONS.md 是否接受？** 这打破了 patch-first 原则，但理由是"用户明确指令"。如果项目负责人认为不妥，可以改为"decision add 也生成 patch，但 auto-approved"。
 
 3. **capture review 确认后自动 merge 还是需要手动 flg merge？** 我倾向自动 merge（capture review --confirm 即合并），减少步数。
 
-4. **type 字段是否应该叫别的名字？** "type" 和 Python 内置冲突，可能叫 "judgment_type" 更好，但 YAML frontmatter 没有这个问题。板子怎么看？
+4. **type 字段是否应该叫别的名字？** "type" 和 Python 内置冲突，可能叫 "judgment_type" 更好，但 YAML frontmatter 没有这个问题。项目负责人怎么看？
