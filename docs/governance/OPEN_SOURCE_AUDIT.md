@@ -37,13 +37,13 @@ learning assets was performed.
 
 | Path | Issue | Action Taken |
 |---|---|---|
-| `docs/known-issues/no-cross-file-consistency-guard.md` | Contained real dogfood project name ("FLG东莞验证"), real decision content, real engagement context, and real Windows username in a path. | **Sanitized** in place: project identity redacted, real decision text generalized, username path replaced. **Original** migrated to `../flowgrid-lab-export/dogfood/`. |
+| `docs/known-issues/no-cross-file-consistency-guard.md` | Contained a real dogfood project name, real decision content, real engagement context, and a local username in a path. | **Sanitized** in place: project identity redacted, real decision text generalized, local path replaced. **Original** migrated to `../flowgrid-lab-export/dogfood/`. |
 
 ### REVIEW — sanitized, kept public
 
 | Path | Issue | Action Taken |
 |---|---|---|
-| `docs/known-issues/merged-patch-stale-pending-state.md` | Contained real username ("夕颜") in Windows path and reference to specific competition workspace. | **Sanitized**: username replaced with `<your-workspace>`, competition path generalized, added note that issue was resolved in v0.3.0. |
+| `docs/known-issues/merged-patch-stale-pending-state.md` | Contained a local username in a Windows path and reference to a specific competition workspace. | **Sanitized**: local path replaced with `<your-workspace>`, competition path generalized, added note that issue was resolved in v0.3.0. |
 | `.gitignore` | Did not ignore `.flg/state.json`, `.flg/captures/`, `.flg/sessions/`, `.flg/context/`, `.flg/exports/`. Latent footgun for downstream users. | **Fixed**: comprehensive `.flg/` and private-asset ignore rules added. |
 
 ---
@@ -58,9 +58,7 @@ in `src/flg/llm_client.py` uses environment variables (`os.getenv`).
 
 ## Real Project Name Scan Result
 
-**CLEAN** (after sanitization). None of the flagged real project names
-("人工智障", "赛格", "健康管理", "Day1CJ", "风投平台") appear in any tracked
-file. "东莞" appeared only in the now-sanitized known-issues file.
+**CLEAN** (after sanitization). No real project names remain in tracked files.
 
 ---
 

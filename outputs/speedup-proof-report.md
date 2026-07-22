@@ -36,7 +36,7 @@ The closeout path now segments the transcript once for the original-text extract
 
 ### Changed files
 
-- [closeout.py](/Users/hu/Projects/Oh-My-Project/framing-ledger/src/flg/commands/closeout.py:1357) — Share original and code-stripped transcript segments across the keyword closeout pipeline.
+- `src/flg/commands/closeout.py:1357` — Share original and code-stripped transcript segments across the keyword closeout pipeline.
 
 ## Correctness checks
 
@@ -49,20 +49,20 @@ The closeout path now segments the transcript once for the original-text extract
 ## Benchmark protocol
 
 **Workload:** 207 KB campaign-proposal transcript fixture, 2 warmups and 15 measured runs per side, clean baseline source from git archive HEAD, fixed PYTHONHASHSEED=0.  
-**Command:** `env PYTHONHASHSEED=0 PYTHONPATH=/tmp/flg-baseline-src/src /Users/hu/Projects/Oh-My-Project/framing-ledger/.venv/bin/python -m flg.cli closeout --transcript /tmp/flg-speedup-transcript.md --no-llm`  
+**Command:** `env PYTHONHASHSEED=0 PYTHONPATH=<repo>/src <python> -m flg.cli closeout --transcript <temp>/flg-speedup-transcript.md --no-llm`
 **Warmups:** 2  
 **Measured runs:** 15 per version
 
 ## Reproduce
 
 ```bash
-python3 scripts/benchmark_command.py --label before-fixed --warmups 2 --runs 15 --cwd /tmp/flg-speedup-baseline-fixed --output /tmp/flg-speedup-before-fixed.json -- env PYTHONHASHSEED=0 PYTHONPATH=/tmp/flg-baseline-src/src .venv/bin/python -m flg.cli closeout --transcript /tmp/flg-speedup-transcript.md --no-llm
+python3 scripts/benchmark_command.py --label before-fixed --warmups 2 --runs 15 --cwd <temp>/flg-speedup-baseline-fixed --output <temp>/flg-speedup-before-fixed.json -- env PYTHONHASHSEED=0 PYTHONPATH=<repo>/src <python> -m flg.cli closeout --transcript <temp>/flg-speedup-transcript.md --no-llm
 ```
 ```bash
-python3 scripts/benchmark_command.py --label after-fixed --warmups 2 --runs 15 --cwd /tmp/flg-speedup-optimized-fixed --output /tmp/flg-speedup-after-fixed.json -- env PYTHONHASHSEED=0 PYTHONPATH=/Users/hu/Projects/Oh-My-Project/framing-ledger/src .venv/bin/python -m flg.cli closeout --transcript /tmp/flg-speedup-transcript.md --no-llm
+python3 scripts/benchmark_command.py --label after-fixed --warmups 2 --runs 15 --cwd <temp>/flg-speedup-optimized-fixed --output <temp>/flg-speedup-after-fixed.json -- env PYTHONHASHSEED=0 PYTHONPATH=<repo>/src <python> -m flg.cli closeout --transcript <temp>/flg-speedup-transcript.md --no-llm
 ```
 ```bash
-python3 scripts/compare_results.py /tmp/flg-speedup-before-fixed.json /tmp/flg-speedup-after-fixed.json /tmp/flg-speedup-comparison-fixed.json --correctness passed
+python3 scripts/compare_results.py <temp>/flg-speedup-before-fixed.json <temp>/flg-speedup-after-fixed.json <temp>/flg-speedup-comparison-fixed.json --correctness passed
 ```
 
 ## Limitations

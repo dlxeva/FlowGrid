@@ -43,7 +43,7 @@ The current result does not establish a statistically reliable Context Pack adva
 - `evals/scenarios/campaign-proposal/resume-prompt.md`
 - `evals/scenarios/campaign-proposal/raw-session.md`
 - `evals/scenarios/campaign-proposal/expected-context-pack.md`
-- Raw evaluator output: `/tmp/flg-manual-eval-20260716/`
+- Raw evaluator output: `<temp>/flg-manual-eval-20260716/`
 
 ## Decision
 
