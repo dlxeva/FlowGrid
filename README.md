@@ -2,8 +2,8 @@
 
 [English](./README.md) | [简体中文](./README.zh-CN.md)
 
-> A local project-state context engine for rationale-heavy, non-coding business projects.
-> Designed for AI agents to preserve state-aware judgments, project state, and reasoning chains in local files.
+> A local project-state context engine for people who use multiple AI agents and models on rationale-heavy, non-coding business projects.
+> It gives those agents one auditable local judgment state instead of asking each one to reconstruct project history.
 
 ![Stage](https://img.shields.io/badge/stage-v0.4--validation-4c6ef5)
 ![Runtime](https://img.shields.io/badge/runtime-local--first-2b8a3e)
@@ -24,12 +24,14 @@ It is built for long-running work where the deliverable is not just a document, 
 
 FlowGrid does not replay every conversation. It keeps raw evidence available,
 separates unconfirmed candidates from formal project state, and compiles the
-smallest trustworthy Context Pack for the next agent.
+smallest trustworthy Context Pack for whichever host or model continues next.
 
 ## Start in Your AI Host
 
 For Codex, Claude, Hermes, or another local agent host, the recommended entry
-point is the operator skill rather than manual CLI operation:
+point is the operator skill rather than manual CLI operation. FlowGrid lets a
+single knowledge worker carry the same reviewed state across those tools; it
+does not select models or orchestrate an agent team.
 
 ```bash
 pip install -e .
@@ -68,14 +70,15 @@ current host boundaries.
 - **Context-first:** agent startup should load bounded project state, not raw history dumps
 - **Judgment-aware:** decisions store why, rejected options, assumptions, and reversal conditions
 - **Background-safe writes:** the host processes routine patches without making the user operate a ledger workflow
-- **Host-agnostic:** works inside Codex, Hermes, OpenClaw, Claude, or any agent shell that can read files and run commands
+- **Host- and model-agnostic:** continue the same reviewed ledger from Codex, Hermes, OpenClaw, Claude, or any agent shell that can read files and run commands
 - **Business-project oriented:** built for proposals, campaigns, briefs, strategies, mechanisms, and retrospectives
 
 ## Synthetic Use Case: A Client Project Changes Direction
 
-After a client meeting disproves the original problem diagnosis, a new agent
-must not keep polishing the old proposal. FlowGrid keeps the changed direction,
-the evidence behind it, the rejected path, and the next action distinct.
+After a client meeting disproves the original problem diagnosis, a different
+agent or model must not keep polishing the old proposal. FlowGrid keeps the
+changed direction, the evidence behind it, the rejected path, and the next
+action distinct.
 
 [Read the synthetic client-solution continuation example →](./docs/use-cases/client-solution-continuation.md)
 
@@ -130,9 +133,12 @@ rebuildable local ledger state, and real-project continuation.
 
 ## What is FlowGrid?
 
-FlowGrid (FLG) is a local project-state context engine for rationale-heavy, non-coding business projects.
+FlowGrid (FLG) is a local project-state context engine for people who use
+multiple AI agents and models on rationale-heavy, non-coding business projects.
 
-It gives AI agents a durable local protocol for preserving project judgments, current state, pending changes, and handoff context across sessions.
+It gives those agents a durable local protocol for sharing project judgments,
+current state, pending changes, and handoff context across sessions and hosts.
+FlowGrid does not route models or manage an agent team.
 
 The core problem it addresses:
 
@@ -142,7 +148,9 @@ FlowGrid separates raw discussion, candidate judgments, reviewed decisions, pend
 
 ## Who is it for?
 
-FlowGrid is for business-project knowledge workers who own fuzzy projects and must repeatedly clarify, judge, revise, explain, and hand off project state.
+FlowGrid is for business-project knowledge workers who own fuzzy projects and
+move them across different AI agents or models as they repeatedly clarify,
+judge, revise, explain, and hand off project state.
 
 Typical roles include:
 

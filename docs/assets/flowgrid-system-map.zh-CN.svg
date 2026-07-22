@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1060" viewBox="0 0 1600 1060" fill="none" role="img" aria-labelledby="title desc">
+  <title id="title">FlowGrid 当前系统全景图</title>
+  <desc id="desc">展示 FlowGrid 当前的宿主集成、原始来源、候选状态、正式本地账本、可重建索引、上下文包与 Agent 续接关系。</desc>
+  <defs>
+    <linearGradient id="bg" x1="80" y1="60" x2="1520" y2="1010" gradientUnits="userSpaceOnUse"><stop stop-color="#0E151D"/><stop offset="1" stop-color="#102222"/></linearGradient>
+    <linearGradient id="ledger" x1="960" y1="349" x2="1300" y2="630" gradientUnits="userSpaceOnUse"><stop stop-color="#10534A"/><stop offset="1" stop-color="#0A7560"/></linearGradient>
+    <linearGradient id="host" x1="230" y1="208" x2="590" y2="418" gradientUnits="userSpaceOnUse"><stop stop-color="#263958"/><stop offset="1" stop-color="#315B78"/></linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="180%"><feDropShadow dx="0" dy="11" stdDeviation="12" flood-color="#010507" flood-opacity="0.34"/></filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth"><path d="M0 0L10 5L0 10" fill="none" stroke="#9BC8BD" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="amberArrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth"><path d="M0 0L10 5L0 10" fill="none" stroke="#F0B75F" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="mutedArrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth"><path d="M0 0L10 5L0 10" fill="none" stroke="#78949B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <style>
+      .kicker { font: 700 15px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 2.7px; fill: #A7C9C0; }
+      .heading { font: 700 31px "Noto Serif SC", "Songti SC", STSong, serif; fill: #FFF; }
+      .section { font: 700 12px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 1.7px; fill: #9BB5B1; }
+      .node-title { font: 700 21px "Noto Serif SC", "Songti SC", STSong, serif; fill: #FFF; }
+      .node-copy { font: 400 14px "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif; fill: #C4D4D2; }
+      .node-mono { font: 500 12px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #D8EEE8; }
+      .small { font: 400 12px "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif; fill: #99B3B0; }
+      .note { font: 600 13px "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif; fill: #DCECE8; }
+    </style>
+  </defs>
+  <rect width="1600" height="1060" rx="30" fill="url(#bg)"/>
+  <circle cx="1455" cy="105" r="260" fill="#267766" fill-opacity="0.14"/><circle cx="92" cy="985" r="265" fill="#355E91" fill-opacity="0.12"/>
+  <path d="M64 134H1536" stroke="#A8C9C1" stroke-opacity="0.22"/>
+  <text x="64" y="76" class="kicker">FLOWGRID / 当前系统全景图</text>
+  <text x="64" y="116" class="heading">一份经过审核的项目状态，跨 Agent 与模型续接。</text>
+  <text x="64" y="162" class="small">实线是当前已实现核心；虚线是派生状态与健康检查，不代表外部记忆平台。</text>
+
+  <text x="64" y="222" class="section">01 / 自然语言入口</text>
+  <g filter="url(#shadow)"><rect x="64" y="246" width="312" height="172" rx="18" fill="#1D2B36" stroke="#7696A2" stroke-opacity="0.6"/><rect x="88" y="271" width="84" height="25" rx="12.5" fill="#3C5364"/><text x="101" y="289" class="node-mono">用户</text><text x="88" y="334" class="node-title">正常推进项目</text><text x="88" y="366" class="node-copy">会议、文件、判断、修订</text><text x="88" y="387" class="node-copy">以及项目交接</text></g>
+  <path d="M396 332H446" stroke="#9BC8BD" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <g filter="url(#shadow)"><rect x="466" y="246" width="340" height="172" rx="18" fill="url(#host)" stroke="#83AFCB" stroke-opacity="0.72"/><rect x="490" y="271" width="128" height="25" rx="12.5" fill="#21466D"/><text x="502" y="289" class="node-mono">AI 宿主</text><text x="490" y="334" class="node-title">flowgrid-operator</text><text x="490" y="364" class="node-copy">Skill 识别“FLG”或“FlowGrid”</text><text x="490" y="386" class="node-copy">并在后台运行协议</text></g>
+  <path d="M636 438V492H310V538" stroke="#9BC8BD" stroke-width="2.5" stroke-linejoin="round" marker-end="url(#arrow)"/><path d="M736 438V538" stroke="#9BC8BD" stroke-width="2.5" stroke-linejoin="round" marker-end="url(#arrow)"/>
+
+  <text x="64" y="480" class="section">02 / 证据与暂存状态</text>
+  <g filter="url(#shadow)"><rect x="64" y="538" width="492" height="192" rx="18" fill="#1B2C2D" stroke="#709A90" stroke-opacity="0.58"/><rect x="88" y="563" width="128" height="25" rx="12.5" fill="#275E54"/><text x="100" y="581" class="node-mono">原始来源</text><text x="88" y="626" class="node-title">来源事件</text><text x="88" y="657" class="node-copy">原始会话、capture、closeout patch</text><text x="88" y="678" class="node-copy">和审核动作都可被追溯。</text><text x="88" y="708" class="small">`.flg/sessions/`  •  `.flg/captures/`  •  `.flg/patches/`</text></g>
+  <g filter="url(#shadow)"><rect x="576" y="538" width="360" height="192" rx="18" fill="#39352B" stroke="#D4AA65" stroke-opacity="0.72"/><rect x="600" y="563" width="153" height="25" rx="12.5" fill="#7B5928"/><text x="612" y="581" fill="#FFE8C3" class="node-mono">尚未成为正式事实</text><text x="600" y="626" class="node-title">候选状态</text><text x="600" y="657" class="node-copy">inferred • pending_review • assumption</text><text x="600" y="678" class="node-copy">模糊信息保持可见，不会被升级。</text><text x="600" y="708" fill="#F2BF69" class="small">候选判断不等于正式决策。</text></g>
+  <path d="M556 656H574" stroke="#9BC8BD" stroke-width="2.5" marker-end="url(#arrow)"/><path d="M956 634H1003" stroke="#F0B75F" stroke-width="2.5" marker-end="url(#amberArrow)"/>
+  <g filter="url(#shadow)"><rect x="1024" y="517" width="512" height="234" rx="18" fill="#262A30" stroke="#E2B865" stroke-opacity="0.7"/><rect x="1048" y="542" width="176" height="25" rx="12.5" fill="#74592B"/><text x="1060" y="560" fill="#FFE5B1" class="node-mono">宿主治理门</text><text x="1048" y="605" class="node-title">审核、归因与合并</text><text x="1048" y="636" class="node-copy">常规且可归因的变更可以在后台处理。</text><text x="1048" y="658" class="node-copy">重大或模糊的变更保持 pending，等待解决。</text><path d="M1048 682H1512" stroke="#E6C47F" stroke-opacity="0.34"/><text x="1048" y="713" fill="#F5D698" class="small">这是治理边界，不是在声称模型永远正确。</text></g>
+  <path d="M1280 771V821" stroke="#9BC8BD" stroke-width="2.5" marker-end="url(#arrow)"/>
+
+  <text x="1032" y="804" class="section">03 / 正式项目事实</text>
+  <g filter="url(#shadow)"><rect x="932" y="821" width="604" height="174" rx="18" fill="url(#ledger)" stroke="#8BCEBD" stroke-opacity="0.82"/><rect x="956" y="846" width="131" height="25" rx="12.5" fill="#083E35"/><text x="968" y="864" class="node-mono">本地账本</text><text x="956" y="909" class="node-title">人可读的正式状态</text><text x="956" y="941" class="node-copy">PROJECT · FRAMING · DECISIONS · SNAPSHOT · PROGRESS</text><text x="956" y="970" fill="#CFF5E8" class="small">confirmed • rejected • superseded • 当前边界与下一步</text></g>
+  <path d="M1280 995V1022H718V960" stroke="#78949B" stroke-width="2" stroke-dasharray="6 8" marker-end="url(#mutedArrow)"/>
+  <g filter="url(#shadow)"><rect x="576" y="821" width="336" height="174" rx="18" fill="#202E37" stroke="#6D9AB0" stroke-opacity="0.65"/><rect x="600" y="846" width="150" height="25" rx="12.5" fill="#2B5064"/><text x="612" y="864" class="node-mono">派生缓存</text><text x="600" y="909" class="node-title">索引与证据</text><text x="600" y="941" class="node-copy">用于更快生成 Context Pack 与追溯。</text><text x="600" y="970" fill="#B7D5E4" class="small">`flg reindex` 可从正式账本重建。</text></g>
+  <path d="M932 908H866V815H240V752" stroke="#9BC8BD" stroke-width="2.5" stroke-linejoin="round" marker-end="url(#arrow)"/>
+  <g filter="url(#shadow)"><rect x="64" y="752" width="492" height="243" rx="18" fill="#26324A" stroke="#8FA8DC" stroke-opacity="0.75"/><rect x="88" y="777" width="150" height="25" rx="12.5" fill="#3B5182"/><text x="100" y="795" class="node-mono">项目续接</text><text x="88" y="840" class="node-title">Context Pack + handoff</text><text x="88" y="872" class="node-copy">有限的启动上下文会告诉下一个宿主或模型：</text><circle cx="100" cy="905" r="4.5" fill="#83B9E8"/><text x="115" y="910" class="note">什么已经确认且仍然有效</text><circle cx="100" cy="934" r="4.5" fill="#F2BF69"/><text x="115" y="939" class="note">什么仍待确认或不确定</text><circle cx="100" cy="963" r="4.5" fill="#69E2B0"/><text x="115" y="968" class="note">项目应该从哪里继续</text></g>
+  <g filter="url(#shadow)"><rect x="1268" y="246" width="268" height="172" rx="18" fill="#1F3030" stroke="#74AAA0" stroke-opacity="0.65"/><rect x="1292" y="271" width="137" height="25" rx="12.5" fill="#236358"/><text x="1304" y="289" class="node-mono">健康检查</text><text x="1292" y="334" class="node-title">Doctor + reindex</text><text x="1292" y="365" class="node-copy">发现漂移，重建索引。</text><text x="1292" y="387" class="node-copy">账本始终是真实来源。</text></g>
+  <path d="M1402 438V515" stroke="#78949B" stroke-width="2" stroke-dasharray="6 8" marker-end="url(#mutedArrow)"/>
+  <rect x="64" y="1019" width="1472" height="1" fill="#A8C9C1" fill-opacity="0.22"/>
+  <text x="64" y="1045" class="small">边界：FlowGrid 是本地项目状态协议。它不替代宿主，不是通用 Agent Memory 平台，也不会把模型推断静默写成正式事实。</text>
+</svg>

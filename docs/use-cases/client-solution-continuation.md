@@ -6,8 +6,8 @@ work FlowGrid is designed to support without exposing a real client or project.
 ## Situation
 
 An independent solution owner is preparing an operations-improvement proposal
-for Client A. After two working sessions, a new client meeting changes the
-project:
+for Client A. They use one agent for research and another for writing. After two
+working sessions, a new client meeting changes the project:
 
 - the original problem diagnosis was based on secondary information;
 - a proposed automation path is technically possible, but not the immediate
@@ -15,8 +15,8 @@ project:
 - the next deliverable must become a discovery plan, not a full implementation
   proposal.
 
-Without durable project state, a new agent sees an old deck outline and may
-continue refining the wrong proposal.
+Without durable project state, the writing agent sees an old deck outline and
+may continue refining the wrong proposal.
 
 ## What FlowGrid keeps separate
 
@@ -29,8 +29,8 @@ continue refining the wrong proposal.
 
 ## Continuation Result
 
-The next agent starts with a bounded Context Pack instead of the full chat
-history. It can see:
+Whichever model or agent continues next starts with a bounded Context Pack
+instead of the full chat history. It can see:
 
 ```text
 Current objective: validate the real workflow before proposing implementation.
@@ -46,9 +46,9 @@ Next action: draft the discovery plan and list the evidence needed to reopen
 the implementation proposal.
 ```
 
-The value is not that FlowGrid decides for the owner. It preserves the reason
-the project changed, the boundary of the new direction, and what must be true
-before the old direction can return.
+The value is not that FlowGrid chooses or routes the model. It preserves the
+reason the project changed, the boundary of the new direction, and what must be
+true before the old direction can return.
 
 ## Run the Included Demo
 
