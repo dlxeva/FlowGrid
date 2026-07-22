@@ -26,6 +26,19 @@ FlowGrid does not replay every conversation. It keeps raw evidence available,
 separates unconfirmed candidates from formal project state, and compiles the
 smallest trustworthy Context Pack for whichever host or model continues next.
 
+<details>
+<summary><strong>See the current protocol system map</strong></summary>
+
+<br />
+
+![FlowGrid current system map](./docs/assets/flowgrid-system-map.svg)
+
+The map distinguishes implemented protocol state from rebuildable caches and
+health checks. It does not describe a generic agent-memory platform or model
+orchestration system.
+
+</details>
+
 ## Start in Your AI Host
 
 For Codex, Claude, Hermes, or another local agent host, the recommended entry
