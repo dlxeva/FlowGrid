@@ -26,10 +26,8 @@ Its job is to let project state, boundaries, judgments, progress, and next actio
 
 ## Current Verification
 
-- The pre-candidate mapped-runtime run yielded `174 passed` and one
-  narrow-terminal path-rendering failure
-- Goal-oriented local candidate passes `188` tests; it is not committed, merged,
-  released, or installed as the mapped runtime
+- PR #42 is merged into `master` at merge commit `73902fc`
+- The post-merge full suite passes `189` tests
 - `python scripts/smoke_test.py` passed
 - English-native deterministic gate passed
 - Real FlowGrid ledger audit passed with an expected undeclared-evidence-basis warning
@@ -41,10 +39,10 @@ Its job is to let project state, boundaries, judgments, progress, and next actio
 - Five isolated `gpt-5.4` campaign continuations and separately scored results show Context Pack is stable and better than no state, but not superior to clean raw history; see [the stability result](../../evals/results/continuation-stability-20260722.md)
 - Three repeated iteration-feedback patterns are now mapped to executable rules and verification in [the closure note](iteration-feedback-20260722.md)
 
-## Goal-Oriented Local Candidate
+## Goal-Oriented Reliability Integration
 
-The isolated `candidate/goal-oriented-opt-20260808` worktree addresses the
-highest-impact repeated failures without changing the v0.4 product boundary:
+PR #42 merged the goal-oriented reliability work into `master` at `73902fc`
+without changing the v0.4 product boundary:
 
 - attributed short user confirmations can bind to one unambiguous Assistant
   proposal while ambiguous choices abstain;
@@ -53,15 +51,16 @@ highest-impact repeated failures without changing the v0.4 product boundary:
 - `doctor` shows mapped runtime branch, HEAD, and dirty state;
 - `status` reports pending captures separately from patches;
 - `init` preserves the complete creation path in narrow terminals;
-- legacy Chinese ledger parsing and durable raw-source provenance fixes from an
-  unmerged development branch are included for integrated validation.
+- legacy Chinese ledger parsing and durable raw-source provenance fixes are
+  included in the merged integration.
 
 The real PBL confirmation transcript now produces one user-attributed candidate
 with the original confirmation and inline-code scope preserved. Formal ledger
 writes still require the existing review boundary.
 
-This candidate remains local. Passing tests do not establish external-host
-adoption or authorize commit, merge, release, or installation.
+The mapped runtime has been fast-forwarded to `73902fc` and verified with
+`189 passed`, a passing smoke test, and `flg doctor --strict`. External-host
+adoption and release/tag status remain unverified.
 
 ## Current Goal
 
@@ -73,9 +72,8 @@ Complete the v0.4 core loop:
 
 ## Immediate Priorities
 
-1. Review and integrate the isolated reliability candidate without overwriting
-   either protected dirty worktree.
-2. Make the repository `ITERATION_LOG.md` the canonical product feedback source;
+1. Validate the merged reliability behavior in continued real-project use.
+2. Use the repository `ITERATION_LOG.md` as the canonical product feedback source;
    preserve the Vault log as a legacy archive instead of continuing dual writes.
 3. Validate automatic session capture across Codex, ZCode, Hermes, and other supported hosts.
 4. Run isolated comparisons between no state, raw history, and FlowGrid Context Pack.
