@@ -157,3 +157,27 @@ def test_status_uses_patch_header_status_not_nested_candidate_status(tmp_path):
         assert "No pending patches needing review" in result.output
     finally:
         os.chdir(old_cwd)
+
+
+def test_status_reports_pending_captures_separately_from_patches(tmp_path):
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Capture Status Project"])
+        capture = runner.invoke(
+            app,
+            [
+                "capture", "add",
+                "--claim", "Keep the pilot narrow",
+                "--rationale", "Evidence is still limited",
+            ],
+        )
+        assert capture.exit_code == 0
+
+        result = runner.invoke(app, ["status"])
+        assert result.exit_code == 0
+        assert "No pending patches needing review" in result.output
+        assert "1 pending capture" in result.output
+        assert "judgment review" in result.output
+    finally:
+        os.chdir(old_cwd)

@@ -83,6 +83,38 @@ def test_context_pack_does_not_promote_pending_decision_status(tmp_path):
         confirmed_pack, _ = build_context_pack(tmp_path)
         confirmed = confirmed_pack.split("## Confirmed Decisions", 1)[1].split("## Pending Judgments", 1)[0]
         assert "Pending enterprise plan" not in confirmed
+
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_context_pack_reads_legacy_chinese_confirmed_entries_only(tmp_path):
+    """Chinese inline fields and level-three decision headings preserve status."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Legacy Chinese Context Test"])
+        (tmp_path / "DECISIONS.md").write_text(
+            """# 决策日志
+
+### D-001｜保留本地账本
+
+**状态**：✅ 已确认
+**决策**：保留本地账本作为可审计事实源。
+**依据**：团队可以直接检查和迁移。
+
+### D-002｜暂缓公开发布
+
+**状态**：⏳ 待确认
+**决策内容**：下周再决定公开发布。
+**依据**：等待更多用户反馈。
+""",
+            encoding="utf-8",
+        )
+        result = runner.invoke(app, ["context", "--print"])
+        assert result.exit_code == 0
+        assert "保留本地账本" in result.output
+        assert "暂缓公开发布" not in result.output
     finally:
         os.chdir(old_cwd)
 

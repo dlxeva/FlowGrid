@@ -3,6 +3,8 @@
 > 记录实际使用中暴露的问题。原则：先记录，不急改，边用边优化。
 > 同一问题被多次验证或痛点累积后再动手改，避免过早迭代引入噪音。
 > 格式：每次使用后追加一节，标注日期、场景、发现的问题、状态。
+> 权威入口：本文件是 FlowGrid 产品迭代事实源。Vault 中的同名文件保留为历史来源档案，不再作为并行写入口。
+> 新记录使用日期型稳定 ID（如 `FLG-ITER-20260808-01`），不再依赖会冲突的连续“发现 N”编号。
 
 ## 状态约定
 
@@ -11,6 +13,84 @@
 - `fixing`：正在改
 - `fixed`：已改（标注 commit / PR）
 - `wontfix`：评估后决定不改（写明理由）
+
+---
+
+## 2026-08-08：主线优化审计——迭代事实、运行时身份与待审状态发生分叉
+
+**场景**：项目主编排同时核对映射 runtime、Vault 治理层、遗留开发 worktree、`flg status`、`flg capture list`、`doctor --strict` 和全量测试。
+
+### FLG-ITER-20260808-01：三份迭代日志已形成并行事实源 [fixing — P0]
+
+**现象**：映射 runtime 的日志只有 137 行并带 8 月 6 日未提交记录；Vault 同名日志有 1777 行并记录到 8 月 4 日；遗留 `agent/english-ledger-closeout` 分支又包含一组 7 月 17—18 日记录。三份文件出现重复编号和不同状态。
+
+**影响**：不同 Agent 会从不同工作目录得到不同的产品优先级；同一缺陷可能在一份日志中仍是 `observed`，在另一份日志中已经跨项目复现为 `confirmed`。
+
+**处理方向**：代码仓本文件成为唯一产品迭代事实源；Vault 文件只保留为历史来源档案或生成镜像；迁移时保留来源路径、原日期和原状态，不删除历史文件。规则见 `docs/product/iteration-log-governance.md`。
+
+### FLG-ITER-20260808-02：短确认与用户方向归因已跨项目重复 [fixing — P0]
+
+**现象**：五个相互独立的产品、恢复和市场验证项目均出现“Assistant 展开方案 + User 回复同意/可以/没问题”后 closeout 漏掉真实方向，或只生成 Assistant shell candidate。历史来源 `vault@2026-07-22#96`、`vault@2026-07-31#100`、`vault@2026-08-01#105`、`vault@2026-08-04#110` 与本轮会话属于同一模式。
+
+**影响**：安全门阻止了错误写入，但重要方向仍依赖宿主人工补账；只依赖 closeout 的宿主会静默丢失用户已经确认的决策。
+
+**处理方向**：只在前文存在单一明确方案时，将短确认绑定为带 `source_actor=user`、确认原文和方案范围的 candidate；多方案或歧义上下文 abstain；candidate 仍须经过 review，不得自动写正式账本。
+
+**候选验证**：隔离候选已补合成回归与真实 PBL Markdown 会话回放；原始确认、`source_actor=user` 和带 inline code 的确认范围均保留。状态仍为 `fixing`，等待主线集成门。
+
+### FLG-ITER-20260808-03：Project identity 通过不代表映射 runtime 可复现 [fixing — P0]
+
+**现象**：repo-map 的 ledger root、code repo 和 HEAD commit 均匹配时，映射 runtime 即使存在未提交代码，`doctor --strict` 仍显示 `Project identity OK`。
+
+**影响**：主编排无法区分远端可复现基线与本地候选行为，测试和账本维护可能实际运行在未记录的代码上。
+
+**处理方向**：runtime attestation 同时报告 branch、HEAD 和 dirty state；没有 repo-map 的普通项目保持兼容；strict 行为必须显式、可测试。
+
+**候选验证**：隔离候选能在真实治理根显示映射 branch、HEAD 与 `dirty (4 changes)`；branch/HEAD 漂移使 strict 失败，dirty 当前只告警。状态仍为 `fixing`。
+
+### FLG-ITER-20260808-04：status 未显示 pending captures [fixing — P1]
+
+**现象**：`flg status` 显示没有待审 patch，但同一项目的 `flg capture list` 有 4 个 `pending_review` capture。
+
+**影响**：自然语言宿主和接手 Agent 容易把“没有 patch”误读成“没有待审判断”。
+
+**处理方向**：status 独立汇总 pending captures，不把 capture 和 patch 合并成同一种生命周期。
+
+**候选验证**：隔离候选在真实治理根同时显示“无 pending patch”和“4 pending captures”。状态仍为 `fixing`。
+
+### FLG-ITER-20260808-05：init 创建路径在窄终端被截断 [fixing — P2]
+
+**现象**：全量测试在默认窄终端下为 `174 passed, 1 failed`；失败用例显示 `Created in:` 的长路径被 Rich 截断。将终端宽度扩大后用例通过。
+
+**影响**：用户在最需要确认项目落点的首次初始化阶段，可能看不到完整目录。
+
+**处理方向**：路径输出使用不截断的 plain/overflow-safe 渲染，并保留窄终端回归测试。
+
+**候选验证**：30 列终端宽度回归通过；完整候选测试为 `188 passed`。状态仍为 `fixing`。
+
+### FLG-ITER-20260808-06：Context Pack 的近期状态与长期叙事需要分层召回 [confirmed — P1]
+
+**现象**：历史评估已经证明 Context Pack 对短而干净的原始历史并不占优；另有真实任务分别出现旧 Next Actions 继续进入 resume pack，以及早期产品母叙事未被默认 pack 召回。来源簇：`vault@2026-07-22#90`、`vault@2026-08-01#104`、`vault@2026-08-04#112`。
+
+**影响**：无差别扩大默认上下文会破坏压缩价值，只保留最近状态又可能让品牌、叙事和长期策略任务缺少关键历史。
+
+**处理方向**：保持默认 resume pack 有界；后续以显式任务意图或主题查询实验“近期执行状态 + 长期母叙事”分层召回，并把 stale/superseded 检查放在增加更多内容之前。
+
+### FLG-ITER-20260808-07：长期判断账本与任务执行层仍靠宿主纪律交接 [observed — P1]
+
+**现象**：多个任务级沙盒和实时控制实验表明，FLG 能提供长期边界，执行层能提供 scope、验收和当前任务状态，但二者之间尚无最小、可审计的交接字段。pending captures 对 status 不可见是这一问题的一个具体表现。来源簇：`vault@2026-07-27#97-99`、`vault@2026-08-01#102`。
+
+**影响**：宿主漏读长期边界或漏回写重要执行证据时，项目状态与实际推进会分叉。
+
+**处理方向**：先固定最小交接字段（decision/evidence 引用、task id、scope、validation、completion evidence），不把任务调度并入 FLG Core；跨项目重复后再考虑机器校验。
+
+### FLG-ITER-20260808-08：阶段、锚点和旧 patch 的生命周期仍不完整 [confirmed — P1]
+
+**现象**：已修复的 rejected/superseded 过滤不能覆盖全部生命周期问题。真实项目仍出现 framing 完整后阶段停留在 initialized、多版本锚点缺少 current/freshness 入口，以及目标文件已经补齐但旧 frame patch 仍需人工 supersede。来源簇：`dev-worktree@2026-07-18#14-15`、`vault@2026-07-31#101`、`vault@2026-08-04#111`。
+
+**影响**：结构健康的项目仍可能暴露过期阶段、锚点或待办，接手 Agent 需要从多个文件人工推断当前状态。
+
+**处理方向**：分别设计 stage 变更、锚点 freshness 和同源旧 patch 收口，不以一个新的总状态机同时解决；本轮先保留为下一阶段 backlog。
 
 ---
 
