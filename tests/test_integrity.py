@@ -2,6 +2,7 @@
 
 import json
 import os
+import subprocess
 
 from typer.testing import CliRunner
 
@@ -41,6 +42,44 @@ def test_reindex_rebuilds_index_from_formal_ledger(tmp_path):
         assert "D-999" not in data["items"]
         assert any("local ledger as source of truth" in item["title"] for item in data["items"].values())
         assert data["rebuilt_from"] == "DECISIONS.md"
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_reindex_discards_provenance_when_a_decision_id_is_reused(tmp_path):
+    """A historical index entry must not leak evidence into a new decision."""
+    old_cwd = _project(tmp_path)
+    try:
+        decisions = tmp_path / "DECISIONS.md"
+        decisions.write_text(
+            """# Decision Log
+
+## D-001 | Current decision
+
+### 最终决策
+Use the current evidence.
+
+### 决策理由
+The project facts changed.
+""",
+            encoding="utf-8",
+        )
+        index_path = tmp_path / ".flg" / "context" / "evidence_index.json"
+        index_path.parent.mkdir(parents=True, exist_ok=True)
+        index_path.write_text(
+            json.dumps(
+                {"version": 1, "items": {"D-001": {"title": "Current decision", "source_type": "review_action", "source_excerpt": "old", "source_patch": "old.patch"}}},
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
+
+        result = runner.invoke(app, ["reindex"])
+        assert result.exit_code == 0
+        item = json.loads(index_path.read_text(encoding="utf-8"))["items"]["D-001"]
+        assert item["source_excerpt"] == "Use the current evidence."
+        assert item["source_type"] == "ledger_rebuild"
+        assert "source_patch" not in item
     finally:
         os.chdir(old_cwd)
 
@@ -147,6 +186,30 @@ def test_reindex_builds_stable_source_episodes_and_trace_reads_them(tmp_path):
         assert trace.exit_code == 0
         assert "Source Episodes" in trace.output
         assert "DECISIONS.md#D-001" in trace.output
+
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_reindex_keeps_decision_content_that_mentions_a_title(tmp_path):
+    """A real decision may discuss a working title without becoming template noise."""
+    old_cwd = _project(tmp_path)
+    try:
+        (tmp_path / "DECISIONS.md").write_text(
+            """# 决策日志
+
+### D-001｜融合选题
+
+**状态**：⏳ 待确认
+**决策内容**：形成一篇文章，工作标题《AI 进组织，是长出来》。
+**依据**：已有案例和外部框架可以互相印证。
+""",
+            encoding="utf-8",
+        )
+        result = runner.invoke(app, ["reindex"])
+        assert result.exit_code == 0
+        data = json.loads((tmp_path / ".flg" / "context" / "evidence_index.json").read_text())
+        assert data["items"]["D-001"]["status"] == "pending_review"
     finally:
         os.chdir(old_cwd)
 
@@ -188,8 +251,8 @@ def test_doctor_reports_broken_source_episode(tmp_path):
         os.chdir(old_cwd)
 
 
-def test_doctor_reports_legacy_decision_entries_instead_of_false_ok(tmp_path):
-    """Legacy short-form decisions must be visible as migration work."""
+def test_reindex_accepts_legacy_inline_chinese_decision_fields(tmp_path):
+    """Legacy Chinese decision entries remain usable without forced rewriting."""
     old_cwd = _project(tmp_path)
     try:
         (tmp_path / "DECISIONS.md").write_text(
@@ -205,12 +268,11 @@ def test_doctor_reports_legacy_decision_entries_instead_of_false_ok(tmp_path):
             encoding="utf-8",
         )
 
-        result = runner.invoke(app, ["doctor"])
+        result = runner.invoke(app, ["reindex"])
         assert result.exit_code == 0
-        assert "Needs attention" in result.output
-        assert "Unparsed decision entries" in result.output
-        assert "unparsed_decisions:" in result.output
-        assert "D-001" in result.output
+        data = json.loads((tmp_path / ".flg" / "context" / "evidence_index.json").read_text())
+        assert data["items"]["D-001"]["status"] == "confirmed"
+        assert "一期只做核心试点" in data["items"]["D-001"]["source_excerpt"]
     finally:
         os.chdir(old_cwd)
 
@@ -268,5 +330,73 @@ def test_doctor_reports_pending_state_when_patch_file_is_closed(tmp_path):
         assert "Closed patches still pending" in result.output
         assert "merged_pending:" in result.output
         assert "drifted" in result.output
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_doctor_reports_mapped_runtime_identity_and_dirty_state(tmp_path):
+    old_cwd = _project(tmp_path)
+    try:
+        assert runner.invoke(app, ["reindex"]).exit_code == 0
+        repo = tmp_path / "runtime"
+        repo.mkdir()
+        subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True)
+        subprocess.run(["git", "config", "user.email", "flowgrid@example.test"], cwd=repo, check=True)
+        subprocess.run(["git", "config", "user.name", "FlowGrid Test"], cwd=repo, check=True)
+        (repo / "tracked.txt").write_text("clean\n", encoding="utf-8")
+        subprocess.run(["git", "add", "tracked.txt"], cwd=repo, check=True)
+        subprocess.run(["git", "commit", "-m", "initial"], cwd=repo, check=True, capture_output=True)
+        head = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=repo, check=True, capture_output=True, text=True
+        ).stdout.strip()
+        (repo / "tracked.txt").write_text("dirty\n", encoding="utf-8")
+        (tmp_path / ".flg" / "repo-map.json").write_text(
+            json.dumps({"code_repo": str(repo), "branch": "main", "remote_commit": head}),
+            encoding="utf-8",
+        )
+
+        result = runner.invoke(app, ["doctor", "--strict"])
+        assert result.exit_code == 0
+        assert "Runtime branch" in result.output
+        assert "main (expected main)" in result.output
+        assert "Runtime HEAD" in result.output
+        assert head[:12] in result.output
+        assert "dirty (1 change(s))" in result.output
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_doctor_strict_fails_on_mapped_runtime_identity_mismatch(tmp_path):
+    old_cwd = _project(tmp_path)
+    try:
+        assert runner.invoke(app, ["reindex"]).exit_code == 0
+        repo = tmp_path / "runtime"
+        repo.mkdir()
+        subprocess.run(["git", "init", "-b", "actual"], cwd=repo, check=True, capture_output=True)
+        subprocess.run(["git", "config", "user.email", "flowgrid@example.test"], cwd=repo, check=True)
+        subprocess.run(["git", "config", "user.name", "FlowGrid Test"], cwd=repo, check=True)
+        (repo / "tracked.txt").write_text("content\n", encoding="utf-8")
+        subprocess.run(["git", "add", "tracked.txt"], cwd=repo, check=True)
+        subprocess.run(["git", "commit", "-m", "initial"], cwd=repo, check=True, capture_output=True)
+        (tmp_path / ".flg" / "repo-map.json").write_text(
+            json.dumps({"code_repo": str(repo), "branch": "expected", "remote_commit": "0" * 40}),
+            encoding="utf-8",
+        )
+
+        result = runner.invoke(app, ["doctor", "--strict"])
+        assert result.exit_code == 1
+        assert "branch mismatch" in result.output
+        assert "HEAD mismatch" in result.output
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_doctor_strict_ignores_runtime_identity_when_repo_map_is_absent(tmp_path):
+    old_cwd = _project(tmp_path)
+    try:
+        assert runner.invoke(app, ["reindex"]).exit_code == 0
+        result = runner.invoke(app, ["doctor", "--strict"])
+        assert result.exit_code == 0
+        assert "not configured (no repo-map)" in result.output
     finally:
         os.chdir(old_cwd)

@@ -8,6 +8,7 @@ from typing import Optional
 import typer
 from rich.console import Console
 from rich.table import Table
+from rich.text import Text
 
 from ..core.files import ensure_dir, is_flg_project, safe_write
 from ..core.i18n import normalize_language
@@ -252,7 +253,9 @@ def init_project(
     # Display results
     console.print()
     console.print(f"[bold green]✓ FlowGrid project initialized: {project_name}[/bold green]")
-    console.print(f"[dim]Created in: {root}[/dim]")
+    creation_path = Text("Created in: ", style="dim")
+    creation_path.append(str(root), style="dim")
+    console.print(creation_path, soft_wrap=True)
     console.print()
 
     table = Table(title="Files Created")

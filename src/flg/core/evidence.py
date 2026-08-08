@@ -13,7 +13,7 @@ EVIDENCE_INDEX_PATH = Path(".flg") / "context" / "evidence_index.json"
 
 # Accept both the ASCII separator emitted by current templates and the fullwidth
 # separator used by existing Chinese ledgers.
-_DECISION_HEADING = re.compile(r"^##\s+(D-\d+)\s*[|｜]\s*(.+)$", re.MULTILINE)
+_DECISION_HEADING = re.compile(r"^#{2,3}\s+(D-\d+)\s*[|｜]\s*(.+)$", re.MULTILINE)
 _PLACEHOLDER_MARKERS = ("标题", "d-xxx", "[title]", "[decision title]")
 _PROVENANCE_FIELDS = (
     "source_patch",
@@ -106,7 +106,16 @@ def enrich_source_episodes(root: Path, index: dict[str, Any]) -> dict[str, Any]:
 
 def normalize_decision_status(value: str) -> str:
     """Normalize ledger status text without discarding historical annotations."""
-    normalized = value.strip().lower()
+    raw = value.strip()
+    normalized = raw.lower()
+    if "待确认" in raw:
+        return "pending_review"
+    if "已确认" in raw:
+        return "confirmed"
+    if "拒绝" in raw:
+        return "rejected"
+    if "废弃" in raw:
+        return "superseded"
     for status in (
         "pending_review",
         "needs_recheck",
@@ -132,12 +141,24 @@ def _section(block: str, headings: tuple[str, ...]) -> str:
         block,
         re.MULTILINE,
     )
-    return match.group(1).strip() if match else ""
+    if match:
+        return match.group(1).strip()
+
+    # Legacy Chinese ledgers commonly record fields as bold inline labels,
+    # such as "**决策**：...". Keep them readable and indexable while they
+    # are progressively migrated to the template heading format.
+    inline_pattern = "|".join(re.escape(heading) for heading in headings)
+    inline = re.search(
+        rf"^(?:-\s+)?\*\*(?:{inline_pattern})\*\*[：:]\s*(.+?)(?=^(?:-\s+)?\*\*|^###\s|^##\s|\Z)",
+        block,
+        re.MULTILINE | re.DOTALL,
+    )
+    return inline.group(1).strip() if inline else ""
 
 
 def _is_placeholder(value: str) -> bool:
     lowered = value.strip().lower()
-    return not lowered or any(marker.lower() in lowered for marker in _PLACEHOLDER_MARKERS)
+    return not lowered or lowered in {marker.lower() for marker in _PLACEHOLDER_MARKERS}
 
 
 def parse_decisions_ledger(content: str) -> list[dict[str, str]]:
@@ -154,18 +175,18 @@ def parse_decisions_ledger(content: str) -> list[dict[str, str]]:
         block = content[match.start():end]
         decision_id = match.group(1)
         title = match.group(2).strip()
-        what_decided = _section(block, ("最终决策", "Final Decision"))
-        rationale = _section(block, ("决策理由", "Decision Rationale"))
+        what_decided = _section(block, ("最终决策", "Final Decision", "决策", "Decision", "决策内容", "当前表述"))
+        rationale = _section(block, ("决策理由", "Decision Rationale", "依据"))
         alternatives = _section(block, ("备选方案", "Alternatives"))
         rejected = _section(block, ("放弃理由", "Rejected Alternatives"))
         reversal = _section(block, ("复盘入口", "Reversal Conditions"))
-        status = normalize_decision_status(_section(block, ("决策状态", "Status")))
+        status = normalize_decision_status(_section(block, ("决策状态", "Status", "状态")))
         if _is_placeholder(title) or _is_placeholder(what_decided):
             continue
 
         source_match = re.search(r"^\*.*?\|\s*Source:\s*(.*?)\*\s*$", block, re.MULTILINE)
-        source = source_match.group(1).strip() if source_match else ""
-        if "用户明确指令" in source or "user_confirmation" in source:
+        source = source_match.group(1).strip() if source_match else _section(block, ("证据来源", "Evidence"))
+        if "用户明确指令" in source or "用户原话" in source or "user_confirmation" in source:
             source_type = "user_confirmation"
         elif "capture" in source.lower():
             source_type = "capture_review"
@@ -234,21 +255,31 @@ def rebuild_evidence_index(root: Path) -> dict[str, Any]:
     for decision in parse_decisions_ledger(content):
         decision_id = decision["decision_id"]
         old = old_items.get(decision_id, {})
+        same_decision = old.get("title") == decision["title"]
+        # Preserve durable raw-source links for an unchanged judgment even if
+        # its rebuilt ledger classification becomes less specific. A patch-only
+        # link is not sufficient: it may belong to an earlier decision that
+        # reused the same ID and title.
+        has_durable_raw_source = bool(old.get("source_session") or old.get("source_capture"))
+        same_provenance = same_decision and (
+            old.get("source_type") == decision["source_type"] or has_durable_raw_source
+        )
         item: dict[str, Any] = {
             "decision_id": decision_id,
             "status": decision["status"],
             "authority": old.get("authority", "high"),
-            "source_type": old.get("source_type") or decision["source_type"],
-            "source_excerpt": old.get("source_excerpt") or decision["what_decided"],
+            "source_type": old.get("source_type") if same_provenance and old.get("source_type") else decision["source_type"],
+            "source_excerpt": old.get("source_excerpt") if same_provenance and old.get("source_excerpt") else decision["what_decided"],
             "title": decision["title"],
             "rationale": decision["rationale"],
             "alternatives": decision["alternatives"],
             "rejected_alternatives": decision["rejected_alternatives"],
             "reversal_conditions": decision["reversal_conditions"],
         }
-        for field in _PROVENANCE_FIELDS:
-            if old.get(field):
-                item[field] = old[field]
+        if same_provenance:
+            for field in _PROVENANCE_FIELDS:
+                if old.get(field):
+                    item[field] = old[field]
         items[decision_id] = item
 
     return enrich_source_episodes(root, {

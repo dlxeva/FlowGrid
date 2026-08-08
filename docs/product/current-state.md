@@ -1,6 +1,6 @@
 # FlowGrid Current State
 
-Last updated: 2026-07-22
+Last updated: 2026-08-08
 Primary branch: `master`
 Current code version: `v0.3.0`
 Current stage: `v0.4 core validation`
@@ -26,7 +26,10 @@ Its job is to let project state, boundaries, judgments, progress, and next actio
 
 ## Current Verification
 
-- `174` tests passed
+- The pre-candidate mapped-runtime run yielded `174 passed` and one
+  narrow-terminal path-rendering failure
+- Goal-oriented local candidate passes `188` tests; it is not committed, merged,
+  released, or installed as the mapped runtime
 - `python scripts/smoke_test.py` passed
 - English-native deterministic gate passed
 - Real FlowGrid ledger audit passed with an expected undeclared-evidence-basis warning
@@ -38,6 +41,28 @@ Its job is to let project state, boundaries, judgments, progress, and next actio
 - Five isolated `gpt-5.4` campaign continuations and separately scored results show Context Pack is stable and better than no state, but not superior to clean raw history; see [the stability result](../../evals/results/continuation-stability-20260722.md)
 - Three repeated iteration-feedback patterns are now mapped to executable rules and verification in [the closure note](iteration-feedback-20260722.md)
 
+## Goal-Oriented Local Candidate
+
+The isolated `candidate/goal-oriented-opt-20260808` worktree addresses the
+highest-impact repeated failures without changing the v0.4 product boundary:
+
+- attributed short user confirmations can bind to one unambiguous Assistant
+  proposal while ambiguous choices abstain;
+- explicit standing user directives remain candidates rather than open
+  questions, while routine edit requests are not promoted;
+- `doctor` shows mapped runtime branch, HEAD, and dirty state;
+- `status` reports pending captures separately from patches;
+- `init` preserves the complete creation path in narrow terminals;
+- legacy Chinese ledger parsing and durable raw-source provenance fixes from an
+  unmerged development branch are included for integrated validation.
+
+The real PBL confirmation transcript now produces one user-attributed candidate
+with the original confirmation and inline-code scope preserved. Formal ledger
+writes still require the existing review boundary.
+
+This candidate remains local. Passing tests do not establish external-host
+adoption or authorize commit, merge, release, or installation.
+
 ## Current Goal
 
 Complete the v0.4 core loop:
@@ -48,12 +73,16 @@ Complete the v0.4 core loop:
 
 ## Immediate Priorities
 
-1. Validate automatic session capture across Codex, ZCode, Hermes, and other supported hosts.
-2. Run isolated comparisons between no state, raw history, and FlowGrid Context Pack.
-3. Measure repeated explanation, revived rejected directions, candidate/fact confusion, hallucinated project facts, and user correction count.
-4. Run one explicitly authorized external-host continuation. Measure raw transcript availability, speaker-label preservation, candidate false positives/negatives, user CLI burden, and fresh-agent recovery.
-5. Validate BIZ-to-FLG handoff with a real meeting that has explicit participant metadata. This is one meeting-input path, not the v0.4 product center.
-6. Keep `DECISIONS.md` as formal truth and avoid adding new cognitive abstractions until the loop is proven.
+1. Review and integrate the isolated reliability candidate without overwriting
+   either protected dirty worktree.
+2. Make the repository `ITERATION_LOG.md` the canonical product feedback source;
+   preserve the Vault log as a legacy archive instead of continuing dual writes.
+3. Validate automatic session capture across Codex, ZCode, Hermes, and other supported hosts.
+4. Run isolated comparisons between no state, raw history, and FlowGrid Context Pack.
+5. Measure repeated explanation, revived rejected directions, candidate/fact confusion, hallucinated project facts, and user correction count.
+6. Run one explicitly authorized external-host continuation. Measure raw transcript availability, speaker-label preservation, candidate false positives/negatives, user CLI burden, and fresh-agent recovery.
+7. Validate BIZ-to-FLG handoff with a real meeting that has explicit participant metadata. This is one meeting-input path, not the v0.4 product center.
+8. Keep `DECISIONS.md` as formal truth and avoid adding new cognitive abstractions until the loop is proven.
 
 ## Deferred
 
@@ -74,3 +103,5 @@ Complete the v0.4 core loop:
 2. `docs/product/future-direction.md`
 3. `docs/product/judgment-capture-pipeline.md`
 4. `docs/protocol.md`
+5. `ITERATION_LOG.md`
+6. `docs/product/iteration-log-governance.md`

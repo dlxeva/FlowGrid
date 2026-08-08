@@ -1165,3 +1165,160 @@ def test_closeout_removed_weak_keywords_dont_fire(tmp_path):
         assert "(no candidate decisions extracted)" in decision_section
     finally:
         os.chdir(old_cwd)
+
+
+def test_closeout_binds_short_user_confirmation_to_one_assistant_proposal(tmp_path):
+    """A brief user acceptance should preserve both user evidence and proposal scope."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Short Confirmation Test"])
+        transcript = tmp_path / "short-confirmation.md"
+        transcript.write_text(
+            """Assistant: 我建议只保留本地 SQLite 账本，并由 review 决定是否采纳候选。
+User: 可以。
+""",
+            encoding="utf-8",
+        )
+
+        result = runner.invoke(app, ["closeout", "--transcript", str(transcript), "--no-llm"])
+        assert result.exit_code == 0
+        patch = next((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
+        decision_section = patch.read_text().split("## 2. Candidate Decisions")[1].split("## 3.")[0]
+
+        assert decision_section.count("candidate_id:") == 1
+        assert "decision_type: user_confirmation_of_assistant_proposal" in decision_section
+        assert "source_excerpt: > User: 可以。" in decision_section
+        assert "source_actor: user" in decision_section
+        assert "confirmed_scope: > Assistant: 我建议只保留本地 SQLite 账本" in decision_section
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_closeout_binds_confirmation_across_markdown_proposal_continuations(tmp_path):
+    """Markdown quote continuations remain part of one attributed assistant turn."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Markdown Confirmation Test"])
+        transcript = tmp_path / "markdown-confirmation.md"
+        transcript.write_text(
+            """User: 我们应该单独做一个 skill，还是合到现有系统？
+
+Assistant: 我的明确建议：
+
+> 做一个独立的轻量 `pbl-loop` Skill；现有系统保持项目账本边界。
+
+Assistant: 所以最终选择是：独立 `pbl-loop` Skill 读取现有账本，但不成为账本的一部分。
+
+**
+
+User: 可以，没问题
+""",
+            encoding="utf-8",
+        )
+
+        result = runner.invoke(app, ["closeout", "--transcript", str(transcript), "--no-llm"])
+        assert result.exit_code == 0
+        patch = next((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
+        decision_section = patch.read_text().split("## 2. Candidate Decisions")[1].split("## 3.")[0]
+        assert "decision_type: user_confirmation_of_assistant_proposal" in decision_section
+        assert "source_excerpt: > User: 可以，没问题" in decision_section
+        assert "source_actor: user" in decision_section
+        assert "confirmed_scope: > Assistant: 所以最终选择是" in decision_section
+        assert "`pbl-loop`" in decision_section
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_closeout_abstains_when_short_confirmation_follows_multiple_proposals(tmp_path):
+    """A short acceptance cannot select between multiple assistant proposals."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Ambiguous Confirmation Test"])
+        transcript = tmp_path / "ambiguous-confirmation.md"
+        transcript.write_text(
+            """Assistant: 方案 A 是使用 SQLite，方案 B 是使用 JSON 文件。
+Assistant: 两个方案都可以，你选择其一。
+User: 没问题。
+""",
+            encoding="utf-8",
+        )
+
+        result = runner.invoke(app, ["closeout", "--transcript", str(transcript), "--no-llm"])
+        assert result.exit_code == 0
+        patch = next((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
+        decision_section = patch.read_text().split("## 2. Candidate Decisions")[1].split("## 3.")[0]
+        assert "(no candidate decisions extracted)" in decision_section
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_closeout_does_not_bind_assistant_self_confirmation_as_user_confirmation(tmp_path):
+    """Assistant self-confirmation stays assistant-authored and cannot bind a proposal."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Assistant Self Confirmation Test"])
+        transcript = tmp_path / "assistant-self-confirmation.md"
+        transcript.write_text("Assistant: 我确认采用 SQLite 方案。\n", encoding="utf-8")
+
+        result = runner.invoke(app, ["closeout", "--transcript", str(transcript), "--no-llm"])
+        assert result.exit_code == 0
+        patch = next((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
+        decision_section = patch.read_text().split("## 2. Candidate Decisions")[1].split("## 3.")[0]
+        assert "decision_type: user_confirmation_of_assistant_proposal" not in decision_section
+        assert "source_actor: assistant" in decision_section
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_closeout_classifies_user_imperative_rule_without_open_question(tmp_path):
+    """An attributed imperative rule is a candidate constraint, not an open question."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "User Directive Test"])
+        transcript = tmp_path / "user-directive.md"
+        transcript.write_text(
+            """User: 所有候选必须保留用户原文。
+User: 需要先确认真实代码根再运行验收。
+""",
+            encoding="utf-8",
+        )
+
+        result = runner.invoke(app, ["closeout", "--transcript", str(transcript), "--no-llm"])
+        assert result.exit_code == 0
+        patch = next((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
+        content = patch.read_text()
+        decision_section = content.split("## 2. Candidate Decisions")[1].split("## 3.")[0]
+        question_section = content.split("## 5. Open Questions")[1].split("## 6.")[0]
+
+        assert "decision_type: user_directive" in decision_section
+        assert decision_section.count("decision_type: user_directive") == 2
+        assert "source_excerpt: > User: 所有候选必须保留用户原文。" in decision_section
+        assert "source_excerpt: > User: 需要先确认真实代码根再运行验收。" in decision_section
+        assert "source_actor: user" in decision_section
+        assert "所有候选" not in question_section
+        assert "真实代码根" not in question_section
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_closeout_does_not_promote_routine_user_task_as_standing_directive(tmp_path):
+    """A routine edit request is work, not automatically a durable project rule."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Routine Task Test"])
+        transcript = tmp_path / "routine-task.md"
+        transcript.write_text("User: 把 README 里的例子改一下。\n", encoding="utf-8")
+
+        result = runner.invoke(app, ["closeout", "--transcript", str(transcript), "--no-llm"])
+        assert result.exit_code == 0
+        patch = next((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
+        decision_section = patch.read_text().split("## 2. Candidate Decisions")[1].split("## 3.")[0]
+        assert "decision_type: user_directive" not in decision_section
+    finally:
+        os.chdir(old_cwd)

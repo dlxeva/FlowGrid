@@ -262,6 +262,23 @@ def test_init_output_shows_creation_path(tmp_path):
         os.chdir(old_cwd)
 
 
+def test_init_creation_path_is_not_truncated_in_narrow_terminal(tmp_path):
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        target = tmp_path / "a-very-long-project-directory-name"
+        result = runner.invoke(
+            app,
+            ["init", "Narrow Terminal Test", "--dir", str(target)],
+            terminal_width=30,
+        )
+        assert result.exit_code == 0
+        assert f"Created in: {target}" in result.output
+        assert "…" not in result.output.split("Created in:", 1)[1].split("Files Created", 1)[0]
+    finally:
+        os.chdir(old_cwd)
+
+
 def test_init_existing_project_shows_location(tmp_path):
     """When init hits an existing FLG project, show its path."""
     old_cwd = os.getcwd()

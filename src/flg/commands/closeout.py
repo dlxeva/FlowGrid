@@ -331,6 +331,100 @@ def source_actor_for_segment(segment: str) -> str:
     return "unknown"
 
 
+def _segment_utterance(segment: str) -> str:
+    """Return transcript text without its leading speaker label."""
+    return re.sub(
+        r"^\s*(?:user|human|client|customer|assistant|agent|ai|用户|客户|甲方|助手|系统)\s*[:：]\s*",
+        "",
+        segment,
+        flags=re.IGNORECASE,
+    ).strip()
+
+
+def is_short_user_confirmation(segment: str) -> bool:
+    """Recognize a brief user acceptance that needs proposal context to be useful."""
+    if source_actor_for_segment(segment) != "user":
+        return False
+    utterance = _segment_utterance(segment).strip().lower().rstrip(".!。！")
+    confirmation_phrases = {
+        "同意", "可以", "没问题", "就这么做", "就按这个做", "就按这个", "好", "好的", "行",
+        "agreed", "sounds good", "go ahead", "do that", "let's do that",
+    }
+    if utterance in confirmation_phrases:
+        return True
+    parts = [part.strip() for part in re.split(r"[，,、/]", utterance) if part.strip()]
+    return 1 < len(parts) <= 3 and all(part in confirmation_phrases for part in parts)
+
+
+def is_user_directive(segment: str) -> bool:
+    """Return True for an attributed, imperative user rule or constraint."""
+    if source_actor_for_segment(segment) != "user":
+        return False
+    utterance = _segment_utterance(segment).strip()
+    if "?" in utterance or "？" in utterance:
+        return False
+    directive_patterns = (
+        r"^(?:始终|一律|统一|只能|只允许|必须|务必|不得|严禁|禁止|不要|永远不要)",
+        r"^[^，。；]{1,24}(?:始终|一律|只能|只允许|必须|不得|严禁|禁止)",
+        r"^需要(?:先)?(?:确认|复核|保留|记录|使用|检查|验证|写明)",
+        r"^请(?:确保|避免|保留|记录|写明|标记|限制)",
+        r"^(?:always|never|must|must not|only|do not|don't)\b",
+        r"^[^,.;]{1,24}\b(?:must|must not|should never|may only)\b",
+    )
+    return bool(match_pattern(utterance, list(directive_patterns)))
+
+
+def confirmed_assistant_scope(segments: list[str], confirmation_index: int) -> str | None:
+    """Bind a short user confirmation only to one unambiguous assistant proposal."""
+    assistant_block: list[str] = []
+    explicit_assistant_segments: list[str] = []
+    cursor = confirmation_index - 1
+    while cursor >= 0:
+        actor = source_actor_for_segment(segments[cursor])
+        if actor == "user":
+            break
+        if actor == "assistant":
+            explicit_assistant_segments.append(segments[cursor])
+        assistant_block.append(segments[cursor])
+        cursor -= 1
+    assistant_block.reverse()
+    explicit_assistant_segments.reverse()
+    if not explicit_assistant_segments:
+        return None
+
+    block_text = " ".join(_segment_utterance(item) for item in assistant_block)
+    ambiguity_patterns = (
+        r"方案\s*[AaＡＡ1一].*方案\s*[BbＢＢ2二]",
+        r"(?:两个|多个|几种|以下).{0,8}方案",
+        r"(?:二选一|任选|选择其一|你选|或者|或是|还是)",
+        r"\b(?:option|plan)\s+a\b.*\b(?:option|plan)\s+b\b",
+        r"\b(?:either|alternatively|or)\b",
+    )
+    if match_pattern(block_text, list(ambiguity_patterns)):
+        return None
+
+    proposal_patterns = (
+        r"(?:我)?(?:建议|推荐)",
+        r"(?:我的|具体)?方案(?:是|为|[:：])",
+        r"(?:所以)?最终选择(?:是|为|[:：])",
+        r"(?:可以|应该|应当|最好)(?:先|只|直接)?(?:采用|使用|保留|改为|选择|执行|实现|做)",
+        r"(?:就按|直接按)",
+        r"\b(?:i recommend|my proposal is|the proposal is|the plan is|the final choice is|we should|let's)\b",
+    )
+    proposals = [
+        item for item in explicit_assistant_segments
+        if "?" not in item
+        and "？" not in item
+        and not _segment_utterance(item).rstrip().endswith((":", "："))
+        and match_pattern(_segment_utterance(item), list(proposal_patterns))
+    ]
+    if not proposals and not match_pattern(block_text, list(proposal_patterns)):
+        return None
+    if proposals:
+        return proposals[-1]
+    return block_text.strip(" *>\n")
+
+
 def is_criteria_prompt(segment: str) -> bool:
     """Return True for questions that ask what would justify a future move."""
     normalized = segment.strip().lower()
@@ -416,6 +510,7 @@ def _get_context_window(
 def extract_decisions(
     content: str,
     clean_segments: list[str] | None = None,
+    original_segments: list[str] | None = None,
 ) -> list[dict]:
     """Extract candidate decisions with strict criteria and enriched context."""
     decisions = []
@@ -426,9 +521,49 @@ def extract_decisions(
     # prevents backtick-internal keywords from triggering false matches.
     clean_content = strip_inline_code(content)
     clean_segments = clean_segments if clean_segments is not None else iter_segments(clean_content)
+    original_segments = original_segments if original_segments is not None else iter_segments(content)
+    aligned_original = original_segments if len(original_segments) == len(clean_segments) else clean_segments
 
     for index, sentence in enumerate(clean_segments):
-        if not sentence or len(sentence) < 10:
+        if not sentence:
+            continue
+
+        if is_short_user_confirmation(sentence):
+            scope = confirmed_assistant_scope(clean_segments, index)
+            if scope:
+                source_sentence = aligned_original[index]
+                original_scope = confirmed_assistant_scope(aligned_original, index)
+                scope = original_scope or scope
+                ctx = _get_context_window(content, source_sentence, all_segments=aligned_original)
+                context_info = extract_decision_context(ctx)
+                decisions.append({
+                    "content": source_sentence,
+                    "decision_scope": scope,
+                    "source_excerpt": source_sentence,
+                    "type": "user_confirmation_of_assistant_proposal",
+                    "confidence": "high",
+                    "keyword": _segment_utterance(sentence),
+                    "reasoning": "; ".join(context_info["reasoning"]),
+                    "rejected_alternatives": "; ".join(context_info["rejected_alternatives"]),
+                    "reversal_conditions": "; ".join(context_info["reversal_conditions"]),
+                })
+            continue
+
+        if len(sentence) < 10:
+            continue
+
+        if is_user_directive(sentence):
+            ctx = _get_context_window(clean_content, sentence, all_segments=clean_segments)
+            context_info = extract_decision_context(ctx)
+            decisions.append({
+                "content": sentence,
+                "type": "user_directive",
+                "confidence": "high",
+                "keyword": _segment_utterance(sentence).split(maxsplit=1)[0],
+                "reasoning": "; ".join(context_info["reasoning"]),
+                "rejected_alternatives": "; ".join(context_info["rejected_alternatives"]),
+                "reversal_conditions": "; ".join(context_info["reversal_conditions"]),
+            })
             continue
 
         # match_text equals sentence here since clean_content already stripped code.
@@ -617,6 +752,8 @@ def extract_open_questions(
         if stripped in {"open questions", "questions", "questions to resolve", "unresolved questions"}:
             continue
         if sentence.strip().startswith("#") and len(stripped) < 30:
+            continue
+        if is_user_directive(sentence):
             continue
         if "?" in sentence or "？" in sentence:
             questions.append(sentence)
@@ -939,6 +1076,10 @@ def why_this_is_a_decision(decision: dict) -> str:
         return f"Project state change detected: '{decision['keyword']}'"
     elif decision["type"] == "human_signal":
         return f"Human confirmation signal detected: '{decision['keyword']}'"
+    elif decision["type"] == "user_confirmation_of_assistant_proposal":
+        return f"Attributed user confirmation of one assistant proposal: '{decision['keyword']}'"
+    elif decision["type"] == "user_directive":
+        return f"Attributed imperative user rule detected: '{decision['keyword']}'"
     return "Decision keyword detected"
 
 
@@ -1546,7 +1687,7 @@ def _do_keyword_closeout(
     clean_segments = iter_segments(strip_inline_code(content))
 
     # Extract content
-    decisions = extract_decisions(content, clean_segments=clean_segments)
+    decisions = extract_decisions(content, clean_segments=clean_segments, original_segments=segments)
     risks = extract_risks(content, segments=segments)
     open_questions = extract_open_questions(content, segments=segments)
     next_actions = extract_next_actions(content, segments=segments)
@@ -1575,7 +1716,8 @@ def _do_keyword_closeout(
         f"- Suggested next actions captured: {len(next_actions)}",
     ]
     if decisions:
-        summary_lines.append(f"- Highest-confidence decision signal: {generate_decision_title(decisions[0]['content'])}")
+        summary_scope = decisions[0].get("decision_scope", decisions[0]["content"])
+        summary_lines.append(f"- Highest-confidence decision signal: {generate_decision_title(summary_scope)}")
     summary = "\n".join(summary_lines[:5])
 
     # Candidate IDs are written into the patch at construction time. They are
@@ -1587,7 +1729,9 @@ def _do_keyword_closeout(
     candidate_decisions = ""
     if decisions:
         for i, d in enumerate(decisions, 1):
-            title = generate_decision_title(d["content"])
+            decision_scope = d.get("decision_scope", d["content"])
+            source_excerpt = d.get("source_excerpt", d["content"])
+            title = generate_decision_title(decision_scope)
             reasoning = d.get("reasoning", "")
             rejected = d.get("rejected_alternatives", "")
             reversal = d.get("reversal_conditions", "")
@@ -1616,7 +1760,7 @@ status: pending_review
 confidence: {confidence}
 decision_type: {d['type']}
 why_this_is_a_decision: {why_label}
-**What was decided:** {d['content']}
+**What was decided:** {decision_scope}
 **Why:** {reasoning if reasoning else '(not detected in context)'}
 **Alternatives mentioned:** {rejected if rejected else '(not detected in context)'}
 **Rejected because:** {rejected if rejected else '(not detected in context)'}
@@ -1626,8 +1770,9 @@ why_this_is_a_decision: {why_label}
 **Related assets:** {related_assets}
 **Affected actions:** {affected_actions}
 **Supersedes:** {relations['supersedes']}
-source_excerpt: > {d['content']}
-source_actor: {source_actor_for_segment(d['content'])}
+source_excerpt: > {source_excerpt}
+source_actor: {source_actor_for_segment(source_excerpt)}
+confirmed_scope: > {decision_scope if d.get('decision_scope') else '(same as source excerpt)'}
 suggested_action: {suggested_action}
 
 """

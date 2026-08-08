@@ -15,7 +15,7 @@ from .commands.extract import extract_decisions_command
 from .commands.import_cmd import import_project
 from .commands.context import context_command
 from .commands.evidence import evidence_command
-from .commands.capture import capture_add, capture_import_biz, capture_list, capture_show, capture_review, capture_profile
+from .commands.capture import capture_add, capture_import_biz, capture_list, capture_show, capture_review, capture_profile, _read_frontmatter
 from .commands.decision_cmd import decision_add
 from .commands.patch_cmd import patch_supersede, patch_discard
 from .commands.onboard import onboard
@@ -201,6 +201,20 @@ def show_status() -> None:
             closed_counts[s] = closed_counts.get(s, 0) + 1
         summary_parts = [f"{count} {status}" for status, count in closed_counts.items()]
         console.print(f"[dim]Closed patches (kept for audit): {', '.join(summary_parts)}[/dim]")
+
+    captures_dir = root / ".flg" / "captures"
+    pending_captures = 0
+    if captures_dir.exists():
+        for capture_path in captures_dir.glob("cap-*.md"):
+            metadata = _read_frontmatter(capture_path)
+            if metadata and metadata.get("status") == "pending_review":
+                pending_captures += 1
+    if pending_captures:
+        console.print(
+            f"[yellow]⚠ This project has {pending_captures} pending capture(s) awaiting judgment review.[/yellow]"
+        )
+    else:
+        console.print("[green]No pending captures awaiting judgment review[/green]")
     
     console.print()
 
