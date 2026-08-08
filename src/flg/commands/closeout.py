@@ -407,6 +407,7 @@ def confirmed_assistant_scope(segments: list[str], confirmation_index: int) -> s
         r"(?:我)?(?:建议|推荐)",
         r"(?:我的|具体)?方案(?:是|为|[:：])",
         r"(?:所以)?最终选择(?:是|为|[:：])",
+        r"下一步(?:是|为|[:：])",
         r"(?:可以|应该|应当|最好)(?:先|只|直接)?(?:采用|使用|保留|改为|选择|执行|实现|做)",
         r"(?:就按|直接按)",
         r"\b(?:i recommend|my proposal is|the proposal is|the plan is|the final choice is|we should|let's)\b",

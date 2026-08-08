@@ -1231,6 +1231,32 @@ User: 可以，没问题
         os.chdir(old_cwd)
 
 
+def test_closeout_binds_short_confirmation_to_explicit_next_step(tmp_path):
+    """An explicit proposed next step can receive a one-time user authorization."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Next Step Confirmation Test"])
+        transcript = tmp_path / "next-step-confirmation.md"
+        transcript.write_text(
+            """Assistant: 下一步是创建 draft PR，进入主线代码审查。
+User: 同意
+""",
+            encoding="utf-8",
+        )
+
+        result = runner.invoke(app, ["closeout", "--transcript", str(transcript), "--no-llm"])
+        assert result.exit_code == 0
+        patch = next((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
+        decision_section = patch.read_text().split("## 2. Candidate Decisions")[1].split("## 3.")[0]
+        assert "decision_type: user_confirmation_of_assistant_proposal" in decision_section
+        assert "source_excerpt: > User: 同意" in decision_section
+        assert "source_actor: user" in decision_section
+        assert "confirmed_scope: > Assistant: 下一步是创建 draft PR" in decision_section
+    finally:
+        os.chdir(old_cwd)
+
+
 def test_closeout_abstains_when_short_confirmation_follows_multiple_proposals(tmp_path):
     """A short acceptance cannot select between multiple assistant proposals."""
     old_cwd = os.getcwd()
