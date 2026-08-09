@@ -430,8 +430,8 @@ This ensures multi-agent relay works correctly: Agent B can see Agent A's closeo
 - rebuilding runtime indexes from formal project files with `doctor` and `reindex`
 - continuation by a later agent using real, long, and contradictory project history
 
-Automatic quadrant routing, a blindspot engine, and `flg trace` are not completed
-capabilities in the current version.
+Automatic quadrant routing and a blindspot engine are not completed capabilities
+in the current version.
 
 ## Smoke Test
 

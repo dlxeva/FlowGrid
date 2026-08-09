@@ -457,6 +457,19 @@ def _render_manifest_judgments(decisions: list[dict[str, str]]) -> str:
     return "".join(f"- {status}: {'; '.join(grouped[status])}\n" for status in statuses)
 
 
+def _render_compact_manifest_judgments(decisions: list[dict[str, str]]) -> str:
+    """Retain every judgment status and ID when a small budget omits titles."""
+    grouped: dict[str, list[str]] = {}
+    for decision in decisions:
+        grouped.setdefault(decision["status"], []).append(decision["decision_id"])
+    if not grouped:
+        return "- (none recorded)\n"
+    return "".join(
+        f"- {status}: {', '.join(decision_ids)}\n"
+        for status, decision_ids in grouped.items()
+    )
+
+
 def _build_continuity_manifest(root: Path, budget: int) -> tuple[str, dict]:
     """Build a compact, derived map whose details expand through existing commands."""
     state = load_state(root)
@@ -521,7 +534,7 @@ def _build_continuity_manifest(root: Path, budget: int) -> tuple[str, dict]:
 
     indexed_ids = sorted(evidence_items)
     example_id = indexed_ids[-1] if indexed_ids else (decisions[-1]["decision_id"] if decisions else "D-001")
-    content = f"""# FLG Continuity Manifest
+    identity_section = f"""# FLG Continuity Manifest
 
 ## Identity and Current Goal
 
@@ -532,35 +545,67 @@ def _build_continuity_manifest(root: Path, budget: int) -> tuple[str, dict]:
 - Mode: manifest
 - Generated: {datetime.now().isoformat(timespec='seconds')}
 - Current goal: {current_goal}
+"""
+    judgment_section = f"""
 
 ## Judgment Map
 
 {_render_manifest_judgments(decisions)}- Evidence-indexed IDs: {', '.join(indexed_ids) if indexed_ids else '(none)'}
+"""
+    work_pointer_section = f"""
 
 ## Work Pointers
 
 {chr(10).join(pointers)}
+"""
+    source_health_section = f"""
 
 ## Source Health
 
 {_render_source_health(source_health)}
-## Expand On Demand
+"""
+    expand_section = f"""## Expand On Demand
 
 - Decision evidence: `flg evidence {example_id}` (replace with any judgment ID above)
 - Decision provenance: `flg trace {example_id}` (replace with any judgment ID above)
 - Full bounded startup state: `flg context --mode resume --budget 4000`
 - Pending captures: `flg capture list --status pending_review`
 - Pending patch: `flg review --patch .flg/patches/<patch>.patch.md --report-only`
+"""
+    boundary_section = """
 
 ## Boundary
 
 - This manifest is a generated navigation view over the formal ledger, current project files, and the existing evidence index.
 - It does not load raw sessions, reproduce full rationale, create authority, or replace source files.
 """
+    content = (
+        identity_section
+        + judgment_section
+        + work_pointer_section
+        + source_health_section
+        + expand_section
+        + boundary_section
+    )
     max_chars = max(1200, budget * 4)
     truncated = False
     if len(content) > max_chars:
-        content = content[: max_chars - 120].rstrip() + "\n\n<!-- Continuity Manifest truncated to budget. Increase --budget for a larger map. -->\n"
+        compact_judgment_section = f"""
+
+## Judgment Map
+
+{_render_compact_manifest_judgments(decisions)}- Evidence-indexed IDs: {', '.join(indexed_ids) if indexed_ids else '(none)'}
+- Titles omitted to preserve required navigation and safety sections within a small budget.
+"""
+        content = (
+            identity_section
+            + compact_judgment_section
+            + work_pointer_section
+            + source_health_section
+            + expand_section
+            + boundary_section
+            + "\n<!-- Continuity Manifest compacted for budget; required sections were preserved. -->\n"
+        )
         truncated = True
     sources_included = [
         "PROJECT.md",
@@ -855,9 +900,12 @@ def context_command(
     console.print(f"[bold]Pending patches:[/bold] {metadata['pending_patches_count']}")
     console.print(f"[bold]Confirmed decisions:[/bold] {metadata['confirmed_decisions_count']}")
     if metadata["confirmed_decisions_count"] == 0:
-        console.print("[yellow]Warning: no reviewed decisions found. Context Pack will rely on current state and pending material.[/yellow]")
+        console.print(f"[yellow]Warning: no reviewed decisions found. {artifact_name} will rely on current state and pending material.[/yellow]")
     if metadata["truncated"]:
-        console.print("[yellow]Warning: Context Pack was truncated to fit the requested budget.[/yellow]")
+        if mode == "manifest":
+            console.print(f"[yellow]Warning: {artifact_name} was truncated for the requested budget; required navigation and safety sections were preserved.[/yellow]")
+        else:
+            console.print(f"[yellow]Warning: {artifact_name} was truncated to fit the requested budget.[/yellow]")
     console.print("[dim]Raw sessions were not loaded by default.[/dim]")
 
     if print_pack:

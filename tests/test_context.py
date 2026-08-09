@@ -437,3 +437,57 @@ def test_context_manifest_cli_uses_separate_default_output(tmp_path):
         assert (tmp_path / ".flg" / "context" / "startup.md").read_text(encoding="utf-8") == startup_before
     finally:
         os.chdir(old_cwd)
+
+
+def test_continuity_manifest_small_budget_preserves_navigation_and_boundary(tmp_path):
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Small Manifest Test"])
+        decisions = tmp_path / "DECISIONS.md"
+        decisions.write_text(
+            decisions.read_text(encoding="utf-8")
+            + """\n\n## D-002 | A deliberately verbose reviewed route title\n\n### Status\nconfirmed\n\n### Final Decision\nUse the reviewed route.\n\n### Decision Rationale\nKeep this rationale outside the manifest.\n""",
+            encoding="utf-8",
+        )
+
+        manifest, metadata = build_context_pack(tmp_path, mode="manifest", budget=1)
+
+        assert metadata["truncated"] is True
+        assert "## Source Health" in manifest
+        assert "## Expand On Demand" in manifest
+        assert "flg evidence D-002" in manifest
+        assert "flg trace D-002" in manifest
+        assert "## Boundary" in manifest
+        assert "does not load raw sessions" in manifest
+        assert "confirmed: D-002" in manifest
+        assert "verbose reviewed route title" not in manifest
+        assert "Keep this rationale" not in manifest
+        assert manifest.index("## Source Health") < manifest.index("## Expand On Demand")
+        assert manifest.index("## Expand On Demand") < manifest.index("## Boundary")
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_context_cli_warnings_name_the_generated_artifact(tmp_path):
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Artifact Warning Test"])
+        (tmp_path / "DECISIONS.md").write_text("# Decision Log\n", encoding="utf-8")
+
+        manifest_result = runner.invoke(app, ["context", "--mode", "manifest", "--budget", "1"])
+        resume_result = runner.invoke(app, ["context", "--mode", "resume", "--budget", "1"])
+
+        assert manifest_result.exit_code == 0
+        manifest_output = " ".join(manifest_result.output.split())
+        assert "Continuity Manifest will rely on current state" in manifest_output
+        assert "Continuity Manifest was truncated" in manifest_output
+        assert "required navigation and safety sections were preserved" in manifest_output
+        assert "Context Pack will rely on current state" not in manifest_output
+        assert resume_result.exit_code == 0
+        resume_output = " ".join(resume_result.output.split())
+        assert "Context Pack will rely on current state" in resume_output
+        assert "Context Pack was truncated" in resume_output
+    finally:
+        os.chdir(old_cwd)
