@@ -401,9 +401,199 @@ def _render_source_health(report: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _manifest_section_pointer(
+    content: str,
+    source: str,
+    headings: tuple[str, ...],
+) -> str | None:
+    """Return a compact source anchor when a reviewed section has content."""
+    for heading in headings:
+        section = _section(content, heading)
+        if _compact_lines(section, limit_chars=80):
+            return f"{source}#{heading.replace(' ', '-')}"
+    return None
+
+
+def _pending_capture_ids(root: Path) -> list[str]:
+    """List pending capture ids without loading their evidence into context."""
+    captures_dir = root / ".flg" / "captures"
+    if not captures_dir.exists():
+        return []
+    capture_ids: list[str] = []
+    for capture_file in sorted(captures_dir.glob("cap-*.md")):
+        header = (read_file_safe(capture_file) or "").split("---", 2)
+        frontmatter = header[1] if len(header) >= 3 else ""
+        status = re.search(r"^status:\s*(.+)$", frontmatter, re.MULTILINE)
+        if not status or status.group(1).strip() != "pending_review":
+            continue
+        capture_id = re.search(r"^id:\s*(.+)$", frontmatter, re.MULTILINE)
+        capture_ids.append(capture_id.group(1).strip() if capture_id else capture_file.stem)
+    return capture_ids
+
+
+def _render_manifest_judgments(decisions: list[dict[str, str]]) -> str:
+    grouped: dict[str, list[str]] = {}
+    for decision in decisions:
+        grouped.setdefault(decision["status"], []).append(
+            f"{decision['decision_id']} ({decision['title']})"
+        )
+    if not grouped:
+        return "- (none recorded)\n"
+    preferred = (
+        "confirmed",
+        "accepted",
+        "active",
+        "pending_review",
+        "needs_review",
+        "needs_recheck",
+        "contested",
+        "stale",
+        "superseded",
+        "rejected",
+        "archived",
+    )
+    statuses = [status for status in preferred if status in grouped]
+    statuses.extend(sorted(status for status in grouped if status not in statuses))
+    return "".join(f"- {status}: {'; '.join(grouped[status])}\n" for status in statuses)
+
+
+def _build_continuity_manifest(root: Path, budget: int) -> tuple[str, dict]:
+    """Build a compact, derived map whose details expand through existing commands."""
+    state = load_state(root)
+    if not state:
+        raise ValueError("No readable state found. Run 'flg init' first.")
+
+    project_content = read_file_safe(root / "PROJECT.md") or ""
+    framing_content = read_file_safe(root / "FRAMING.md") or ""
+    snapshot_content = _strip_frontmatter(read_file_safe(root / "SNAPSHOT.md") or "")
+    decisions_content = read_file_safe(root / "DECISIONS.md") or ""
+    framing_is_obsolete = _is_explicitly_obsolete(framing_content)
+    current_framing = "" if framing_is_obsolete else framing_content
+
+    current_goal = _first_section_line(
+        snapshot_content,
+        ("Current Core Goal", "Current Goal", "当前核心目标", "当前目标"),
+    )
+    if not current_goal:
+        current_goal = _first_section_line(current_framing, ("Goals", "目标"), "(not defined)")
+
+    decisions = parse_decisions_ledger(decisions_content)
+    evidence_items = load_evidence_index(root).get("items", {})
+    pending_patches = _pending_patch_summaries(root)
+    pending_captures = _pending_capture_ids(root)
+    source_health = validate_project(root)
+
+    pending_decision_ids = [
+        decision["decision_id"]
+        for decision in decisions
+        if decision["status"] in {"pending_review", "needs_review", "needs_recheck", "contested", "stale"}
+    ]
+    pointers: list[str] = [
+        "- pending judgments: DECISIONS.md "
+        f"({', '.join(pending_decision_ids) if pending_decision_ids else 'none'})",
+        "- pending patches: .flg/patches/ "
+        f"({', '.join(patch['filename'] for patch in pending_patches) if pending_patches else 'none'})",
+        "- pending captures: .flg/captures/ "
+        f"({', '.join(pending_captures) if pending_captures else 'none'})",
+    ]
+    pointer_kinds: set[str] = set()
+    pointer_specs = (
+        (snapshot_content, "SNAPSHOT.md", ("Unconfirmed", "未确认", "Needs Recheck", "待复查", "待核验"), "open"),
+        (current_framing, "FRAMING.md", ("Open Questions", "未确认问题"), "open"),
+        (snapshot_content, "SNAPSHOT.md", ("Hard Constraints", "硬约束", "Current Non-Goals", "当前不做什么"), "constraint"),
+        (read_file_safe(root / "CONSTRAINTS.md") or "", "CONSTRAINTS.md", ("Constraint Blocks", "Active Constraints", "当前约束"), "constraint"),
+        (snapshot_content, "SNAPSHOT.md", ("Next Highest Priority Action", "Next Highest Priority Actions", "Next Highest-Priority Actions", "Next Actions", "下一步最高优先级", "下一步行动", "下一步"), "action"),
+    )
+    for content, source, headings, kind in pointer_specs:
+        pointer = _manifest_section_pointer(content, source, headings)
+        if pointer:
+            pointers.append(f"- {kind}: {pointer}")
+            pointer_kinds.add(kind)
+    if state.get("next_actions"):
+        pointers.append("- action: .flg/state.json#next_actions")
+        pointer_kinds.add("action")
+    if "open" not in pointer_kinds:
+        pointers.append("- open: SNAPSHOT.md and FRAMING.md (none found)")
+    if "constraint" not in pointer_kinds:
+        pointers.append("- constraint: CONSTRAINTS.md (none found)")
+    if "action" not in pointer_kinds:
+        pointers.append("- action: SNAPSHOT.md and .flg/state.json (none found)")
+
+    indexed_ids = sorted(evidence_items)
+    example_id = indexed_ids[-1] if indexed_ids else (decisions[-1]["decision_id"] if decisions else "D-001")
+    content = f"""# FLG Continuity Manifest
+
+## Identity and Current Goal
+
+- Project: {state.get('project_name', 'Unknown')}
+- Project type: {_project_field(project_content, 'Project Type', 'unknown')}
+- Client/Sponsor: {_project_field(project_content, 'Client/Sponsor', 'unknown')}
+- Stage: {state.get('current_stage') or _project_field(project_content, 'Current Stage', 'unknown')}
+- Mode: manifest
+- Generated: {datetime.now().isoformat(timespec='seconds')}
+- Current goal: {current_goal}
+
+## Judgment Map
+
+{_render_manifest_judgments(decisions)}- Evidence-indexed IDs: {', '.join(indexed_ids) if indexed_ids else '(none)'}
+
+## Work Pointers
+
+{chr(10).join(pointers)}
+
+## Source Health
+
+{_render_source_health(source_health)}
+## Expand On Demand
+
+- Decision evidence: `flg evidence {example_id}` (replace with any judgment ID above)
+- Decision provenance: `flg trace {example_id}` (replace with any judgment ID above)
+- Full bounded startup state: `flg context --mode resume --budget 4000`
+- Pending captures: `flg capture list --status pending_review`
+- Pending patch: `flg review --patch .flg/patches/<patch>.patch.md --report-only`
+
+## Boundary
+
+- This manifest is a generated navigation view over the formal ledger, current project files, and the existing evidence index.
+- It does not load raw sessions, reproduce full rationale, create authority, or replace source files.
+"""
+    max_chars = max(1200, budget * 4)
+    truncated = False
+    if len(content) > max_chars:
+        content = content[: max_chars - 120].rstrip() + "\n\n<!-- Continuity Manifest truncated to budget. Increase --budget for a larger map. -->\n"
+        truncated = True
+    sources_included = [
+        "PROJECT.md",
+        "SNAPSHOT.md",
+        "DECISIONS.md",
+        "CONSTRAINTS.md",
+        ".flg/state.json",
+        ".flg/context/evidence_index.json",
+        ".flg/patches/*.patch.md",
+        ".flg/captures/cap-*.md (frontmatter only)",
+    ]
+    if not framing_is_obsolete:
+        sources_included.insert(1, "FRAMING.md")
+    metadata = {
+        "path": str(root / ".flg" / "context" / "manifest.md"),
+        "chars": len(content),
+        "estimated_tokens": len(content) // 4,
+        "sources_included": sources_included,
+        "pending_patches_count": len(pending_patches),
+        "confirmed_decisions_count": sum(
+            decision["status"] in _CURRENT_DECISION_STATUSES for decision in decisions
+        ),
+        "source_health": source_health,
+        "truncated": truncated,
+    }
+    return content, metadata
+
+
 def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> tuple[str, dict]:
+    if mode == "manifest":
+        return _build_continuity_manifest(root, budget)
     if mode != "resume":
-        raise ValueError("v0 only supports --mode resume")
+        raise ValueError("Supported context modes: resume, manifest")
 
     state = load_state(root)
     if not state:
@@ -632,9 +822,9 @@ def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> 
 
 
 def context_command(
-    mode: str = typer.Option("resume", "--mode", help="Context mode. v0 supports only 'resume'."),
+    mode: str = typer.Option("resume", "--mode", help="Context mode: 'resume' or compact 'manifest'."),
     budget: int = typer.Option(4000, "--budget", help="Approximate token budget for the generated context pack."),
-    output: Optional[str] = typer.Option(None, "--output", "-o", help="Optional output path. Defaults to .flg/context/startup.md."),
+    output: Optional[str] = typer.Option(None, "--output", "-o", help="Optional output path. Defaults by mode under .flg/context/."),
     print_pack: bool = typer.Option(False, "--print", help="Print the generated context pack after writing it."),
 ) -> None:
     """Generate a bounded Context Pack for agent startup."""
@@ -649,14 +839,16 @@ def context_command(
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(1) from exc
 
-    output_path = Path(output) if output else root / ".flg" / "context" / "startup.md"
+    default_name = "manifest.md" if mode == "manifest" else "startup.md"
+    output_path = Path(output) if output else root / ".flg" / "context" / default_name
     if not output_path.is_absolute():
         output_path = root / output_path
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(content, encoding="utf-8")
 
     console.print()
-    console.print("[bold green]✓ Context Pack generated[/bold green]")
+    artifact_name = "Continuity Manifest" if mode == "manifest" else "Context Pack"
+    console.print(f"[bold green]✓ {artifact_name} generated[/bold green]")
     console.print(f"[bold]Path:[/bold] {output_path}")
     console.print(f"[bold]Size:[/bold] {metadata['chars']} chars (~{metadata['estimated_tokens']} tokens)")
     console.print(f"[bold]Sources included:[/bold] {len(metadata['sources_included'])}")

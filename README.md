@@ -108,6 +108,7 @@ flg review --patch .flg/patches/<closeout-patch>.md --report-only
 flg review --patch .flg/patches/<closeout-patch>.md --autonomous
 flg merge --patch .flg/patches/<closeout-patch>.md --yes
 flg context --mode resume
+flg context --mode manifest
 flg handoff
 ```
 
@@ -402,7 +403,8 @@ This ensures multi-agent relay works correctly: Agent B can see Agent A's closeo
 | `flg onboard [--yes]` | Check the environment, run the guided demo, and install the host skill |
 | `flg session save <file>` | Archive a raw session before closeout |
 | `flg review --patch <file> [--report-only] [--autonomous]` | Inspect candidates internally, then process eligible decisions in the background |
-| `flg context --mode resume` | Generate bounded agent startup Context Pack |
+| `flg context --mode resume` | Generate the bounded full startup Context Pack |
+| `flg context --mode manifest` | Generate a compact project map with evidence/trace expansion commands |
 | `flg evidence <decision-id>` | Show evidence behind a reviewed decision |
 | `flg merge --patch <file> [--yes]` | Merge routine patch updates without a prompt |
 | `flg handoff` | Generate agent handoff summary |

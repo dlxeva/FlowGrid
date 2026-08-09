@@ -72,13 +72,15 @@
 
 **修复验证**：PR #42 已合并 30 列终端宽度回归；合并后全量测试为 `189 passed`。
 
-### FLG-ITER-20260808-06：Context Pack 的近期状态与长期叙事需要分层召回 [confirmed — P1]
+### FLG-ITER-20260808-06：Context Pack 的近期状态与长期叙事需要分层召回 [partially fixed — P1]
 
 **现象**：历史评估已经证明 Context Pack 对短而干净的原始历史并不占优；另有真实任务分别出现旧 Next Actions 继续进入 resume pack，以及早期产品母叙事未被默认 pack 召回。来源簇：`vault@2026-07-22#90`、`vault@2026-08-01#104`、`vault@2026-08-04#112`。
 
 **影响**：无差别扩大默认上下文会破坏压缩价值，只保留最近状态又可能让品牌、叙事和长期策略任务缺少关键历史。
 
 **处理方向**：保持默认 resume pack 有界；后续以显式任务意图或主题查询实验“近期执行状态 + 长期母叙事”分层召回，并把 stale/superseded 检查放在增加更多内容之前。
+
+**当前状态**：Continuity Manifest v1 已实现“紧凑地图 → 按判断 ID 展开”的第一段纵切，复用正式账本与现有 evidence/trace 入口，保持 resume 兼容。长期母叙事的主题召回仍未实现，因此本条只标记为 partially fixed。
 
 ### FLG-ITER-20260808-07：长期判断账本与任务执行层仍靠宿主纪律交接 [observed — P1]
 
