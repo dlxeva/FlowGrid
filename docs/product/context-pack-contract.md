@@ -22,10 +22,28 @@ The Context Pack is the first concrete artifact that turns this definition into 
 flg context --mode resume --budget 4000
 ```
 
+For a smaller navigation-first entrypoint, use:
+
+```bash
+flg context --mode manifest
+```
+
+The generated Continuity Manifest contains identity, the current goal, judgment
+statuses and IDs, active-work pointers, source health, and exact commands for
+expanding a judgment through the existing `evidence` and `trace` paths. It is a
+derived view. The formal ledger and current project files remain authoritative,
+and `.flg/context/evidence_index.json` remains the only evidence index.
+
 Default output:
 
 ```text
 .flg/context/startup.md
+```
+
+Manifest output:
+
+```text
+.flg/context/manifest.md
 ```
 
 ## Contract Principles
@@ -70,6 +88,14 @@ The pack should include evidence references, not full source history.
 
 The agent should be able to retrieve evidence on demand through `flg evidence`
 and `flg trace` commands.
+
+### 6. Project Continuity Layer stays navigational
+
+The Continuity Manifest is the compact map for deciding what to expand. The
+resume pack remains the bounded working payload. `flg evidence <decision-id>`
+and `flg trace <decision-id>` supply judgment detail and provenance on demand.
+This layer does not load raw sessions, copy full rationale into the manifest,
+introduce another index, or become a new fact-writing surface.
 
 ## Required Sections
 

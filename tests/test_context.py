@@ -376,3 +376,118 @@ def test_context_pack_does_not_promote_explicitly_obsolete_framing(tmp_path):
         assert "FRAMING.md" not in metadata["sources_included"]
     finally:
         os.chdir(old_cwd)
+
+
+def test_continuity_manifest_is_compact_and_expands_by_decision_id(tmp_path):
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Manifest Test"])
+        decisions = tmp_path / "DECISIONS.md"
+        decisions.write_text(
+            decisions.read_text(encoding="utf-8")
+            + """\n\n## D-002 | Keep the reviewed route\n\n### Status\nconfirmed\n\n### Final Decision\nUse the reviewed route.\n\n### Decision Rationale\nThis deliberately long rationale must remain outside the manifest while resume may carry it.\n\n### Alternatives\nUse the old route.\n\n### Rejected Alternatives\nThe old route was superseded.\n\n### Reversal Conditions\nNew reviewed evidence.\n""",
+            encoding="utf-8",
+        )
+        context_dir = tmp_path / ".flg" / "context"
+        context_dir.mkdir(parents=True, exist_ok=True)
+        (context_dir / "evidence_index.json").write_text(
+            json.dumps({"version": 2, "items": {"D-002": {"status": "confirmed"}}}),
+            encoding="utf-8",
+        )
+        (tmp_path / "SNAPSHOT.md").write_text(
+            "# Snapshot\n\n## Current Goal\n\nShip a compact continuity map.\n\n"
+            "## Hard Constraints\n\n- Keep the formal ledger authoritative.\n\n"
+            "## Next Actions\n\n1. Expand D-002 on demand.\n",
+            encoding="utf-8",
+        )
+
+        resume, _ = build_context_pack(tmp_path, mode="resume")
+        manifest, metadata = build_context_pack(tmp_path, mode="manifest")
+
+        assert len(manifest) < len(resume)
+        assert "Ship a compact continuity map" in manifest
+        assert "confirmed: D-002 (Keep the reviewed route)" in manifest
+        assert "SNAPSHOT.md#Hard-Constraints" in manifest
+        assert "SNAPSHOT.md#Next-Actions" in manifest
+        assert "pending patches: .flg/patches/ (none)" in manifest
+        assert "pending captures: .flg/captures/ (none)" in manifest
+        assert "flg evidence D-002" in manifest
+        assert "flg trace D-002" in manifest
+        assert "long rationale" not in manifest
+        assert ".flg/sessions" not in manifest
+        assert metadata["path"].endswith(".flg/context/manifest.md")
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_context_manifest_cli_uses_separate_default_output(tmp_path):
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Manifest Output Test"])
+        resume_result = runner.invoke(app, ["context", "--mode", "resume"])
+        startup_before = (tmp_path / ".flg" / "context" / "startup.md").read_text(encoding="utf-8")
+
+        manifest_result = runner.invoke(app, ["context", "--mode", "manifest"])
+
+        assert resume_result.exit_code == 0
+        assert manifest_result.exit_code == 0
+        assert (tmp_path / ".flg" / "context" / "manifest.md").exists()
+        assert (tmp_path / ".flg" / "context" / "startup.md").read_text(encoding="utf-8") == startup_before
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_continuity_manifest_small_budget_preserves_navigation_and_boundary(tmp_path):
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Small Manifest Test"])
+        decisions = tmp_path / "DECISIONS.md"
+        decisions.write_text(
+            decisions.read_text(encoding="utf-8")
+            + """\n\n## D-002 | A deliberately verbose reviewed route title\n\n### Status\nconfirmed\n\n### Final Decision\nUse the reviewed route.\n\n### Decision Rationale\nKeep this rationale outside the manifest.\n""",
+            encoding="utf-8",
+        )
+
+        manifest, metadata = build_context_pack(tmp_path, mode="manifest", budget=1)
+
+        assert metadata["truncated"] is True
+        assert "## Source Health" in manifest
+        assert "## Expand On Demand" in manifest
+        assert "flg evidence D-002" in manifest
+        assert "flg trace D-002" in manifest
+        assert "## Boundary" in manifest
+        assert "does not load raw sessions" in manifest
+        assert "confirmed: D-002" in manifest
+        assert "verbose reviewed route title" not in manifest
+        assert "Keep this rationale" not in manifest
+        assert manifest.index("## Source Health") < manifest.index("## Expand On Demand")
+        assert manifest.index("## Expand On Demand") < manifest.index("## Boundary")
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_context_cli_warnings_name_the_generated_artifact(tmp_path):
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Artifact Warning Test"])
+        (tmp_path / "DECISIONS.md").write_text("# Decision Log\n", encoding="utf-8")
+
+        manifest_result = runner.invoke(app, ["context", "--mode", "manifest", "--budget", "1"])
+        resume_result = runner.invoke(app, ["context", "--mode", "resume", "--budget", "1"])
+
+        assert manifest_result.exit_code == 0
+        manifest_output = " ".join(manifest_result.output.split())
+        assert "Continuity Manifest will rely on current state" in manifest_output
+        assert "Continuity Manifest was truncated" in manifest_output
+        assert "required navigation and safety sections were preserved" in manifest_output
+        assert "Context Pack will rely on current state" not in manifest_output
+        assert resume_result.exit_code == 0
+        resume_output = " ".join(resume_result.output.split())
+        assert "Context Pack will rely on current state" in resume_output
+        assert "Context Pack was truncated" in resume_output
+    finally:
+        os.chdir(old_cwd)
