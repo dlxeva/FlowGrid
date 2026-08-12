@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "evaluation_id": "continuation-v2-flowgrid-pilot-20260812",
+  "date": "2026-08-12",
+  "project": "FlowGrid dogfood ledger",
+  "runtime_commit": "11c337d24dbabe57fda28a7f8e9b9fcccb1367c1",
+  "continuation_model": "gpt-5.6-luna",
+  "reasoning_effort": "max",
+  "runs_per_mode": 1,
+  "modes": {
+    "A": {
+      "input": "no_state",
+      "material_bytes": 0,
+      "duration_ms": 33682,
+      "thread_id": "019ff528-03bb-71e3-9c30-3d817c211514",
+      "blind_score_mean": 8.5,
+      "critical_failure_votes": 0
+    },
+    "B": {
+      "input": "redacted_raw_sessions",
+      "material_bytes": 32601,
+      "duration_ms": 474883,
+      "thread_id": "019ff528-0f83-7a31-be9f-2700a2a8d929",
+      "blind_score_mean": 7.5,
+      "critical_failure_votes": 1
+    },
+    "C": {
+      "input": "resume_context_pack",
+      "material_bytes": 12095,
+      "duration_ms": 45595,
+      "thread_id": "019ff528-0b55-7ae3-befc-97f81fff0cb3",
+      "blind_score_mean": 12.5,
+      "critical_failure_votes": 0
+    },
+    "D": {
+      "input": "continuity_manifest",
+      "material_bytes": 5345,
+      "duration_ms": 157473,
+      "thread_id": "019ff528-071e-7a91-ae01-f1b1d11c8053",
+      "blind_score_mean": 8.0,
+      "critical_failure_votes": 2
+    }
+  },
+  "blind_scorers": [
+    {
+      "model": "gpt-5.6-luna",
+      "reasoning_effort": "max",
+      "thread_id": "019ff530-6594-7a70-b679-01a8bcc8c4a3",
+      "quality_rank": ["C", "A", "B", "D"]
+    },
+    {
+      "model": "gpt-5.6-luna",
+      "reasoning_effort": "max",
+      "thread_id": "019ff530-69e2-7731-804a-baefd32b90a8",
+      "quality_rank": ["C", "A", "B", "D"]
+    }
+  ],
+  "supported_claim": "In this single current-project pilot, Resume Context Pack produced the strongest continuation and avoided the stale-current-action failures found in raw history and Manifest.",
+  "limits": "One project, one run per mode, and same-family Luna scorers do not establish general superiority or replace the historical five-project result."
+}

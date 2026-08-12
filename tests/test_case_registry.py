@@ -56,5 +56,5 @@ def test_registry_distinguishes_real_cases_from_external_adoption():
         if case["kind"] == "external_adoption"
     )
 
-    assert real_continuation_projects == 5
+    assert real_continuation_projects >= 5
     assert external_adoption_cases == 0

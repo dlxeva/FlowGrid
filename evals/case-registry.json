@@ -82,6 +82,22 @@
       },
       "claim_supported": "A host-operated natural conversation preserved raw evidence while keeping assistant-authored and unattributed candidates out of formal truth.",
       "limits": "This does not prove a native event hook, automatic transcript export, or cross-host reliability."
+    },
+    {
+      "case_id": "continuation-v2-flowgrid-pilot-20260812",
+      "kind": "real_project_controlled_eval",
+      "case_count": 1,
+      "projects": ["FlowGrid dogfood ledger at current v0.4 state"],
+      "source": "evals/results/continuation-v2-flowgrid-pilot-20260812.md",
+      "comparison": ["no_state", "raw_history", "resume_context_pack", "continuity_manifest"],
+      "objective_metrics": {
+        "material_bytes": {"no_state": 0, "raw_history": 32601, "resume_context_pack": 12095, "continuity_manifest": 5345},
+        "duration_ms": {"no_state": 33682, "raw_history": 474883, "resume_context_pack": 45595, "continuity_manifest": 157473},
+        "blind_score_mean": {"no_state": 8.5, "raw_history": 7.5, "resume_context_pack": 12.5, "continuity_manifest": 8.0},
+        "critical_failure_votes": {"no_state": 0, "raw_history": 1, "resume_context_pack": 0, "continuity_manifest": 2}
+      },
+      "claim_supported": "In one current-project Luna Max pilot, Resume Context Pack produced the strongest continuation while raw history and Manifest revived stale work.",
+      "limits": "One project and one run per mode do not update the historical five-project comparison or prove general superiority."
     }
   ]
 }
