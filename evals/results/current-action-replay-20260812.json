@@ -52,5 +52,5 @@
     "projects_replayed": 3
   },
   "supported_claim": "The deterministic repair makes Resume and Manifest agree on one source-backed action or the same explicit abstention across all three replayed projects.",
-  "limits": "This proves generator behavior against current local project state, not fresh-Agent semantic continuation quality. The sealed model rerun remains pending."
+  "limits": "This report proves generator behavior against current local project state. Fresh-Agent semantic continuation is evaluated separately in current-action-repair-sealed-rerun-20260812."
 }

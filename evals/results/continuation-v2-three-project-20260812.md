@@ -160,7 +160,9 @@ sealed model protocol without selecting a mode after output inspection.
 
 The deterministic replay has since passed on all three projects; see
 [`current-action-replay-20260812.md`](current-action-replay-20260812.md). The
-fresh-Agent semantic rerun remains the next evidence gate.
+paired fresh-Agent rerun also passed: neither repaired view received a critical
+failure vote, and repaired Resume ranked first in all three projects. See
+[`current-action-repair-sealed-rerun-20260812.md`](current-action-repair-sealed-rerun-20260812.md).
 
 ## Limits
 

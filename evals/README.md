@@ -68,3 +68,5 @@ See the first five-run independently scored result in
 [`results/continuation-stability-20260722.md`](results/continuation-stability-20260722.md).
 The current three-project Luna Max holdout is recorded in
 [`results/continuation-v2-three-project-20260812.md`](results/continuation-v2-three-project-20260812.md).
+Its canonical Current Action repair is validated by the paired sealed rerun in
+[`results/current-action-repair-sealed-rerun-20260812.md`](results/current-action-repair-sealed-rerun-20260812.md).

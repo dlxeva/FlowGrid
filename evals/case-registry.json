@@ -157,7 +157,46 @@
         }
       },
       "claim_supported": "The repaired generator makes Resume and Manifest agree on one source-backed action or the same explicit abstention across all three real-project replays.",
-      "limits": "Deterministic local replay does not prove fresh-Agent semantic continuation quality; a sealed model rerun remains required."
+      "limits": "Deterministic local replay does not itself prove fresh-Agent semantic continuation quality; that question is tested in the overlapping sealed rerun."
+    },
+    {
+      "case_id": "current-action-repair-sealed-rerun-20260812",
+      "kind": "real_project_controlled_eval",
+      "case_count": 3,
+      "projects": [
+        "FlowGrid dogfood ledger at current v0.4 state",
+        "FlightModeAI live product ledger",
+        "AI thinking canvas live product ledger"
+      ],
+      "source": "evals/results/current-action-repair-sealed-rerun-20260812.md",
+      "overlaps_cases": [
+        "continuation-v2-three-project-20260812",
+        "current-action-replay-20260812"
+      ],
+      "comparison": [
+        "reused_no_state",
+        "reused_raw_history",
+        "repaired_resume_context_pack",
+        "repaired_continuity_manifest"
+      ],
+      "objective_metrics": {
+        "aggregate_blind_score_mean": {
+          "no_state": 4.17,
+          "raw_history": 3.67,
+          "repaired_resume_context_pack": 12.67,
+          "repaired_continuity_manifest": 10.83
+        },
+        "critical_failure_voters_out_of_six": {
+          "no_state": 0,
+          "raw_history": 6,
+          "repaired_resume_context_pack": 0,
+          "repaired_continuity_manifest": 0
+        },
+        "projects_won_by_repaired_resume": 3,
+        "repaired_scorer_view_votes_without_critical_failure": "12/12"
+      },
+      "claim_supported": "For the same three held projects, the canonical Current Action repair made both FLG views produce a correct action or safe reconciliation, and repaired Resume outscored no state and raw history in every project.",
+      "limits": "This paired repair validation reuses the original projects and A/B responses, uses new same-family scorers, and does not establish universal superiority, external adoption, or cross-model reliability."
     }
   ]
 }

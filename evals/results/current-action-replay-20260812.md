@@ -35,6 +35,7 @@ The repair fixes the deterministic rendering defect demonstrated by the sealed
 study: Resume and Manifest now agree on one source-backed action or the same
 explicit abstention.
 
-It does not yet prove that a fresh Agent will make the correct full
-continuation judgment. That requires a sealed model rerun after the code and
-input artifacts are committed.
+This deterministic replay alone does not prove that a fresh Agent will make the
+correct full continuation judgment. That separate evidence gate has since
+passed for the same three projects; see
+[`current-action-repair-sealed-rerun-20260812.md`](current-action-repair-sealed-rerun-20260812.md).

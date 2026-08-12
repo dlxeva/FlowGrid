@@ -78,8 +78,16 @@ The evaluation branch now compiles one canonical Current Action across Resume,
 Manifest, and Handoff. Snapshot current state wins over legacy state caches;
 deterministic contradictions produce `needs_reconciliation` instead of an
 executable recommendation. Current-action and source-tree Smoke regressions
-bring the branch to `211` passing tests. Real-project replay passes; a sealed model rerun remains required
-before claiming the continuation defect is repaired end to end.
+bring the branch to `211` passing tests. Real-project replay and a paired sealed
+Luna Max rerun both pass. Across the three held projects, repaired Resume won
+all three by mean blind score; Resume and Manifest received `0/12` critical-
+failure scorer-view votes, versus `6/12` critical-failure votes for the two FLG
+views before repair. This validates the targeted stale-current-action defect, not universal
+superiority or external adoption. See the
+[repair rerun](../../evals/results/current-action-repair-sealed-rerun-20260812.md).
+Critical-voter counts use only the six failure categories frozen before scoring;
+ordinary no-state inability remains in the semantic score rather than being
+promoted post hoc into a critical boundary failure.
 
 ## Goal-Oriented Reliability Integration
 
