@@ -1,0 +1,202 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-08-12",
+  "evidence_boundary": {
+    "supported": "FlowGrid has repeated real-project, dogfood, and host-operated evidence for continuation safety and defect discovery.",
+    "not_supported": "The registry does not establish independent external adoption, retention, willingness to pay, or general superiority over raw history."
+  },
+  "cases": [
+    {
+      "case_id": "real-continuation-20260719",
+      "kind": "real_project_controlled_eval",
+      "case_count": 2,
+      "projects": ["Project F", "Project O"],
+      "source": "evals/results/real-project-continuation-eval-20260719.md",
+      "comparison": ["no_state", "raw_history", "context_pack"],
+      "objective_metrics": {
+        "context_pack_vs_raw": {"wins": 1, "ties": 0, "losses": 1},
+        "input_reduction_percent": [94, 80],
+        "critical_boundary_failures": 0
+      },
+      "claim_supported": "Context Pack was materially smaller and better than no state in both real projects, while exposing a completeness defect in an observation-heavy project.",
+      "limits": "Two projects and one response per mode do not establish general superiority or host automation."
+    },
+    {
+      "case_id": "real-continuation-round2-20260719",
+      "kind": "real_project_controlled_eval",
+      "case_count": 3,
+      "projects": ["Project R", "Project T", "Project H"],
+      "source": "evals/results/real-project-continuation-eval-round2-20260719.md",
+      "comparison": ["no_state", "raw_history", "context_pack"],
+      "objective_metrics": {
+        "initial_context_pack_vs_raw": {"wins": 0, "ties": 2, "losses": 1},
+        "combined_five_project_result_after_repair": {"wins": 1, "ties": 3, "losses": 1},
+        "input_reduction_percent_range": [60, 75],
+        "critical_boundary_failures_after_repair": 0
+      },
+      "claim_supported": "Five-project combined evidence shows boundary-preserving continuation with materially less context, but not general superiority over raw history.",
+      "limits": "The repaired Project H rerun validates one defect repair and is not a second raw-history comparison."
+    },
+    {
+      "case_id": "short-confirmation-cluster-20260808",
+      "kind": "cross_project_dogfood",
+      "case_count": 5,
+      "projects": ["five redacted product, recovery, and market-validation projects"],
+      "source": "ITERATION_LOG.md",
+      "source_locator": "FLG-ITER-20260808-02",
+      "objective_metrics": {
+        "independent_projects_with_same_failure_pattern": 5,
+        "regression_added": true,
+        "real_transcript_replay_added": true
+      },
+      "claim_supported": "Short user confirmations repeatedly failed attribution across independent projects and justified a bounded extraction repair.",
+      "limits": "This is a repeated internal-use defect cluster, not external adoption evidence."
+    },
+    {
+      "case_id": "customer-assistant-three-round-20260715",
+      "kind": "customer_field_use",
+      "case_count": 1,
+      "projects": ["redacted customer AI assistant project"],
+      "source": "ITERATION_LOG.md",
+      "source_locator": "2026-07-15：客户项目（三轮）",
+      "objective_metrics": {
+        "work_rounds": 3,
+        "pre_meeting_assumptions_overturned": true,
+        "source_authority_gap_found": true
+      },
+      "claim_supported": "Field use exposed that structural completeness could not distinguish first-hand evidence from second- and third-hand assumptions.",
+      "limits": "The redacted log supports defect discovery, not customer outcome or commercial validation."
+    },
+    {
+      "case_id": "codex-host-protocol-20260721",
+      "kind": "host_acceptance",
+      "case_count": 1,
+      "projects": ["real FlowGrid BIZ handoff conversation"],
+      "source": "evals/results/codex-host-protocol-acceptance-20260721.md",
+      "comparison": ["host_operated_background_flow"],
+      "objective_metrics": {
+        "raw_conversation_archived": true,
+        "assistant_candidates_promoted": 0,
+        "formal_ledger_hash_unchanged": true,
+        "strict_doctor_passed": true
+      },
+      "claim_supported": "A host-operated natural conversation preserved raw evidence while keeping assistant-authored and unattributed candidates out of formal truth.",
+      "limits": "This does not prove a native event hook, automatic transcript export, or cross-host reliability."
+    },
+    {
+      "case_id": "continuation-v2-flowgrid-pilot-20260812",
+      "kind": "real_project_controlled_eval",
+      "case_count": 1,
+      "projects": ["FlowGrid dogfood ledger at current v0.4 state"],
+      "source": "evals/results/continuation-v2-flowgrid-pilot-20260812.md",
+      "comparison": ["no_state", "raw_history", "resume_context_pack", "continuity_manifest"],
+      "objective_metrics": {
+        "material_bytes": {"no_state": 0, "raw_history": 32601, "resume_context_pack": 12095, "continuity_manifest": 5345},
+        "duration_ms": {"no_state": 33682, "raw_history": 474883, "resume_context_pack": 45595, "continuity_manifest": 157473},
+        "blind_score_mean": {"no_state": 8.5, "raw_history": 7.5, "resume_context_pack": 12.5, "continuity_manifest": 8.0},
+        "critical_failure_votes": {"no_state": 0, "raw_history": 1, "resume_context_pack": 0, "continuity_manifest": 2}
+      },
+      "claim_supported": "In one current-project Luna Max pilot, Resume Context Pack produced the strongest continuation while raw history and Manifest revived stale work.",
+      "limits": "One project and one run per mode do not update the historical five-project comparison or prove general superiority."
+    },
+    {
+      "case_id": "continuation-v2-three-project-20260812",
+      "kind": "real_project_controlled_eval",
+      "case_count": 3,
+      "projects": [
+        "FlowGrid dogfood ledger at current v0.4 state",
+        "FlightModeAI live product ledger",
+        "AI thinking canvas live product ledger"
+      ],
+      "source": "evals/results/continuation-v2-three-project-20260812.md",
+      "overlaps_cases": ["continuation-v2-flowgrid-pilot-20260812"],
+      "comparison": ["no_state", "raw_history", "resume_context_pack", "continuity_manifest"],
+      "objective_metrics": {
+        "project_winner": {
+          "FlowGrid": "resume_context_pack",
+          "FlightModeAI": "resume_context_pack",
+          "AI_thinking_canvas": "continuity_manifest"
+        },
+        "aggregate_blind_score_mean": {
+          "no_state": 5.83,
+          "raw_history": 7.0,
+          "resume_context_pack": 9.33,
+          "continuity_manifest": 8.5
+        },
+        "critical_failure_voters_out_of_six": {
+          "no_state": 0,
+          "raw_history": 5,
+          "resume_context_pack": 2,
+          "continuity_manifest": 4
+        },
+        "projects_where_at_least_one_flg_view_outscored_no_state": 3
+      },
+      "claim_supported": "Across three current real projects, at least one FLG view outscored no state in every project, but the safest winning view varied and stale FLG views could be worse than abstention.",
+      "limits": "One run per mode, same-family continuation and scoring models, post-hoc comparison of the best FLG view, and owner-operated projects do not prove automatic routing, external adoption, or universal net value."
+    },
+    {
+      "case_id": "current-action-replay-20260812",
+      "kind": "real_project_controlled_eval",
+      "case_count": 3,
+      "projects": [
+        "FlowGrid dogfood ledger at current v0.4 state",
+        "FlightModeAI live product ledger",
+        "AI thinking canvas live product ledger"
+      ],
+      "source": "evals/results/current-action-replay-20260812.md",
+      "overlaps_cases": ["continuation-v2-three-project-20260812"],
+      "comparison": ["repaired_resume_context_pack", "repaired_continuity_manifest"],
+      "objective_metrics": {
+        "resume_manifest_action_disagreements": 0,
+        "stale_actions_exposed_as_executable": 0,
+        "projects_replayed": 3,
+        "legacy_fallback_actions_ignored": {
+          "FlowGrid": 1,
+          "FlightModeAI": 0,
+          "AI_thinking_canvas": 4
+        }
+      },
+      "claim_supported": "The repaired generator makes Resume and Manifest agree on one source-backed action or the same explicit abstention across all three real-project replays.",
+      "limits": "Deterministic local replay does not itself prove fresh-Agent semantic continuation quality; that question is tested in the overlapping sealed rerun."
+    },
+    {
+      "case_id": "current-action-repair-sealed-rerun-20260812",
+      "kind": "real_project_controlled_eval",
+      "case_count": 3,
+      "projects": [
+        "FlowGrid dogfood ledger at current v0.4 state",
+        "FlightModeAI live product ledger",
+        "AI thinking canvas live product ledger"
+      ],
+      "source": "evals/results/current-action-repair-sealed-rerun-20260812.md",
+      "overlaps_cases": [
+        "continuation-v2-three-project-20260812",
+        "current-action-replay-20260812"
+      ],
+      "comparison": [
+        "reused_no_state",
+        "reused_raw_history",
+        "repaired_resume_context_pack",
+        "repaired_continuity_manifest"
+      ],
+      "objective_metrics": {
+        "aggregate_blind_score_mean": {
+          "no_state": 4.17,
+          "raw_history": 3.67,
+          "repaired_resume_context_pack": 12.67,
+          "repaired_continuity_manifest": 10.83
+        },
+        "critical_failure_voters_out_of_six": {
+          "no_state": 0,
+          "raw_history": 6,
+          "repaired_resume_context_pack": 0,
+          "repaired_continuity_manifest": 0
+        },
+        "projects_won_by_repaired_resume": 3,
+        "repaired_scorer_view_votes_without_critical_failure": "12/12"
+      },
+      "claim_supported": "For the same three held projects, the canonical Current Action repair made both FLG views produce a correct action or safe reconciliation, and repaired Resume outscored no state and raw history in every project.",
+      "limits": "This paired repair validation reuses the original projects and A/B responses, uses new same-family scorers, and does not establish universal superiority, external adoption, or cross-model reliability."
+    }
+  ]
+}

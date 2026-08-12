@@ -261,6 +261,139 @@ def test_context_pack_reads_plural_hyphenated_snapshot_next_action(tmp_path):
         os.chdir(old_cwd)
 
 
+def test_context_pack_uses_snapshot_as_canonical_current_action(tmp_path):
+    """A stale state cache must not become a second executable action."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Canonical Action Test"])
+        (tmp_path / "SNAPSHOT.md").write_text(
+            "# Project Snapshot\n\n"
+            "**Updated:** 2026-08-12T09:00:00\n\n"
+            "## Next Highest Priority Action\n\n"
+            "Run the current external-host trial.\n",
+            encoding="utf-8",
+        )
+        state_path = tmp_path / ".flg" / "state.json"
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+        state["next_actions"] = ["Implement the obsolete feature branch."]
+        state_path.write_text(json.dumps(state), encoding="utf-8")
+
+        resume, resume_meta = build_context_pack(tmp_path, mode="resume")
+        manifest, manifest_meta = build_context_pack(tmp_path, mode="manifest")
+
+        for artifact, metadata in ((resume, resume_meta), (manifest, manifest_meta)):
+            assert "## Current Action" in artifact
+            assert "- Status: current" in artifact
+            assert "Run the current external-host trial" in artifact
+            assert "SNAPSHOT.md#Next-Highest-Priority-Action" in artifact
+            assert "Ignored legacy fallback actions: 1" in artifact
+            assert "Implement the obsolete feature branch" not in artifact
+            assert metadata["current_action"]["status"] == "current"
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_context_pack_refuses_stale_review_pending_patches_action(tmp_path):
+    """A generic Snapshot action is invalid after the pending queue is empty."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Stale Queue Action Test"])
+        (tmp_path / "SNAPSHOT.md").write_text(
+            "# Project Snapshot\n\n"
+            "## Next Highest Priority Action\n\n"
+            "Review pending patches\n",
+            encoding="utf-8",
+        )
+
+        resume, resume_meta = build_context_pack(tmp_path, mode="resume")
+        manifest, manifest_meta = build_context_pack(tmp_path, mode="manifest")
+
+        for artifact, metadata in ((resume, resume_meta), (manifest, manifest_meta)):
+            current = artifact.split("## Current Action", 1)[1].split("##", 1)[0]
+            assert "Status: needs_reconciliation" in current
+            assert "Action: (none; reconcile state before acting)" in current
+            assert "no pending patches" in current
+            assert metadata["current_action"]["action"] is None
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_context_pack_refuses_state_only_current_action(tmp_path):
+    """Legacy state.next_actions cannot silently steer autonomous work."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "State Only Action Test"])
+        (tmp_path / "SNAPSHOT.md").write_text(
+            "# Project Snapshot\n\n## Current Core Goal\n\nKeep work bounded.\n",
+            encoding="utf-8",
+        )
+        state_path = tmp_path / ".flg" / "state.json"
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+        state["next_actions"] = ["Revive an old implementation task."]
+        state_path.write_text(json.dumps(state), encoding="utf-8")
+
+        content, metadata = build_context_pack(tmp_path, mode="resume")
+
+        current = content.split("## Current Action", 1)[1].split("##", 1)[0]
+        assert "Status: needs_reconciliation" in current
+        assert "legacy cache" in current
+        assert "Revive an old implementation task" not in content
+        assert metadata["current_action"]["status"] == "needs_reconciliation"
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_context_pack_refuses_init_action_after_framing_goal_exists(tmp_path):
+    """Resume and Manifest must agree that a filled frame makes init stale."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Framed Action Test"])
+        framing = tmp_path / "FRAMING.md"
+        framing.write_text(
+            framing.read_text(encoding="utf-8").replace(
+                "## Goals\n\n(to be defined)",
+                "## Goals\n\n- Validate the real continuation workflow.",
+            ),
+            encoding="utf-8",
+        )
+
+        for mode in ("resume", "manifest"):
+            content, metadata = build_context_pack(tmp_path, mode=mode)
+            current = content.split("## Current Action", 1)[1].split("##", 1)[0]
+            assert "Status: needs_reconciliation" in current
+            assert "initialization framing action" in current
+            assert metadata["current_action"]["action"] is None
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_context_pack_refuses_action_also_marked_completed(tmp_path):
+    """A completed or superseded action cannot remain executable."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Completed Action Test"])
+        (tmp_path / "SNAPSHOT.md").write_text(
+            "# Project Snapshot\n\n"
+            "## Next Actions\n\n1. Publish the old report.\n\n"
+            "## Completed Actions\n\n- Publish the old report.\n",
+            encoding="utf-8",
+        )
+
+        content, metadata = build_context_pack(tmp_path, mode="manifest")
+
+        current = content.split("## Current Action", 1)[1].split("##", 1)[0]
+        assert "Status: needs_reconciliation" in current
+        assert "same action as completed" in current
+        assert metadata["current_action"]["action"] is None
+    finally:
+        os.chdir(old_cwd)
+
+
 def test_context_pack_surfaces_source_health_drift(tmp_path):
     """Index drift must be visible in the bounded pack, not silently hidden."""
     old_cwd = os.getcwd()

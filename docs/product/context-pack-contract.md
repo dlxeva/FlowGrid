@@ -97,6 +97,26 @@ and `flg trace <decision-id>` supply judgment detail and provenance on demand.
 This layer does not load raw sessions, copy full rationale into the manifest,
 introduce another index, or become a new fact-writing surface.
 
+### 7. One canonical current action
+
+Resume, Manifest, and Handoff must compile the same single current action.
+`SNAPSHOT.md` is the formal current-action authority. The legacy
+`.flg/state.json#next_actions` list may corroborate it, but cannot override it
+or independently authorize autonomous continuation.
+
+Every generated view must expose:
+
+- status: `current`, `needs_reconciliation`, or `not_defined`;
+- the exact action when status is `current`;
+- its source and source-updated timestamp;
+- how many legacy fallback actions were ignored;
+- the reason for selection or abstention.
+
+If the Snapshot action contradicts deterministic project state, the generator
+must abstain. The first enforced contradictions are an empty pending-patch
+queue paired with “Review pending patches”, and an action repeated in an
+explicit completed, superseded, or stale Snapshot section.
+
 ## Required Sections
 
 A valid v0 Context Pack should include these sections.
@@ -140,6 +160,11 @@ Examples:
 The highest-level active goal.
 
 This should come from `FRAMING.md`, `SNAPSHOT.md`, or reviewed project state.
+
+### 4a. Current Action
+
+The one source-backed action that a receiving Agent may continue. A status other
+than `current` means the Agent must reconcile formal state before acting.
 
 ### 5. Confirmed Decisions
 
@@ -272,6 +297,8 @@ A Context Pack is valid if a receiving agent can answer:
 - What should not be repeated without new evidence?
 - What old judgment has been superseded?
 - What should happen next?
+- Is that action current, or did FlowGrid explicitly abstain pending
+  reconciliation?
 - Where can evidence be retrieved?
 
 ## Non-Goals for v0

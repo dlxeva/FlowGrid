@@ -1,5 +1,6 @@
 """Tests for explicit, file-backed decision relations."""
 
+import json
 import os
 
 from typer.testing import CliRunner
@@ -103,6 +104,70 @@ def test_decision_add_rejects_unknown_relation_targets(tmp_path):
         assert "D-001 | Depend on an unknown judgment" not in (
             tmp_path / "DECISIONS.md"
         ).read_text(encoding="utf-8")
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_decision_add_without_source_does_not_invent_high_authority_evidence(tmp_path):
+    old_cwd = _project(tmp_path)
+    try:
+        result = runner.invoke(
+            app,
+            [
+                "decision",
+                "add",
+                "--decision",
+                "Keep the project state local",
+                "--rationale",
+                "The ledger must remain inspectable",
+            ],
+        )
+        assert result.exit_code == 0
+
+        ledger = (tmp_path / "DECISIONS.md").read_text(encoding="utf-8")
+        assert "直接写入命令；未提供来源摘录" in ledger
+        assert ledger.count("未提供") >= 4
+        assert "用户明确指令" not in ledger
+        assert "通过后续执行结果和项目反馈验证" not in ledger
+
+        index_path = tmp_path / ".flg" / "context" / "evidence_index.json"
+        item = json.loads(index_path.read_text(encoding="utf-8"))["items"]["D-001"]
+        assert item["authority"] == "medium"
+        assert item["source_type"] == "direct_command"
+
+        index_path.unlink()
+        rebuilt = runner.invoke(app, ["reindex"])
+        assert rebuilt.exit_code == 0
+        rebuilt_item = json.loads(index_path.read_text(encoding="utf-8"))["items"]["D-001"]
+        assert rebuilt_item["authority"] == "medium"
+        assert rebuilt_item["source_type"] == "direct_command"
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_decision_add_with_source_keeps_explicit_confirmation_authority(tmp_path):
+    old_cwd = _project(tmp_path)
+    try:
+        result = runner.invoke(
+            app,
+            [
+                "decision",
+                "add",
+                "--decision",
+                "Use the bounded pilot",
+                "--rationale",
+                "The owner selected it",
+                "--evidence",
+                "User: 定了，先做有边界的试点。",
+            ],
+        )
+        assert result.exit_code == 0
+
+        index_path = tmp_path / ".flg" / "context" / "evidence_index.json"
+        item = json.loads(index_path.read_text(encoding="utf-8"))["items"]["D-001"]
+        assert item["authority"] == "high"
+        assert item["source_type"] == "user_confirmation"
+        assert item["source_excerpt"] == "User: 定了，先做有边界的试点。"
     finally:
         os.chdir(old_cwd)
 

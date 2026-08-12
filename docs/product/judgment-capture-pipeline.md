@@ -177,10 +177,16 @@ flg capture review --auto-confirm # 自动确认 confidence=inferred 的 candida
 flg decision add \
   -d "技术栈确定为 PostgreSQL" \
   -r "已验证两周无问题，团队已培训" \
+  -e "User: 定了，技术栈使用 PostgreSQL。" \
   --principle                    # 标记为 principle 类型
 ```
 
 `flg decision add` 不走 capture 流程，直接写入 DECISIONS.md（status=confirmed）。这是"用户明确指令驱动的写入"，不走 patch——和 `flg capture add` 的直接写入理由一致：都是用户明确触发的。
+
+命令本身不能证明调用者掌握了用户原话。提供 `--evidence` 时，证据索引
+记录为 `user_confirmation` / high authority；未提供时仍保留 confirmed
+决定，但来源记录为 `direct_command` / medium authority，且缺失的备选、
+风险、验证和复盘条件明确显示为“未提供”，不得由模板代写。
 
 ### 4.3 与现有命令的关系
 

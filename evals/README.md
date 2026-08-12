@@ -7,13 +7,22 @@ scenario; Context Pack is not assumed to outperform a clean raw history.
 
 This directory contains scenario fixtures for evaluating that claim.
 
+Real-project, dogfood, customer-field, and host-acceptance evidence is indexed
+separately in [`case-registry.json`](case-registry.json). The registry records
+both the supported claim and limitation of every case; it must not label
+owner-operated evidence as independent external adoption.
+
 ## Evaluation Modes
 
-Each scenario should support three modes:
+Each scenario should support at least three modes:
 
 - Mode A: no FLG state
 - Mode B: raw history
 - Mode C: FlowGrid Context Pack
+
+Continuation V2 also tests Mode D, the compact Continuity Manifest. Score and
+critical boundary failures must be reported separately: a high average cannot
+cancel a stale-task, false-completion, or unauthorized-action failure.
 
 ## Scoring Dimensions
 
@@ -57,3 +66,7 @@ If Context Pack does not improve agent continuation under evaluation, FlowGrid's
 
 See the first five-run independently scored result in
 [`results/continuation-stability-20260722.md`](results/continuation-stability-20260722.md).
+The current three-project Luna Max holdout is recorded in
+[`results/continuation-v2-three-project-20260812.md`](results/continuation-v2-three-project-20260812.md).
+Its canonical Current Action repair is validated by the paired sealed rerun in
+[`results/current-action-repair-sealed-rerun-20260812.md`](results/current-action-repair-sealed-rerun-20260812.md).

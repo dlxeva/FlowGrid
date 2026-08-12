@@ -10,6 +10,7 @@ import typer
 from rich.console import Console
 from rich.markdown import Markdown
 
+from ..core.current_action import resolve_current_action
 from ..core.files import is_flg_project, read_file_safe
 from ..core.patches import list_patches
 from ..core.state import load_state
@@ -255,9 +256,15 @@ def generate_handoff_summary(root: Path, format: str = "markdown") -> str:
     # SNAPSHOT.md is the project-level current truth. Surface its active goal,
     # priority, risks, and boundaries before falling back to generic CLI advice.
     current_goal = " ".join(_extract_markdown_section_lines(snapshot_content, "Current Core Goal")) or "(not defined)"
-    current_priority = " ".join(
-        _extract_markdown_section_lines(snapshot_content, "Next Highest Priority Action")
+    current_action = resolve_current_action(
+        snapshot_content,
+        state,
+        pending_patches_count=len(pending_patches),
+        framing_goal_defined=(
+            _extract_framing_goal(framing_content) != "(not defined)"
+        ),
     )
+    current_priority = current_action.get("action") or ""
     snapshot_risks = _extract_markdown_section_lines(snapshot_content, "Current Risks")
     snapshot_boundaries = _extract_markdown_section_lines(snapshot_content, "Do Not Misread")
     
@@ -469,6 +476,10 @@ def generate_handoff_summary(root: Path, format: str = "markdown") -> str:
         summary += f"- **Highest priority (SNAPSHOT.md):** {current_priority}\n"
     else:
         summary += "- **Highest priority (SNAPSHOT.md):** (not defined)\n"
+    summary += f"- **Current action status:** {current_action['status']}\n"
+    summary += f"- **Current action source:** {current_action.get('source') or '(none)'}\n"
+    if current_action["status"] != "current":
+        summary += f"- **Reconciliation required:** {current_action['reason']}\n"
 
     if snapshot_risks:
         summary += "- **Current risks (SNAPSHOT.md):**\n"
@@ -494,9 +505,23 @@ def generate_handoff_summary(root: Path, format: str = "markdown") -> str:
         summary += f"1. {current_priority}\n"
         if all_decisions:
             summary += "2. Process pending candidate decisions only after the current priority is addressed\n"
+    elif (
+        current_action["status"] == "needs_reconciliation"
+        and current_priority == ""
+        and current_action.get("reason", "").startswith(
+            "SNAPSHOT.md still carries the initialization framing action"
+        )
+        and framing_is_complete
+    ):
+        summary += "1. FRAMING.md is complete — define a current project action from the framed goal\n"
+        summary += "2. Continue bounded project work and run `flg closeout` at the end of the session\n"
+    elif current_action["status"] == "needs_reconciliation":
+        summary += "1. Reconcile the formal current action before autonomous continuation\n"
+        summary += f"2. Reason: {current_action['reason']}\n"
     elif all_next_actions:
-        for idx, action in enumerate(all_next_actions[:5], 1):
-            summary += f"{idx}. {action}\n"
+        summary += "1. Review pending patch actions as candidates; do not execute them as current truth\n"
+        for idx, action in enumerate(all_next_actions[:5], 2):
+            summary += f"{idx}. Candidate only: {action}\n"
     elif current_stage == "initialized" and not framing_is_complete:
         summary += "1. Run `flg frame` to define project goals and boundaries\n"
         summary += "2. Review and fill in FRAMING.md\n"

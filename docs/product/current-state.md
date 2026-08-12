@@ -1,6 +1,6 @@
 # FlowGrid Current State
 
-Last updated: 2026-08-08
+Last updated: 2026-08-12
 Primary branch: `master`
 Current code version: `v0.3.0`
 Current stage: `v0.4 core validation`
@@ -23,11 +23,18 @@ Its job is to let project state, boundaries, judgments, progress, and next actio
 - Optional BIZ meeting handoff import with explicit role-metadata promotion gates
 - Advisory evidence-basis quality signal for complete `FRAMING.md` files
 - Patch lifecycle parsing that preserves rejected and superseded states
+- Explicit, validated decision relations with derived incoming/outgoing trace views
+- A machine-readable real-case registry with bounded claims and limitations
 
 ## Current Verification
 
-- PR #42 is merged into `master` at merge commit `73902fc`
-- The post-merge full suite passes `189` tests
+- PR #44 established the pre-Continuation V2 `master` baseline at merge commit
+  `11c337d`
+- The independent FlowGrid AML Retriever ranked #8 in the first public Agent
+  Memory Leaderboard Academic Textual track with a score of 43.98. This is
+  external benchmark evidence for the competition retriever, not FlowGrid Core
+  adoption or an end-to-end Core evaluation.
+- The pre-Continuation V2 baseline passes `198` tests
 - `python scripts/smoke_test.py` passed
 - English-native deterministic gate passed
 - Real FlowGrid ledger audit passed with an expected undeclared-evidence-basis warning
@@ -38,6 +45,54 @@ Its job is to let project state, boundaries, judgments, progress, and next actio
 - `flg onboard` detects missing, current, and drifted host Skills by content hash; an explicit update replaces drifted local instructions
 - Five isolated `gpt-5.4` campaign continuations and separately scored results show Context Pack is stable and better than no state, but not superior to clean raw history; see [the stability result](../../evals/results/continuation-stability-20260722.md)
 - Three repeated iteration-feedback patterns are now mapped to executable rules and verification in [the closure note](iteration-feedback-20260722.md)
+- Five real continuation projects, repeated dogfood failures, customer field use,
+  and host acceptance evidence are indexed without being mislabelled as external
+  adoption; see [the Case Registry](case-registry.md)
+
+## Evidence Integrity Iteration
+
+The current iteration tightens evidence claims without changing the v0.4
+product boundary:
+
+- `decision add` keeps a direct write confirmed, but an omitted source excerpt
+  is recorded as `direct_command` with medium authority;
+- missing alternatives, rejected reasons, risks, follow-up validation, and
+  reversal conditions remain explicitly `Not provided` instead of receiving
+  plausible template prose;
+- explicit source evidence retains `user_confirmation` and high authority;
+- CI detects product files committed after the last `current-state.md` refresh;
+- the Case Registry separates real-project evidence from external adoption.
+- the full evidence-integrity iteration passes `204` tests, the repository
+  smoke flow, and the English-native deterministic gate.
+
+## Continuation V2 Holdout
+
+The Continuation V2 iteration repeated the same sealed A/B/C/D Luna Max
+protocol on three current real projects: FlowGrid, FlightModeAI, and the AI
+thinking canvas. Resume won FlowGrid and FlightModeAI by mean blind score;
+Manifest won the AI thinking canvas. At least one FLG view beat no state in all
+three projects, but stale FLG views produced critical failures in every project.
+
+The supported product conclusion is therefore narrower than “FLG is always
+better”: a current, correctly selected state view improves continuation, while
+mere state availability does not. The result and its same-family, single-run,
+owner-operated limits are recorded in the
+[three-project report](../../evals/results/continuation-v2-three-project-20260812.md).
+
+The same iteration compiles one canonical Current Action across Resume,
+Manifest, and Handoff. Snapshot current state wins over legacy state caches;
+deterministic contradictions produce `needs_reconciliation` instead of an
+executable recommendation. Current-action and source-tree Smoke regressions
+bring the branch to `211` passing tests. Real-project replay and a paired sealed
+Luna Max rerun both pass. Across the three held projects, repaired Resume won
+all three by mean blind score; Resume and Manifest received `0/12` critical-
+failure scorer-view votes, versus `6/12` critical-failure votes for the two FLG
+views before repair. This validates the targeted stale-current-action defect, not universal
+superiority or external adoption. See the
+[repair rerun](../../evals/results/current-action-repair-sealed-rerun-20260812.md).
+Critical-voter counts use only the six failure categories frozen before scoring;
+ordinary no-state inability remains in the semantic score rather than being
+promoted post hoc into a critical boundary failure.
 
 ## Goal-Oriented Reliability Integration
 

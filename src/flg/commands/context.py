@@ -12,6 +12,7 @@ import typer
 from rich.console import Console
 from rich.markdown import Markdown
 
+from ..core.current_action import resolve_current_action
 from ..core.evidence import load_evidence_index, parse_decisions_ledger, validate_project
 from ..core.files import is_flg_project, read_file_safe
 from ..core.state import load_state
@@ -401,6 +402,20 @@ def _render_source_health(report: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _render_current_action(current_action: dict) -> str:
+    """Render the same canonical action contract in every continuation view."""
+    action = current_action.get("action") or "(none; reconcile state before acting)"
+    source = current_action.get("source") or "(no formal current-action source)"
+    return (
+        f"- Status: {current_action['status']}\n"
+        f"- Action: {action}\n"
+        f"- Source: {source}\n"
+        f"- Source updated: {current_action['source_updated_at']}\n"
+        f"- Ignored legacy fallback actions: {current_action['ignored_fallback_count']}\n"
+        f"- Reason: {current_action['reason']}\n"
+    )
+
+
 def _manifest_section_pointer(
     content: str,
     source: str,
@@ -489,12 +504,21 @@ def _build_continuity_manifest(root: Path, budget: int) -> tuple[str, dict]:
     )
     if not current_goal:
         current_goal = _first_section_line(current_framing, ("Goals", "目标"), "(not defined)")
+    framing_goal_defined = bool(
+        _first_section_line(current_framing, ("Goals", "目标"), "")
+    )
 
     decisions = parse_decisions_ledger(decisions_content)
     evidence_items = load_evidence_index(root).get("items", {})
     pending_patches = _pending_patch_summaries(root)
     pending_captures = _pending_capture_ids(root)
     source_health = validate_project(root)
+    current_action = resolve_current_action(
+        snapshot_content,
+        state,
+        pending_patches_count=len(pending_patches),
+        framing_goal_defined=framing_goal_defined,
+    )
 
     pending_decision_ids = [
         decision["decision_id"]
@@ -515,15 +539,14 @@ def _build_continuity_manifest(root: Path, budget: int) -> tuple[str, dict]:
         (current_framing, "FRAMING.md", ("Open Questions", "未确认问题"), "open"),
         (snapshot_content, "SNAPSHOT.md", ("Hard Constraints", "硬约束", "Current Non-Goals", "当前不做什么"), "constraint"),
         (read_file_safe(root / "CONSTRAINTS.md") or "", "CONSTRAINTS.md", ("Constraint Blocks", "Active Constraints", "当前约束"), "constraint"),
-        (snapshot_content, "SNAPSHOT.md", ("Next Highest Priority Action", "Next Highest Priority Actions", "Next Highest-Priority Actions", "Next Actions", "下一步最高优先级", "下一步行动", "下一步"), "action"),
     )
     for content, source, headings, kind in pointer_specs:
         pointer = _manifest_section_pointer(content, source, headings)
         if pointer:
             pointers.append(f"- {kind}: {pointer}")
             pointer_kinds.add(kind)
-    if state.get("next_actions"):
-        pointers.append("- action: .flg/state.json#next_actions")
+    if current_action.get("source"):
+        pointers.append(f"- action: {current_action['source']}")
         pointer_kinds.add("action")
     if "open" not in pointer_kinds:
         pointers.append("- open: SNAPSHOT.md and FRAMING.md (none found)")
@@ -552,6 +575,11 @@ def _build_continuity_manifest(root: Path, budget: int) -> tuple[str, dict]:
 
 {_render_manifest_judgments(decisions)}- Evidence-indexed IDs: {', '.join(indexed_ids) if indexed_ids else '(none)'}
 """
+    current_action_section = f"""
+
+## Current Action
+
+{_render_current_action(current_action)}"""
     work_pointer_section = f"""
 
 ## Work Pointers
@@ -581,6 +609,7 @@ def _build_continuity_manifest(root: Path, budget: int) -> tuple[str, dict]:
 """
     content = (
         identity_section
+        + current_action_section
         + judgment_section
         + work_pointer_section
         + source_health_section
@@ -599,6 +628,7 @@ def _build_continuity_manifest(root: Path, budget: int) -> tuple[str, dict]:
 """
         content = (
             identity_section
+            + current_action_section
             + compact_judgment_section
             + work_pointer_section
             + source_health_section
@@ -629,6 +659,7 @@ def _build_continuity_manifest(root: Path, budget: int) -> tuple[str, dict]:
             decision["status"] in _CURRENT_DECISION_STATUSES for decision in decisions
         ),
         "source_health": source_health,
+        "current_action": current_action,
         "truncated": truncated,
     }
     return content, metadata
@@ -667,8 +698,9 @@ def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> 
     )
     proof_object = _first_section_line(current_framing, ("Success Criteria", "成功标准"), "(not defined)")
     current_goal = _first_section_line(snapshot_content, ("Current Core Goal", "Current Goal", "当前核心目标", "当前目标"))
+    framing_goal = _first_section_line(current_framing, ("Goals", "目标"), "")
     if not current_goal:
-        current_goal = _first_section_line(current_framing, ("Goals", "目标"), "(not defined)")
+        current_goal = framing_goal or "(not defined)"
 
     # A project can have a useful governing frame even when no current execution
     # goal is declared. Keep the two concepts separate so an observation frame
@@ -688,6 +720,12 @@ def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> 
     confirmed_decisions = _parse_confirmed_decisions(decisions_content, evidence_items)
     pending_patches = _pending_patch_summaries(root)
     source_health = validate_project(root)
+    current_action = resolve_current_action(
+        snapshot_content,
+        state,
+        pending_patches_count=len(pending_patches),
+        framing_goal_defined=bool(framing_goal),
+    )
 
     assumptions = _list_items(_section(snapshot_content, "Unconfirmed"), limit=8)
     assumptions += _list_items(_section(snapshot_content, "未确认"), limit=8)
@@ -717,27 +755,6 @@ def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> 
     superseded = _list_items(goal_evolution_content, limit=8)
     risks = _list_items(_section(snapshot_content, "Current Risks"), limit=8)
     risks = risks[:8]
-
-    next_actions = []
-    raw_next_actions = state.get("next_actions", [])
-    if isinstance(raw_next_actions, list):
-        next_actions.extend(str(item) for item in raw_next_actions[:8])
-    snapshot_next = ""
-    for heading in (
-        "Next Highest Priority Action",
-        "Next Highest Priority Actions",
-        "Next Highest-Priority Actions",
-        "Next Actions",
-        "下一步最高优先级",
-        "下一步行动",
-        "下一步",
-    ):
-        snapshot_next = _first_meaningful_line(_section(snapshot_content, heading), "")
-        if snapshot_next:
-            break
-    if snapshot_next and snapshot_next not in next_actions:
-        next_actions.append(snapshot_next)
-    next_actions = next_actions[:10]
 
     recent_progress = _compact_lines(progress_content, limit_chars=900) or "(not recorded)"
     snapshot_constraints = _list_items(_section(snapshot_content, "Hard Constraints"), limit=6)
@@ -787,6 +804,9 @@ def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> 
 
 {current_goal}
 
+## Current Action
+
+{_render_current_action(current_action)}
 ## Project Frame
 
 {project_frame}
@@ -823,9 +843,6 @@ def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> 
 ## Source Health
 
 {_render_source_health(source_health)}
-## Next Actions
-
-{_render_items(next_actions)}
 ## Evidence References
 
 {_render_evidence_refs(confirmed_decisions, pending_patches)}
@@ -837,6 +854,8 @@ def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> 
 - Surface assumptions when using them to support recommendations.
 - Do not revive rejected alternatives unless new evidence exists.
 - Do not rely on superseded judgments as current truth.
+- Act only when Current Action status is `current`; otherwise reconcile the
+  formal Snapshot before continuing.
 - Surface the boundary before changing goals, boundaries, review objects, proof
   objects, or core judgments; interrupt the user only when an external,
   irreversible action depends on that change.
@@ -861,6 +880,7 @@ def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> 
         "pending_patches_count": len(pending_patches),
         "confirmed_decisions_count": len(confirmed_decisions),
         "source_health": source_health,
+        "current_action": current_action,
         "truncated": truncated,
     }
     return content, metadata

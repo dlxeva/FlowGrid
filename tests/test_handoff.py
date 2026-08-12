@@ -233,6 +233,30 @@ Next step is to confirm budget allocation with finance.
         assert "medium" in result.output
         assert "generated:" in result.output
         assert "confirm budget allocation with finance" in result.output.lower()
+        assert "Candidate only" in result.output
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_handoff_refuses_stale_snapshot_queue_action(tmp_path):
+    """An empty queue invalidates the generic review-pending-patches action."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Stale Handoff Action"])
+        (tmp_path / "SNAPSHOT.md").write_text(
+            "# Project Snapshot\n\n"
+            "## Next Highest Priority Action\n\nReview pending patches\n",
+            encoding="utf-8",
+        )
+
+        result = runner.invoke(app, ["handoff"])
+
+        assert result.exit_code == 0
+        assert "Current action status: needs_reconciliation" in result.output
+        assert "Reconcile the formal current action" in result.output
+        suggested = result.output.split("Suggested Next Actions", 1)[1]
+        assert "1. Review pending patches" not in suggested
     finally:
         os.chdir(old_cwd)
 

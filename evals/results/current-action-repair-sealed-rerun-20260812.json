@@ -1,0 +1,180 @@
+{
+  "schema_version": 1,
+  "evaluation_id": "current-action-repair-sealed-rerun-20260812",
+  "date": "2026-08-12",
+  "implementation_branch": "agent/continuation-eval-v2",
+  "implementation_commit": "a0cdd2c",
+  "design": "paired_repair_validation",
+  "continuation_model": "gpt-5.6-luna",
+  "reasoning_effort": "max",
+  "runs_per_repaired_mode_per_project": 1,
+  "scorers_per_project": 2,
+  "protocol": {
+    "baseline_modes_reused": ["A", "B"],
+    "repaired_modes_rerun": ["C", "D"],
+    "scoring": "All four responses were newly dual-scored under anonymous labels against frozen truth.",
+    "project_overlap": [
+      "continuation-v2-three-project-20260812",
+      "current-action-replay-20260812"
+    ]
+  },
+  "projects": {
+    "FlowGrid": {
+      "modes": {
+        "A": {
+          "input": "no_state_reused_response",
+          "material_bytes": 0,
+          "duration_ms": 33682,
+          "thread_id": "019ff528-03bb-71e3-9c30-3d817c211514",
+          "blind_scores": [6, 4],
+          "critical_failure_voters": 0
+        },
+        "B": {
+          "input": "redacted_raw_sessions_reused_response",
+          "material_bytes": 32601,
+          "duration_ms": 474883,
+          "thread_id": "019ff528-0f83-7a31-be9f-2700a2a8d929",
+          "blind_scores": [2, 3],
+          "critical_failure_voters": 2
+        },
+        "C": {
+          "input": "repaired_resume_context_pack",
+          "material_bytes": 12384,
+          "sha256": "a5cbc2aa1168aeea703ae68b1c8df70f15aadf2daaf44054c936168c9fd888ae",
+          "duration_ms": 55212,
+          "thread_id": "019ff617-d225-7792-9b4f-61358c4bcb60",
+          "blind_scores": [13, 11],
+          "critical_failure_voters": 0
+        },
+        "D": {
+          "input": "repaired_continuity_manifest",
+          "material_bytes": 6077,
+          "sha256": "5373fe127928799dfa51eabb7944821e87e4424b99ef2bdec6831ed7daa4abb2",
+          "duration_ms": 54121,
+          "thread_id": "019ff617-cc4f-7ba1-a71a-5b3442b4b735",
+          "blind_scores": [11, 12],
+          "critical_failure_voters": 0
+        }
+      },
+      "blind_scorer_threads": [
+        "019ff61a-8526-7d31-ad80-087c6814020c",
+        "019ff61a-89b1-7022-a082-0728eed25075"
+      ],
+      "winner": "C"
+    },
+    "FlightModeAI": {
+      "modes": {
+        "A": {
+          "input": "no_state_reused_response",
+          "material_bytes": 36,
+          "duration_ms": 111031,
+          "thread_id": "019ff54d-dbb3-7cd2-adc9-d7ce3a195f1e",
+          "blind_scores": [4, 5],
+          "critical_failure_voters": 0
+        },
+        "B": {
+          "input": "redacted_raw_sessions_reused_response",
+          "material_bytes": 6361,
+          "duration_ms": 151789,
+          "thread_id": "019ff54d-df68-78b3-bfce-f83589fa4286",
+          "blind_scores": [7, 5],
+          "critical_failure_voters": 2
+        },
+        "C": {
+          "input": "repaired_resume_context_pack",
+          "material_bytes": 12742,
+          "sha256": "f7736b9850b7e75c723bc4ddcc1ece5acaa7b4aab4f8f087af7135119f940c6f",
+          "duration_ms": 64551,
+          "thread_id": "019ff617-dbbb-7ad3-b40d-1d5240a5b0d4",
+          "blind_scores": [14, 13],
+          "critical_failure_voters": 0
+        },
+        "D": {
+          "input": "repaired_continuity_manifest",
+          "material_bytes": 2859,
+          "sha256": "3723b5cdc898c330ac5fa6d2eabb3c9054af5363a7d371cf2c2dca579b54b1e3",
+          "duration_ms": 42033,
+          "thread_id": "019ff617-d6ce-7aa2-b305-f4b4022ed460",
+          "blind_scores": [10, 10],
+          "critical_failure_voters": 0
+        }
+      },
+      "blind_scorer_threads": [
+        "019ff61a-8fc5-7e52-a73a-558749abe8e0",
+        "019ff61a-99c5-7380-a265-dfa989cfd3fe"
+      ],
+      "winner": "C"
+    },
+    "AI_thinking_canvas": {
+      "modes": {
+        "A": {
+          "input": "no_state_reused_response",
+          "material_bytes": 36,
+          "duration_ms": 143696,
+          "thread_id": "019ff54d-e9b2-71f3-b16f-ddbcdc1a3c1e",
+          "blind_scores": [4, 2],
+          "reported_critical_failure_voters": 2,
+          "critical_failure_voters": 0,
+          "critical_vote_normalization": "Both labels described inability to use unavailable project truth, not one of the six predeclared critical categories."
+        },
+        "B": {
+          "input": "redacted_raw_sessions_reused_response",
+          "material_bytes": 70839,
+          "duration_ms": 180794,
+          "thread_id": "019ff54e-032e-7003-97a0-15ef9e27f322",
+          "blind_scores": [2, 3],
+          "critical_failure_voters": 2
+        },
+        "C": {
+          "input": "repaired_resume_context_pack",
+          "material_bytes": 14630,
+          "sha256": "16635523f4d14c9620b7d017acc54942c91d5eb5a11f28755199d6a1f96aae87",
+          "duration_ms": 64067,
+          "thread_id": "019ff617-e1d1-78f0-a5e4-0f0d095bc048",
+          "blind_scores": [12, 13],
+          "critical_failure_voters": 0
+        },
+        "D": {
+          "input": "repaired_continuity_manifest",
+          "material_bytes": 14028,
+          "sha256": "b9c0eaf2c2fef785b701b6af6bc866cf7c5573dc0cc39be96eb49053ce50e06e",
+          "duration_ms": 35353,
+          "thread_id": "019ff617-e96f-7fb2-bb3d-043bafc304b6",
+          "blind_scores": [10, 12],
+          "critical_failure_voters": 0
+        }
+      },
+      "blind_scorer_threads": [
+        "019ff61a-9f7f-7511-b531-9c87a4fbfede",
+        "019ff61a-a780-74a3-8a12-4a5d6c5bfab5"
+      ],
+      "winner": "C"
+    }
+  },
+  "aggregate": {
+    "blind_score_mean": {
+      "A": 4.17,
+      "B": 3.67,
+      "C": 12.67,
+      "D": 10.83
+    },
+    "critical_failure_voters_out_of_six": {
+      "A": 0,
+      "B": 6,
+      "C": 0,
+      "D": 0
+    },
+    "reported_critical_failure_voters_out_of_six": {
+      "A": 2,
+      "B": 6,
+      "C": 0,
+      "D": 0
+    },
+    "projects_won_by_repaired_resume": 3,
+    "repaired_scorer_view_votes_without_critical_failure": "12/12",
+    "original_flg_critical_failure_voters": "6/12",
+    "critical_vote_normalization": "Two AI thinking canvas no-state labels described failure to use unavailable project truth, not one of the six predeclared critical categories. Their scores and raw labels are retained, but they are excluded from the critical-voter count."
+  },
+  "supported_claim": "For these three held real projects, the canonical Current Action repair made both FLG views produce a correct action or safe reconciliation, while repaired Resume outscored no state and raw history in every project.",
+  "limits": "Three owner-operated projects, one repaired run per mode, same-family continuation and scoring models, reused A/B responses, and new scorers validate the targeted defect repair but do not establish universal superiority, external adoption, or cross-model reliability."
+}

@@ -188,6 +188,8 @@ def parse_decisions_ledger(content: str) -> list[dict[str, str]]:
         source = source_match.group(1).strip() if source_match else _section(block, ("证据来源", "Evidence"))
         if "用户明确指令" in source or "用户原话" in source or "user_confirmation" in source:
             source_type = "user_confirmation"
+        elif "直接写入命令" in source or "direct command" in source.lower():
+            source_type = "direct_command"
         elif "capture" in source.lower():
             source_type = "capture_review"
         elif "closeout" in source.lower() or "review" in source.lower():
@@ -267,7 +269,10 @@ def rebuild_evidence_index(root: Path) -> dict[str, Any]:
         item: dict[str, Any] = {
             "decision_id": decision_id,
             "status": decision["status"],
-            "authority": old.get("authority", "high"),
+            "authority": old.get(
+                "authority",
+                "medium" if decision["source_type"] == "direct_command" else "high",
+            ),
             "source_type": old.get("source_type") if same_provenance and old.get("source_type") else decision["source_type"],
             "source_excerpt": old.get("source_excerpt") if same_provenance and old.get("source_excerpt") else decision["what_decided"],
             "title": decision["title"],
