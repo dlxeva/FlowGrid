@@ -28,12 +28,13 @@ Its job is to let project state, boundaries, judgments, progress, and next actio
 
 ## Current Verification
 
-- PR #44 is merged into `master` at merge commit `11c337d`
+- PR #44 established the pre-Continuation V2 `master` baseline at merge commit
+  `11c337d`
 - The independent FlowGrid AML Retriever ranked #8 in the first public Agent
   Memory Leaderboard Academic Textual track with a score of 43.98. This is
   external benchmark evidence for the competition retriever, not FlowGrid Core
   adoption or an end-to-end Core evaluation.
-- The post-merge baseline passes `198` tests
+- The pre-Continuation V2 baseline passes `198` tests
 - `python scripts/smoke_test.py` passed
 - English-native deterministic gate passed
 - Real FlowGrid ledger audit passed with an expected undeclared-evidence-basis warning
@@ -66,7 +67,7 @@ product boundary:
 
 ## Continuation V2 Holdout
 
-An unmerged evaluation branch repeated the same sealed A/B/C/D Luna Max
+The Continuation V2 iteration repeated the same sealed A/B/C/D Luna Max
 protocol on three current real projects: FlowGrid, FlightModeAI, and the AI
 thinking canvas. Resume won FlowGrid and FlightModeAI by mean blind score;
 Manifest won the AI thinking canvas. At least one FLG view beat no state in all
@@ -78,7 +79,7 @@ mere state availability does not. The result and its same-family, single-run,
 owner-operated limits are recorded in the
 [three-project report](../../evals/results/continuation-v2-three-project-20260812.md).
 
-The evaluation branch now compiles one canonical Current Action across Resume,
+The same iteration compiles one canonical Current Action across Resume,
 Manifest, and Handoff. Snapshot current state wins over legacy state caches;
 deterministic contradictions produce `needs_reconciliation` instead of an
 executable recommendation. Current-action and source-tree Smoke regressions
