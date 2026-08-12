@@ -418,7 +418,7 @@ This ensures multi-agent relay works correctly: Agent B can see Agent A's closeo
 | `flg capture add -c <claim> -r <reason>` | Capture a judgment candidate in real-time |
 | `flg capture list` | List judgment candidates (filter by type/status) |
 | `flg capture review` | Process candidates in the background → accept or keep pending |
-| `flg decision add -d <decision> -r <reason>` | Direct decision write (strong commitment only) |
+| `flg decision add -d <decision> -r <reason> [-e <source excerpt>]` | Direct decision write; source-less writes remain medium-authority |
 
 > `flg trace D-002` shows the formal ledger entry together with rebuildable
 > source episodes from raw sessions, captures, closeout patches, and review actions.
@@ -439,6 +439,7 @@ Run a repo-local smoke test after installation:
 
 ```bash
 python scripts/smoke_test.py
+python scripts/check_current_state.py
 pytest -q
 ```
 

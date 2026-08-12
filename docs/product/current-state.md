@@ -1,6 +1,6 @@
 # FlowGrid Current State
 
-Last updated: 2026-08-08
+Last updated: 2026-08-12
 Primary branch: `master`
 Current code version: `v0.3.0`
 Current stage: `v0.4 core validation`
@@ -23,11 +23,13 @@ Its job is to let project state, boundaries, judgments, progress, and next actio
 - Optional BIZ meeting handoff import with explicit role-metadata promotion gates
 - Advisory evidence-basis quality signal for complete `FRAMING.md` files
 - Patch lifecycle parsing that preserves rejected and superseded states
+- Explicit, validated decision relations with derived incoming/outgoing trace views
+- A machine-readable real-case registry with bounded claims and limitations
 
 ## Current Verification
 
-- PR #42 is merged into `master` at merge commit `73902fc`
-- The post-merge full suite passes `189` tests
+- PR #44 is merged into `master` at merge commit `11c337d`
+- The post-merge baseline passes `198` tests
 - `python scripts/smoke_test.py` passed
 - English-native deterministic gate passed
 - Real FlowGrid ledger audit passed with an expected undeclared-evidence-basis warning
@@ -38,6 +40,25 @@ Its job is to let project state, boundaries, judgments, progress, and next actio
 - `flg onboard` detects missing, current, and drifted host Skills by content hash; an explicit update replaces drifted local instructions
 - Five isolated `gpt-5.4` campaign continuations and separately scored results show Context Pack is stable and better than no state, but not superior to clean raw history; see [the stability result](../../evals/results/continuation-stability-20260722.md)
 - Three repeated iteration-feedback patterns are now mapped to executable rules and verification in [the closure note](iteration-feedback-20260722.md)
+- Five real continuation projects, repeated dogfood failures, customer field use,
+  and host acceptance evidence are indexed without being mislabelled as external
+  adoption; see [the Case Registry](case-registry.md)
+
+## Evidence Integrity Iteration
+
+The current iteration tightens evidence claims without changing the v0.4
+product boundary:
+
+- `decision add` keeps a direct write confirmed, but an omitted source excerpt
+  is recorded as `direct_command` with medium authority;
+- missing alternatives, rejected reasons, risks, follow-up validation, and
+  reversal conditions remain explicitly `Not provided` instead of receiving
+  plausible template prose;
+- explicit source evidence retains `user_confirmation` and high authority;
+- CI detects product files committed after the last `current-state.md` refresh;
+- the Case Registry separates real-project evidence from external adoption.
+- the full evidence-integrity iteration passes `204` tests, the repository
+  smoke flow, and the English-native deterministic gate.
 
 ## Goal-Oriented Reliability Integration
 

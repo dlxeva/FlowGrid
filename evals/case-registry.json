@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-08-12",
+  "evidence_boundary": {
+    "supported": "FlowGrid has repeated real-project, dogfood, and host-operated evidence for continuation safety and defect discovery.",
+    "not_supported": "The registry does not establish independent external adoption, retention, willingness to pay, or general superiority over raw history."
+  },
+  "cases": [
+    {
+      "case_id": "real-continuation-20260719",
+      "kind": "real_project_controlled_eval",
+      "case_count": 2,
+      "projects": ["Project F", "Project O"],
+      "source": "evals/results/real-project-continuation-eval-20260719.md",
+      "comparison": ["no_state", "raw_history", "context_pack"],
+      "objective_metrics": {
+        "context_pack_vs_raw": {"wins": 1, "ties": 0, "losses": 1},
+        "input_reduction_percent": [94, 80],
+        "critical_boundary_failures": 0
+      },
+      "claim_supported": "Context Pack was materially smaller and better than no state in both real projects, while exposing a completeness defect in an observation-heavy project.",
+      "limits": "Two projects and one response per mode do not establish general superiority or host automation."
+    },
+    {
+      "case_id": "real-continuation-round2-20260719",
+      "kind": "real_project_controlled_eval",
+      "case_count": 3,
+      "projects": ["Project R", "Project T", "Project H"],
+      "source": "evals/results/real-project-continuation-eval-round2-20260719.md",
+      "comparison": ["no_state", "raw_history", "context_pack"],
+      "objective_metrics": {
+        "initial_context_pack_vs_raw": {"wins": 0, "ties": 2, "losses": 1},
+        "combined_five_project_result_after_repair": {"wins": 1, "ties": 3, "losses": 1},
+        "input_reduction_percent_range": [60, 75],
+        "critical_boundary_failures_after_repair": 0
+      },
+      "claim_supported": "Five-project combined evidence shows boundary-preserving continuation with materially less context, but not general superiority over raw history.",
+      "limits": "The repaired Project H rerun validates one defect repair and is not a second raw-history comparison."
+    },
+    {
+      "case_id": "short-confirmation-cluster-20260808",
+      "kind": "cross_project_dogfood",
+      "case_count": 5,
+      "projects": ["five redacted product, recovery, and market-validation projects"],
+      "source": "ITERATION_LOG.md",
+      "source_locator": "FLG-ITER-20260808-02",
+      "objective_metrics": {
+        "independent_projects_with_same_failure_pattern": 5,
+        "regression_added": true,
+        "real_transcript_replay_added": true
+      },
+      "claim_supported": "Short user confirmations repeatedly failed attribution across independent projects and justified a bounded extraction repair.",
+      "limits": "This is a repeated internal-use defect cluster, not external adoption evidence."
+    },
+    {
+      "case_id": "customer-assistant-three-round-20260715",
+      "kind": "customer_field_use",
+      "case_count": 1,
+      "projects": ["redacted customer AI assistant project"],
+      "source": "ITERATION_LOG.md",
+      "source_locator": "2026-07-15：客户项目（三轮）",
+      "objective_metrics": {
+        "work_rounds": 3,
+        "pre_meeting_assumptions_overturned": true,
+        "source_authority_gap_found": true
+      },
+      "claim_supported": "Field use exposed that structural completeness could not distinguish first-hand evidence from second- and third-hand assumptions.",
+      "limits": "The redacted log supports defect discovery, not customer outcome or commercial validation."
+    },
+    {
+      "case_id": "codex-host-protocol-20260721",
+      "kind": "host_acceptance",
+      "case_count": 1,
+      "projects": ["real FlowGrid BIZ handoff conversation"],
+      "source": "evals/results/codex-host-protocol-acceptance-20260721.md",
+      "comparison": ["host_operated_background_flow"],
+      "objective_metrics": {
+        "raw_conversation_archived": true,
+        "assistant_candidates_promoted": 0,
+        "formal_ledger_hash_unchanged": true,
+        "strict_doctor_passed": true
+      },
+      "claim_supported": "A host-operated natural conversation preserved raw evidence while keeping assistant-authored and unattributed candidates out of formal truth.",
+      "limits": "This does not prove a native event hook, automatic transcript export, or cross-host reliability."
+    }
+  ]
+}

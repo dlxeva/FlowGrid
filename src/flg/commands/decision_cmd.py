@@ -130,7 +130,19 @@ def decision_add(
         if alternatives
         else []
     )
-    alt_str = "、".join(alt_list) if alt_list else "未记录备选方案"
+    missing = "Not provided" if language == "en" else "未提供"
+    alt_str = "、".join(alt_list) if alt_list else missing
+    source_type = "user_confirmation" if evidence else "direct_command"
+    authority = "high" if evidence else "medium"
+    source_label = (
+        f"user_confirmation: {evidence}"
+        if evidence
+        else (
+            "direct command; source excerpt not provided"
+            if language == "en"
+            else "直接写入命令；未提供来源摘录"
+        )
+    )
     relation_count = sum(len(targets) for targets in relations.values())
     relation_section = (
         format_relation_section(relations, language) + "\n\n"
@@ -147,7 +159,7 @@ def decision_add(
 执行
 
 ### 决策背景
-用户明确指令：直接写入决策日志（`flg decision add`）。
+由 `flg decision add` 直接写入决策日志。
 
 ### 核心问题
 {question or ('Key judgment in the current project' if language == "en" else '项目推进中的关键判断')}
@@ -162,20 +174,20 @@ A. {alt_str}
 {rationale}
 
 ### 放弃理由
-选择了当前方案，放弃其他备选方案。
+{missing}
 
 ### 风险判断
-{risks or ('To be completed from project context' if language == "en" else '待结合项目上下文补充')}
+{risks or missing}
 
 ### 后续验证
-通过后续执行结果和项目反馈验证。
+{missing}
 
 ### 复盘入口
-如果关键前提变化或出现新的替代方案，需要重新评估。
+{missing}
 
 ---
 
-*{type_label} | Source: {evidence if evidence else ('user explicit instruction' if language == "en" else '用户明确指令')}*
+*{type_label} | Source: {source_label}*
 """
 
     entry = localize_ledger_entry(entry, language)
@@ -187,8 +199,8 @@ A. {alt_str}
     evidence_index.setdefault("items", {})[decision_id] = {
         "decision_id": decision_id,
         "status": "confirmed",
-        "authority": "high",
-        "source_type": "user_confirmation",
+        "authority": authority,
+        "source_type": source_type,
         "source_excerpt": evidence or decision,
         "reviewed_at": reviewed_at,
         "title": decision[:60],

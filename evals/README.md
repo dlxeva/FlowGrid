@@ -7,6 +7,11 @@ scenario; Context Pack is not assumed to outperform a clean raw history.
 
 This directory contains scenario fixtures for evaluating that claim.
 
+Real-project, dogfood, customer-field, and host-acceptance evidence is indexed
+separately in [`case-registry.json`](case-registry.json). The registry records
+both the supported claim and limitation of every case; it must not label
+owner-operated evidence as independent external adoption.
+
 ## Evaluation Modes
 
 Each scenario should support three modes:

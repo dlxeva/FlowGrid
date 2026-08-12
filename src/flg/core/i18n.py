@@ -48,6 +48,7 @@ _LEDGER_LINE_TRANSLATIONS = {
     "项目推进中的关键判断": "Key judgment in the current project",
     "待结合项目上下文补充": "To be completed from project context",
     "未记录备选方案": "No alternatives recorded",
+    "未提供": "Not provided",
     "由 `flg decision add` 直接写入决策日志。": "Written directly by flg decision add.",
     "由 `flg capture review` 从候选判断中确认写入。": "Confirmed from a candidate judgment by flg capture review.",
     "选择了当前方案，放弃其他备选方案。": "The selected path was chosen over the alternatives.",
