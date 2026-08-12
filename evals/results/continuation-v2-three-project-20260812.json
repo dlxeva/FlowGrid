@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "evaluation_id": "continuation-v2-three-project-20260812",
+  "date": "2026-08-12",
+  "continuation_model": "gpt-5.6-luna",
+  "reasoning_effort": "max",
+  "runs_per_mode_per_project": 1,
+  "scorers_per_project": 2,
+  "projects": {
+    "FlowGrid": {
+      "modes": {
+        "A": {"input": "no_state", "material_bytes": 0, "duration_ms": 33682, "blind_scores": [8, 9], "critical_failure_voters": 0},
+        "B": {"input": "redacted_raw_sessions", "material_bytes": 32601, "duration_ms": 474883, "blind_scores": [8, 7], "critical_failure_voters": 1},
+        "C": {"input": "resume_context_pack", "material_bytes": 12095, "duration_ms": 45595, "blind_scores": [12, 13], "critical_failure_voters": 0},
+        "D": {"input": "continuity_manifest", "material_bytes": 5345, "duration_ms": 157473, "blind_scores": [7, 9], "critical_failure_voters": 2}
+      },
+      "winner": "C"
+    },
+    "FlightModeAI": {
+      "modes": {
+        "A": {"input": "no_state", "material_bytes": 36, "duration_ms": 111031, "thread_id": "019ff54d-dbb3-7cd2-adc9-d7ce3a195f1e", "blind_scores": [3, 3], "critical_failure_voters": 0},
+        "B": {"input": "redacted_raw_sessions", "material_bytes": 6361, "duration_ms": 151789, "thread_id": "019ff54d-df68-78b3-bfce-f83589fa4286", "blind_scores": [11, 7], "critical_failure_voters": 2},
+        "C": {"input": "resume_context_pack", "material_bytes": 12459, "duration_ms": 176306, "thread_id": "019ff54d-ef27-7250-ad20-95dde834819f", "blind_scores": [9, 10], "critical_failure_voters": 0},
+        "D": {"input": "continuity_manifest", "material_bytes": 2530, "duration_ms": 739866, "thread_id": "019ff54d-e479-7d31-8151-aa413c523ca2", "blind_scores": [8, 3], "critical_failure_voters": 2}
+      },
+      "blind_scorer_threads": ["019ff55a-24f6-7b50-bfe7-c437cf3cac88", "019ff55a-2863-7811-9037-3f403d44fd93"],
+      "winner_by_mean_and_safety": "C",
+      "rank_disagreement": true
+    },
+    "AI_thinking_canvas": {
+      "modes": {
+        "A": {"input": "no_state", "material_bytes": 36, "duration_ms": 143696, "thread_id": "019ff54d-e9b2-71f3-b16f-ddbcdc1a3c1e", "blind_scores": [7, 5], "critical_failure_voters": 0},
+        "B": {"input": "redacted_raw_sessions", "material_bytes": 70839, "duration_ms": 180794, "thread_id": "019ff54e-032e-7003-97a0-15ef9e27f322", "blind_scores": [4, 5], "critical_failure_voters": 2},
+        "C": {"input": "resume_context_pack", "material_bytes": 14883, "duration_ms": 151904, "thread_id": "019ff54d-fb52-7eb3-8263-39a5c7c2cbaf", "blind_scores": [5, 7], "critical_failure_voters": 2},
+        "D": {"input": "continuity_manifest", "material_bytes": 13539, "duration_ms": 142763, "thread_id": "019ff54d-f504-7c01-9e23-8f2964966db4", "blind_scores": [12, 12], "critical_failure_voters": 0}
+      },
+      "blind_scorer_threads": ["019ff55a-3330-7f01-beff-b70cd4c2234b", "019ff55a-2ca3-7122-a933-464eef55d5d9"],
+      "winner": "D"
+    }
+  },
+  "aggregate": {
+    "blind_score_mean": {"A": 5.83, "B": 7.0, "C": 9.33, "D": 8.5},
+    "critical_failure_voters_out_of_six": {"A": 0, "B": 5, "C": 2, "D": 4},
+    "projects_where_at_least_one_flg_view_outscored_no_state": 3
+  },
+  "supported_claim": "At least one FLG view outscored no state in all three projects, but the safe winning view varied and stale FLG views could be worse than abstention.",
+  "limits": "One run per mode, same-family continuation and scoring models, owner-operated projects, and oracle best-view comparison do not prove automatic routing, external adoption, or universal net value."
+}

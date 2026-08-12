@@ -98,6 +98,41 @@
       },
       "claim_supported": "In one current-project Luna Max pilot, Resume Context Pack produced the strongest continuation while raw history and Manifest revived stale work.",
       "limits": "One project and one run per mode do not update the historical five-project comparison or prove general superiority."
+    },
+    {
+      "case_id": "continuation-v2-three-project-20260812",
+      "kind": "real_project_controlled_eval",
+      "case_count": 3,
+      "projects": [
+        "FlowGrid dogfood ledger at current v0.4 state",
+        "FlightModeAI live product ledger",
+        "AI thinking canvas live product ledger"
+      ],
+      "source": "evals/results/continuation-v2-three-project-20260812.md",
+      "overlaps_cases": ["continuation-v2-flowgrid-pilot-20260812"],
+      "comparison": ["no_state", "raw_history", "resume_context_pack", "continuity_manifest"],
+      "objective_metrics": {
+        "project_winner": {
+          "FlowGrid": "resume_context_pack",
+          "FlightModeAI": "resume_context_pack",
+          "AI_thinking_canvas": "continuity_manifest"
+        },
+        "aggregate_blind_score_mean": {
+          "no_state": 5.83,
+          "raw_history": 7.0,
+          "resume_context_pack": 9.33,
+          "continuity_manifest": 8.5
+        },
+        "critical_failure_voters_out_of_six": {
+          "no_state": 0,
+          "raw_history": 5,
+          "resume_context_pack": 2,
+          "continuity_manifest": 4
+        },
+        "projects_where_at_least_one_flg_view_outscored_no_state": 3
+      },
+      "claim_supported": "Across three current real projects, at least one FLG view outscored no state in every project, but the safest winning view varied and stale FLG views could be worse than abstention.",
+      "limits": "One run per mode, same-family continuation and scoring models, post-hoc comparison of the best FLG view, and owner-operated projects do not prove automatic routing, external adoption, or universal net value."
     }
   ]
 }

@@ -39,22 +39,25 @@ def test_case_registry_has_bounded_evidence_and_existing_sources():
         assert source_path.is_file()
         if locator := case.get("source_locator"):
             assert locator in source_path.read_text(encoding="utf-8")
+        for related_case in case.get("overlaps_cases", []):
+            assert related_case in ids
 
 
 def test_registry_distinguishes_real_cases_from_external_adoption():
     data = json.loads(REGISTRY.read_text(encoding="utf-8"))
     cases = data["cases"]
 
-    real_continuation_projects = sum(
-        case["case_count"]
-        for case in cases
-        if case["kind"] == "real_project_controlled_eval"
-    )
+    real_continuation_evals = [
+        case for case in cases if case["kind"] == "real_project_controlled_eval"
+    ]
     external_adoption_cases = sum(
         case["case_count"]
         for case in cases
         if case["kind"] == "external_adoption"
     )
 
-    assert real_continuation_projects >= 5
+    # case_count is intentionally non-additive because follow-up reports can
+    # include an earlier pilot. Verify evidence presence without double-counting.
+    assert real_continuation_evals
+    assert max(case["case_count"] for case in real_continuation_evals) >= 3
     assert external_adoption_cases == 0

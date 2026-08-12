@@ -99,7 +99,7 @@ value after maintenance cost.
 
 ## Next gate
 
-1. Fix or explicitly test Manifest completion/current-action precedence.
-2. Select two additional real projects without inspecting model outputs first.
-3. Repeat A/B/C/D with the same Luna Max setting.
-4. Keep safety, semantic quality, input cost, latency, and user burden separate.
+The two pre-selected holdouts have now been completed with the same Luna Max
+protocol. See the [three-project result](continuation-v2-three-project-20260812.md).
+Manifest/current-action precedence remains a product defect rather than a
+closed implementation item.

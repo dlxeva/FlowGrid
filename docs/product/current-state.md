@@ -60,6 +60,20 @@ product boundary:
 - the full evidence-integrity iteration passes `204` tests, the repository
   smoke flow, and the English-native deterministic gate.
 
+## Continuation V2 Holdout
+
+An unmerged evaluation branch repeated the same sealed A/B/C/D Luna Max
+protocol on three current real projects: FlowGrid, FlightModeAI, and the AI
+thinking canvas. Resume won FlowGrid and FlightModeAI by mean blind score;
+Manifest won the AI thinking canvas. At least one FLG view beat no state in all
+three projects, but stale FLG views produced critical failures in every project.
+
+The supported product conclusion is therefore narrower than “FLG is always
+better”: a current, correctly selected state view improves continuation, while
+mere state availability does not. The result and its same-family, single-run,
+owner-operated limits are recorded in the
+[three-project report](../../evals/results/continuation-v2-three-project-20260812.md).
+
 ## Goal-Oriented Reliability Integration
 
 PR #42 merged the goal-oriented reliability work into `master` at `73902fc`

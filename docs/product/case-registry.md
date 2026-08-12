@@ -14,6 +14,11 @@ Every entry must include:
 - one bounded supported claim;
 - one explicit limitation.
 
+`case_count` describes the source report and is not an additive total across
+registry rows. A follow-up report may include an earlier pilot; it must declare
+that relation in `overlaps_cases` so the same project is not presented as new
+evidence twice.
+
 ## Evidence kinds
 
 - `real_project_controlled_eval`: sealed comparison using state from a real

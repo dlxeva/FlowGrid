@@ -14,11 +14,15 @@ owner-operated evidence as independent external adoption.
 
 ## Evaluation Modes
 
-Each scenario should support three modes:
+Each scenario should support at least three modes:
 
 - Mode A: no FLG state
 - Mode B: raw history
 - Mode C: FlowGrid Context Pack
+
+Continuation V2 also tests Mode D, the compact Continuity Manifest. Score and
+critical boundary failures must be reported separately: a high average cannot
+cancel a stale-task, false-completion, or unauthorized-action failure.
 
 ## Scoring Dimensions
 
@@ -62,3 +66,5 @@ If Context Pack does not improve agent continuation under evaluation, FlowGrid's
 
 See the first five-run independently scored result in
 [`results/continuation-stability-20260722.md`](results/continuation-stability-20260722.md).
+The current three-project Luna Max holdout is recorded in
+[`results/continuation-v2-three-project-20260812.md`](results/continuation-v2-three-project-20260812.md).
