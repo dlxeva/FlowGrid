@@ -128,10 +128,15 @@ def test_doctor_reports_unknown_and_self_relations(tmp_path):
 - **依赖决策:** D-999
 
 """
-        ledger = ledger.replace(
+        before_rationale, after_rationale = ledger.rsplit(
             "### 决策理由\n",
-            relation_block + "### 决策理由\n",
             1,
+        )
+        ledger = (
+            before_rationale
+            + relation_block
+            + "### 决策理由\n"
+            + after_rationale
         )
         decisions_path.write_text(ledger, encoding="utf-8")
 
