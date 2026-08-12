@@ -434,6 +434,7 @@ This ensures multi-agent relay works correctly: Agent B can see Agent A's closeo
 | `flg context --mode resume` | Generate the bounded full startup Context Pack |
 | `flg context --mode manifest` | Generate a compact project map with evidence/trace expansion commands |
 | `flg evidence <decision-id>` | Show evidence behind a reviewed decision |
+| `flg evidence --query "<question or topic>"` | Find read-only, status-scoped evidence leads without changing project state |
 | `flg merge --patch <file> [--yes]` | Merge routine patch updates without a prompt |
 | `flg handoff` | Generate agent handoff summary |
 | `flg audit <path>` | Audit existing project directory |

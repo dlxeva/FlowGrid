@@ -344,6 +344,7 @@ Agent 开始工作时，必须读取两层状态：
 | `flg review --patch <file> [--report-only] [--autonomous]` | 先在后台检查候选，再处理可安全入账的决策 |
 | `flg context --mode resume` | 生成 Agent 启动上下文包 |
 | `flg evidence <decision-id>` | 查看决策背后的证据来源 |
+| `flg evidence --query "<问题或主题>"` | 只读检索带状态与来源的证据线索，不改变项目状态 |
 | `flg merge --patch <file> [--yes]` | 无提示合并常规 patch 更新 |
 | `flg handoff` | 生成 Agent 接力摘要 |
 | `flg audit <path>` | 审计已有项目目录 |
