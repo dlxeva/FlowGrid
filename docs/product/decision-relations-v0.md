@@ -12,7 +12,7 @@ The formal ledger remains authoritative. Relations are parsed directly from `DEC
 |---|---|
 | `supersedes` | The new decision replaces an earlier decision. |
 | `supports` | The new decision reinforces an earlier decision. |
-| `contradicts` | The new decision challenges or conflicts with an earlier decision. |
+| `conflicts_with` | The new decision conflicts with an earlier decision and needs review. |
 | `depends_on` | The new decision relies on an earlier decision remaining valid. |
 
 Relations are directional. For example, `D-006 supersedes D-002` does not rewrite or delete `D-002`. The historical decision remains inspectable.
@@ -27,6 +27,7 @@ flg decision add \
   --rationale "It preserves continuity under bounded context budgets" \
   --supersedes D-004 \
   --supports D-003 \
+  --conflicts-with D-005 \
   --depends-on D-001,D-002
 ```
 
@@ -38,7 +39,7 @@ The command writes a human-editable block:
 ### Decision Relations
 - **Supersedes:** D-004
 - **Supports:** D-003
-- **Contradicts:** none
+- **Conflicts With:** D-005
 - **Depends On:** D-001, D-002
 ```
 
@@ -65,6 +66,7 @@ This keeps provenance episodes and decision relations in one inspection path.
 
 `flg doctor` reports:
 
+- non-empty malformed relation declarations;
 - relation targets missing from `DECISIONS.md`;
 - self-referential edges.
 
@@ -79,5 +81,11 @@ Decision Relations v0 does not:
 - automatically change a referenced decision's status;
 - delete superseded decisions;
 - require Neo4j, RDF, or another graph runtime.
+
+All executable relation targets in v0 must be existing `D-*` entries. The
+broader status model also describes dependencies on assumptions, documents,
+and constraints, plus `derived_from` provenance. Those remain conceptual or
+evidence-trace relationships in v0; the decision-relation CLI and parser do not
+claim support for those target types.
 
 This is a deterministic projection over the human-readable ledger. A richer graph export can be added later without changing the source-of-truth contract.

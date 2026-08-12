@@ -168,6 +168,11 @@ Example:
 D-006 depends_on A-002
 ```
 
+This is the broader conceptual model. Decision Relations v0 executes
+`depends_on` only when the target is an existing `D-*` formal decision.
+Assumption, document, and constraint targets are not executable relation
+targets yet.
+
 ### derived_from
 
 Judgment A was extracted from a source item.
@@ -177,6 +182,9 @@ Example:
 ```text
 D-007 derived_from session-20260707.md
 ```
+
+In Decision Relations v0, `derived_from` remains evidence provenance surfaced
+through Evidence Trace. It is not a `flg decision add` relation option.
 
 ## Agent Rules
 

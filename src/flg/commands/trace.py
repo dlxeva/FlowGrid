@@ -16,6 +16,7 @@ from ..core.relations import (
     incoming_relations,
     normalize_decision_id,
     parse_decision_relations,
+    relation_parse_issues,
 )
 
 console = Console()
@@ -32,10 +33,15 @@ def _decision_block(content: str, decision_id: str) -> str:
 
 def _relation_table(content: str, decision_id: str) -> Table | None:
     graph = parse_decision_relations(content)
+    parse_issues = [
+        issue
+        for issue in relation_parse_issues(content)
+        if issue.source == decision_id
+    ]
     outgoing = graph.get(decision_id, {})
     incoming = incoming_relations(graph, decision_id)
     has_outgoing = any(outgoing.get(relation) for relation in RELATION_TYPES)
-    if not has_outgoing and not incoming:
+    if not has_outgoing and not incoming and not parse_issues:
         return None
 
     table = Table(title="Decision Relations")
@@ -48,6 +54,8 @@ def _relation_table(content: str, decision_id: str) -> Table | None:
             table.add_row("outgoing", relation, target)
     for relation, source in incoming:
         table.add_row("incoming", relation, source)
+    for issue in parse_issues:
+        table.add_row("malformed", issue.relation, issue.raw_value)
     return table
 
 

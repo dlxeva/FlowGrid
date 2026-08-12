@@ -55,10 +55,10 @@ def decision_add(
         "--supports",
         help="Existing decision IDs reinforced by this decision, comma-separated",
     ),
-    contradicts: Optional[str] = typer.Option(
+    conflicts_with: Optional[str] = typer.Option(
         None,
-        "--contradicts",
-        help="Existing decision IDs challenged by this decision, comma-separated",
+        "--conflicts-with",
+        help="Existing decision IDs that conflict with this decision, comma-separated",
     ),
     depends_on: Optional[str] = typer.Option(
         None,
@@ -85,7 +85,7 @@ def decision_add(
     relation_inputs = {
         "supersedes": supersedes,
         "supports": supports,
-        "contradicts": contradicts,
+        "conflicts_with": conflicts_with,
         "depends_on": depends_on,
     }
     relations: dict[str, list[str]] = {}

@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from typing import Final
 
 RELATION_TYPES: Final[tuple[str, ...]] = (
     "supersedes",
     "supports",
-    "contradicts",
+    "conflicts_with",
     "depends_on",
 )
 
@@ -25,10 +26,13 @@ _RELATION_LABELS: Final[dict[str, tuple[str, ...]]] = {
         "Supported Decisions",
         "支持决策",
     ),
-    "contradicts": (
+    "conflicts_with": (
+        "Conflicts With",
+        "Conflicts With Decisions",
+        "冲突决策",
+        # Explicit legacy labels accepted for existing human-edited ledgers.
         "Contradicts",
         "Conflicting Decisions",
-        "冲突决策",
         "矛盾决策",
     ),
     "depends_on": (
@@ -37,6 +41,20 @@ _RELATION_LABELS: Final[dict[str, tuple[str, ...]]] = {
         "依赖决策",
     ),
 }
+
+
+@dataclass(frozen=True)
+class RelationParseIssue:
+    """A non-empty relation declaration that was not fully parseable."""
+
+    source: str
+    relation: str
+    raw_value: str
+
+    def diagnostic(self) -> str:
+        """Return a stable, human-readable doctor diagnostic."""
+        return f"{self.source}:{self.relation}:{self.raw_value}:malformed_value"
+
 
 _DECISION_HEADING = re.compile(
     r"^#{2,3}\s+(D-\d+)\s*[|｜]\s*(.+)$",
@@ -93,15 +111,30 @@ def decision_ids(content: str) -> set[str]:
     return ids
 
 
-def _extract_ids(value: str) -> list[str]:
+def _parse_relation_value(value: str) -> tuple[list[str], bool]:
+    raw = value.strip()
+    if raw.lower() in _EMPTY_MARKERS:
+        return [], False
+
     targets: list[str] = []
     seen: set[str] = set()
-    for match in _DECISION_ID.finditer(value):
+    spans: list[tuple[int, int]] = []
+    for match in _DECISION_ID.finditer(raw):
         normalized = f"D-{int(match.group(1)):03d}"
         if normalized not in seen:
             targets.append(normalized)
             seen.add(normalized)
-    return targets
+        spans.append(match.span())
+
+    remainder_parts: list[str] = []
+    cursor = 0
+    for start, end in spans:
+        remainder_parts.append(raw[cursor:start])
+        cursor = end
+    remainder_parts.append(raw[cursor:])
+    remainder = "".join(remainder_parts)
+    remainder = re.sub(r"[,，、;；\s]+", "", remainder)
+    return targets, bool(remainder)
 
 
 def _relation_value(block: str, labels: Sequence[str]) -> str:
@@ -135,8 +168,16 @@ def parse_decision_relations(
     content: str,
 ) -> dict[str, dict[str, list[str]]]:
     """Parse explicit relations from each decision block in DECISIONS.md."""
+    graph, _ = _parse_decision_relations(content)
+    return graph
+
+
+def _parse_decision_relations(
+    content: str,
+) -> tuple[dict[str, dict[str, list[str]]], list[RelationParseIssue]]:
     matches = list(_DECISION_HEADING.finditer(content))
     graph: dict[str, dict[str, list[str]]] = {}
+    issues: list[RelationParseIssue] = []
 
     for index, match in enumerate(matches):
         source = normalize_decision_id(match.group(1))
@@ -144,12 +185,21 @@ def parse_decision_relations(
             continue
         end = matches[index + 1].start() if index + 1 < len(matches) else len(content)
         block = content[match.start():end]
-        graph[source] = {
-            relation: _extract_ids(_relation_value(block, labels))
-            for relation, labels in _RELATION_LABELS.items()
-        }
+        graph[source] = {}
+        for relation, labels in _RELATION_LABELS.items():
+            raw_value = _relation_value(block, labels)
+            targets, malformed = _parse_relation_value(raw_value)
+            graph[source][relation] = targets
+            if malformed:
+                issues.append(RelationParseIssue(source, relation, raw_value))
 
-    return graph
+    return graph, issues
+
+
+def relation_parse_issues(content: str) -> list[RelationParseIssue]:
+    """Return malformed non-empty declarations without discarding their text."""
+    _, issues = _parse_decision_relations(content)
+    return issues
 
 
 def incoming_relations(
@@ -171,9 +221,9 @@ def incoming_relations(
 
 def validate_decision_relations(content: str) -> list[str]:
     """Report broken explicit relations without mutating the ledger."""
-    graph = parse_decision_relations(content)
+    graph, parse_issues = _parse_decision_relations(content)
     known_ids = set(graph)
-    issues: list[str] = []
+    issues = [issue.diagnostic() for issue in parse_issues]
 
     for source in sorted(graph):
         for relation in RELATION_TYPES:
@@ -195,7 +245,7 @@ def format_relation_section(
         labels = {
             "supersedes": "Supersedes",
             "supports": "Supports",
-            "contradicts": "Contradicts",
+            "conflicts_with": "Conflicts With",
             "depends_on": "Depends On",
         }
     else:
@@ -203,7 +253,7 @@ def format_relation_section(
         labels = {
             "supersedes": "替代决策",
             "supports": "支持决策",
-            "contradicts": "冲突决策",
+            "conflicts_with": "冲突决策",
             "depends_on": "依赖决策",
         }
 

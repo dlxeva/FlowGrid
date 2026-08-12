@@ -50,6 +50,8 @@ def test_decision_add_records_relations_and_trace_reads_both_directions(tmp_path
                 "d-1",
                 "--supports",
                 "D-001",
+                "--conflicts-with",
+                "D-001",
             ],
         )
         assert second.exit_code == 0
@@ -58,9 +60,11 @@ def test_decision_add_records_relations_and_trace_reads_both_directions(tmp_path
         graph = parse_decision_relations(ledger)
         assert graph["D-002"]["supersedes"] == ["D-001"]
         assert graph["D-002"]["supports"] == ["D-001"]
+        assert graph["D-002"]["conflicts_with"] == ["D-001"]
         assert incoming_relations(graph, "D-001") == [
             ("supersedes", "D-002"),
             ("supports", "D-002"),
+            ("conflicts_with", "D-002"),
         ]
 
         outgoing = runner.invoke(app, ["trace", "D-002"])
@@ -103,7 +107,7 @@ def test_decision_add_rejects_unknown_relation_targets(tmp_path):
         os.chdir(old_cwd)
 
 
-def test_doctor_reports_unknown_and_self_relations(tmp_path):
+def test_doctor_and_trace_report_malformed_and_mixed_relations(tmp_path):
     old_cwd = _project(tmp_path)
     try:
         created = runner.invoke(
@@ -123,7 +127,7 @@ def test_doctor_reports_unknown_and_self_relations(tmp_path):
         ledger = decisions_path.read_text(encoding="utf-8")
         relation_block = """### 决策关系
 - **替代决策:** none
-- **支持决策:** none
+- **支持决策:** D-001, D-99O
 - **冲突决策:** D-001
 - **依赖决策:** D-999
 
@@ -145,6 +149,16 @@ def test_doctor_reports_unknown_and_self_relations(tmp_path):
         assert "decision_relations:" in result.output
         assert "unknown_target" in result.output
         assert "self_relation" in result.output
+        assert "malformed_value" in result.output
+        assert "D-99O" in result.output
+
+        graph = parse_decision_relations(ledger)
+        assert graph["D-001"]["supports"] == ["D-001"]
+
+        trace = runner.invoke(app, ["trace", "D-001"])
+        assert trace.exit_code == 0
+        assert "malformed" in trace.output
+        assert "D-001, D-99O" in trace.output
     finally:
         os.chdir(old_cwd)
 
@@ -160,7 +174,7 @@ Keep the ledger local.
 ### Decision Relations
 - **Supersedes:** none
 - **Supports:** none
-- **Contradicts:** none
+- **Conflicts With:** none
 - **Depends On:** none
 
 ## D-002 | Second judgment
@@ -171,13 +185,33 @@ Keep the ledger local.
 ### 决策关系
 - **替代决策:** D-001
 - **支持决策:** D-001
-- **冲突决策:** none
+- **冲突决策:** D-001
 - **依赖决策:** D-001
 """
     graph = parse_decision_relations(content)
     assert graph["D-002"] == {
         "supersedes": ["D-001"],
         "supports": ["D-001"],
-        "contradicts": [],
+        "conflicts_with": ["D-001"],
         "depends_on": ["D-001"],
     }
+
+
+def test_parser_accepts_only_explicit_legacy_conflict_labels():
+    content = """# Decision Log
+
+## D-001 | First judgment
+
+## D-002 | English legacy label
+- **Contradicts:** D-001
+
+## D-003 | Chinese legacy label
+- **矛盾决策:** D-001
+
+## D-004 | Unrecognized wording
+- **Conflicts:** D-001
+"""
+    graph = parse_decision_relations(content)
+    assert graph["D-002"]["conflicts_with"] == ["D-001"]
+    assert graph["D-003"]["conflicts_with"] == ["D-001"]
+    assert graph["D-004"]["conflicts_with"] == []
