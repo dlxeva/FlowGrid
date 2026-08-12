@@ -11,12 +11,29 @@
 [![CI](https://github.com/dlxeva/FlowGrid/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/dlxeva/FlowGrid/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-%3E%3D3.10-3776AB?logo=python&logoColor=white)
 [![License](https://img.shields.io/github/license/dlxeva/FlowGrid)](./LICENSE)
+[![AML 学术文本榜 #8](https://img.shields.io/badge/AML%20Academic%20Textual-%238-7C3AED)](https://agentmemories.ai/leaderboard/academic/textual)
 
 FlowGrid 帮助业务项目型知识工作者，把混乱的 AI 协作过程转成有状态边界、可追溯、可恢复的项目上下文。
 
 > **当前状态：** 代码包版本仍为 `v0.3.0`，项目正在进行 v0.4 核心验证。当前重点是原始会话稳定入账、账本状态可重建，以及真实项目续接；目前不把 v0.4 宣称为正式发布版本。
 
 它适合长期推进的模糊项目。此类项目的交付物通常不只是一份文档，还包括一条能被解释和质询的判断链：为什么这个方案成立，为什么选择这个方向，哪些备选被放弃，什么情况下旧判断需要修正。
+
+## 公开评测成绩
+
+独立参赛项目 [FlowGrid AML Retriever](https://github.com/dlxeva/flowgrid-aml-retriever)
+在 Agent Memory Leaderboard 首期公开评测的学术方法文本记忆榜中位列
+**第 8 名**，综合分 **43.98**，与榜首相差 **1.08 分**。
+[查看公开榜单 →](https://agentmemories.ai/leaderboard/academic/textual)
+
+参赛 Retriever 与 FlowGrid Core 共享证据来源、时间状态、冲突保留和可追溯检索等思想，
+但两者不是同一个系统：
+
+- **AML Retriever** 是针对统一评测契约构建的确定性 Add/Search 记忆检索器，负责保存消息、构建检索视图并返回排序后的原始证据。
+- **FlowGrid Core** 是本地项目连续性层，负责保存经过审核的判断、约束、被否决路径、当前行动和长期人机项目的交接状态。
+
+这项成绩验证的是参赛 Retriever 在 AML 统一环境中的表现，不等同于 FlowGrid Core
+整体产品能力、用户采用情况，也不能证明它普遍优于其他记忆系统。
 
 ## 一张图看懂如何续接项目
 
@@ -52,6 +69,7 @@ Agent 会在后台运行协议。用户不应该为了保存项目状态而学�
 
 ## 快速入口
 
+- [公开评测成绩](#公开评测成绩)
 - [它到底是什么](#什么是-flowgrid)
 - [在 AI 宿主中开始](#在你的-ai-宿主里开始)
 - [匿名客户方案续接案例](./docs/use-cases/client-solution-continuation.md)
@@ -108,12 +126,13 @@ flg handoff
 
 ## 独立运行时实验
 
-FlowGrid 的主产品仍是本地优先 CLI 与项目协议。两个黑客松仓库在受控范围内验证了相同的判断状态语义：
+FlowGrid 的主产品仍是本地优先 CLI 与项目协议。三个独立仓库在受控运行环境或评测契约下验证部分思路：
 
+- [FlowGrid AML Retriever](https://github.com/dlxeva/flowgrid-aml-retriever)：把来源、时间、冲突和多视图检索思路用于 Agent Memory Leaderboard 的 Add/Search 契约，并在首期公开学术方法文本记忆榜取得第 8 名。
 - [FlowGrid Memory Runtime](https://github.com/dlxeva/flowgrid-memory-runtime)：使用合成数据，在 CockroachDB 与 AWS 上演示 confirmed、pending、superseded 判断状态。
 - [FlowGrid MemoryAgent for Qwen Cloud](https://github.com/dlxeva/flowgrid-qwen-memory-agent)：在 Alibaba Cloud 上演示 Qwen 驱动的候选提取、人工授权和受限的 confirmed 状态检索。
 
-它们说明判断生命周期可以跨模型和部署环境运行。它们不让 AWS、CockroachDB、Qwen 或 Alibaba Cloud 成为 FlowGrid Core 的依赖，也不构成用户采用、留存或产品市场匹配的证据。主线仍聚焦自然语言宿主操作、本地账本可重建和真实项目续接。
+这些项目只在更窄的契约下验证 FlowGrid 的部分思路。它们不让 AML、AWS、CockroachDB、Qwen 或 Alibaba Cloud 成为 FlowGrid Core 的依赖，也不构成 Core 用户采用、留存或产品市场匹配的证据。主线仍聚焦自然语言宿主操作、本地账本可重建和真实项目续接。
 
 ## 什么是 FlowGrid
 

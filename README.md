@@ -11,12 +11,35 @@
 [![CI](https://github.com/dlxeva/FlowGrid/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/dlxeva/FlowGrid/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-%3E%3D3.10-3776AB?logo=python&logoColor=white)
 [![License](https://img.shields.io/github/license/dlxeva/FlowGrid)](./LICENSE)
+[![AML Academic Textual #8](https://img.shields.io/badge/AML%20Academic%20Textual-%238-7C3AED)](https://agentmemories.ai/leaderboard/academic/textual)
 
 FlowGrid helps business-project knowledge workers turn messy AI work sessions into state-aware, traceable, and resumable project context.
 
 > **Current status:** the codebase reports `v0.3.0` and is in v0.4 core validation. The current focus is entry reliability, rebuildable ledger state, and real-project continuation; v0.4 is not presented as a released version yet.
 
 It is built for long-running work where the deliverable is not just a document, but a defensible judgment chain: why this proposal makes sense, why this direction was chosen, what alternatives were rejected, and when a past judgment should be revised.
+
+## Public Benchmark Result
+
+The independent [FlowGrid AML Retriever](https://github.com/dlxeva/flowgrid-aml-retriever)
+ranked **#8** in the first public Agent Memory Leaderboard Academic Textual
+track, with an overall score of **43.98**, **1.08 points behind the top-ranked
+entry**. [View the public leaderboard →](https://agentmemories.ai/leaderboard/academic/textual)
+
+The competition entry and FlowGrid Core share ideas about evidence provenance,
+temporal state, conflict preservation, and traceable retrieval, but they are
+different systems:
+
+- **AML Retriever** is a benchmark-specific, deterministic Add/Search memory
+  retriever. It stores messages, builds retrieval views, and returns ranked
+  evidence under the competition contract.
+- **FlowGrid Core** is a local project-continuity layer. It preserves reviewed
+  judgments, constraints, rejected paths, current actions, and handoff state for
+  long-running human-AI projects.
+
+The ranking validates the competition retriever under AML's unified evaluation.
+It does not establish FlowGrid Core's overall product quality, user adoption, or
+universal superiority over other memory systems.
 
 ## How It Carries a Project Forward
 
@@ -66,6 +89,7 @@ current host boundaries.
 
 ## Quick Links
 
+- [Public benchmark result](#public-benchmark-result)
 - [Why it exists](#what-is-flowgrid)
 - [Start in an AI host](#start-in-your-ai-host)
 - [Synthetic client-solution use case](./docs/use-cases/client-solution-continuation.md)
@@ -130,10 +154,14 @@ You can run that flow from Codex, Hermes, OpenClaw, Claude, or any AI agent work
 
 ## Independent Runtime Experiments
 
-FlowGrid's local-first CLI and protocol are the main product. Two hackathon
-repositories validate the same judgment-state semantics in bounded external
-runtimes:
+FlowGrid's local-first CLI and protocol are the main product. Three independent
+repositories test selected ideas in bounded external runtimes and benchmark
+contracts:
 
+- [FlowGrid AML Retriever](https://github.com/dlxeva/flowgrid-aml-retriever)
+  applies provenance, temporal, conflict, and multi-view retrieval ideas to the
+  Agent Memory Leaderboard Add/Search contract. It ranked #8 in the first
+  public Academic Textual track.
 - [FlowGrid Memory Runtime](https://github.com/dlxeva/flowgrid-memory-runtime)
   uses synthetic data to demonstrate confirmed, pending, and superseded
   judgment state on CockroachDB and AWS.
@@ -141,9 +169,9 @@ runtimes:
   demonstrates Qwen-driven candidate extraction, human authorization, and
   constrained confirmed-state retrieval on Alibaba Cloud.
 
-They show that the lifecycle can run across models and deployment stacks. They
-do not make AWS, CockroachDB, Qwen, or Alibaba Cloud dependencies of FlowGrid
-Core, and they do not establish user adoption, retention, or product-market
+These projects test selected FlowGrid ideas under narrower contracts. They do
+not make AML, AWS, CockroachDB, Qwen, or Alibaba Cloud dependencies of FlowGrid
+Core, and they do not establish Core user adoption, retention, or product-market
 fit. Core validation remains focused on natural-language host operation,
 rebuildable local ledger state, and real-project continuation.
 

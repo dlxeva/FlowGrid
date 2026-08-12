@@ -29,6 +29,10 @@ Its job is to let project state, boundaries, judgments, progress, and next actio
 ## Current Verification
 
 - PR #44 is merged into `master` at merge commit `11c337d`
+- The independent FlowGrid AML Retriever ranked #8 in the first public Agent
+  Memory Leaderboard Academic Textual track with a score of 43.98. This is
+  external benchmark evidence for the competition retriever, not FlowGrid Core
+  adoption or an end-to-end Core evaluation.
 - The post-merge baseline passes `198` tests
 - `python scripts/smoke_test.py` passed
 - English-native deterministic gate passed
