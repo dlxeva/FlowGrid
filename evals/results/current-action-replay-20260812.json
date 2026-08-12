@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "evaluation_id": "current-action-replay-20260812",
+  "date": "2026-08-12",
+  "implementation_branch": "agent/continuation-eval-v2",
+  "mode": "deterministic_real_project_replay",
+  "projects": {
+    "FlowGrid": {
+      "resume": {
+        "status": "current",
+        "source": "SNAPSHOT.md#Next-Highest-Priority-Action",
+        "ignored_legacy_fallback_actions": 1,
+        "expected_action_recovered": true
+      },
+      "manifest": {
+        "status": "current",
+        "source": "SNAPSHOT.md#Next-Highest-Priority-Action",
+        "ignored_legacy_fallback_actions": 1,
+        "expected_action_recovered": true
+      }
+    },
+    "FlightModeAI": {
+      "resume": {
+        "status": "needs_reconciliation",
+        "source": "SNAPSHOT.md#Next-Highest-Priority-Action",
+        "invalid_review_pending_action_refused": true
+      },
+      "manifest": {
+        "status": "needs_reconciliation",
+        "source": "SNAPSHOT.md#Next-Highest-Priority-Action",
+        "invalid_review_pending_action_refused": true
+      }
+    },
+    "AI_thinking_canvas": {
+      "resume": {
+        "status": "current",
+        "source": "SNAPSHOT.md#Next-Highest-Priority-Action",
+        "ignored_legacy_fallback_actions": 4,
+        "expected_action_recovered": true
+      },
+      "manifest": {
+        "status": "current",
+        "source": "SNAPSHOT.md#Next-Highest-Priority-Action",
+        "ignored_legacy_fallback_actions": 4,
+        "expected_action_recovered": true
+      }
+    }
+  },
+  "result": {
+    "resume_manifest_action_disagreements": 0,
+    "stale_actions_exposed_as_executable": 0,
+    "projects_replayed": 3
+  },
+  "supported_claim": "The deterministic repair makes Resume and Manifest agree on one source-backed action or the same explicit abstention across all three replayed projects.",
+  "limits": "This proves generator behavior against current local project state, not fresh-Agent semantic continuation quality. The sealed model rerun remains pending."
+}

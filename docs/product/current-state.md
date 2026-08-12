@@ -74,6 +74,13 @@ mere state availability does not. The result and its same-family, single-run,
 owner-operated limits are recorded in the
 [three-project report](../../evals/results/continuation-v2-three-project-20260812.md).
 
+The evaluation branch now compiles one canonical Current Action across Resume,
+Manifest, and Handoff. Snapshot current state wins over legacy state caches;
+deterministic contradictions produce `needs_reconciliation` instead of an
+executable recommendation. Current-action and source-tree Smoke regressions
+bring the branch to `211` passing tests. Real-project replay passes; a sealed model rerun remains required
+before claiming the continuation defect is repaired end to end.
+
 ## Goal-Oriented Reliability Integration
 
 PR #42 merged the goal-oriented reliability work into `master` at `73902fc`

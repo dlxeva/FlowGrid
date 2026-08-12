@@ -57,7 +57,10 @@ def resolve_flg_command() -> tuple[list[str], dict[str, str] | None, str]:
     if sibling_exe.exists():
         return [str(sibling_exe)], None, "editable-installed console script"
 
-    pythonpath = str(REPO_ROOT / "src")
+    existing_pythonpath = os.environ.get("PYTHONPATH", "")
+    pythonpath = os.pathsep.join(
+        part for part in (str(REPO_ROOT / "src"), existing_pythonpath) if part
+    )
     return (
         [sys.executable, "-m", "flg.cli"],
         {"PYTHONPATH": pythonpath},

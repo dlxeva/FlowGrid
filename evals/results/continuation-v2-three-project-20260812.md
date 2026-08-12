@@ -141,6 +141,27 @@ The next iteration should optimize one target: **safe current-state selection**.
 This is a stronger and more falsifiable target than increasing document count
 or assuming that more context is better.
 
+## Repair Implemented on Evaluation Branch
+
+The first deterministic repair is implemented after the sealed run:
+
+- Resume, Manifest, and Handoff now use one current-action resolver;
+- `SNAPSHOT.md` is the formal current-action authority;
+- legacy `state.next_actions` entries are counted and ignored when they differ;
+- an empty patch queue invalidates “Review pending patches”;
+- an action repeated under an explicit completed, superseded, or stale section
+  is refused;
+- every view exposes action status, source, source timestamp, ignored fallback
+  count, and the reason for selection or abstention.
+
+This implementation is not evidence that the semantic continuation problem is
+closed. It must pass deterministic real-project replay first, then the same
+sealed model protocol without selecting a mode after output inspection.
+
+The deterministic replay has since passed on all three projects; see
+[`current-action-replay-20260812.md`](current-action-replay-20260812.md). The
+fresh-Agent semantic rerun remains the next evidence gate.
+
 ## Limits
 
 - One continuation per mode and project.
