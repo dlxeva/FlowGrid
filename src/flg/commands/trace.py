@@ -1,4 +1,4 @@
-"""Trace a reviewed judgment through its evidence episodes."""
+"""Trace a reviewed judgment through its evidence episodes and relations."""
 
 from __future__ import annotations
 
@@ -11,6 +11,13 @@ from rich.table import Table
 
 from ..core.evidence import load_evidence_index
 from ..core.files import is_flg_project, read_file_safe
+from ..core.relations import (
+    RELATION_TYPES,
+    incoming_relations,
+    normalize_decision_id,
+    parse_decision_relations,
+    relation_parse_issues,
+)
 
 console = Console()
 
@@ -24,15 +31,45 @@ def _decision_block(content: str, decision_id: str) -> str:
     return content[start:end if end >= 0 else None].strip()
 
 
-def trace_command(decision_id: str = typer.Argument(..., help="Decision id, e.g. D-002")) -> None:
+def _relation_table(content: str, decision_id: str) -> Table | None:
+    graph = parse_decision_relations(content)
+    parse_issues = [
+        issue
+        for issue in relation_parse_issues(content)
+        if issue.source == decision_id
+    ]
+    outgoing = graph.get(decision_id, {})
+    incoming = incoming_relations(graph, decision_id)
+    has_outgoing = any(outgoing.get(relation) for relation in RELATION_TYPES)
+    if not has_outgoing and not incoming and not parse_issues:
+        return None
+
+    table = Table(title="Decision Relations")
+    table.add_column("Direction", style="cyan")
+    table.add_column("Relation")
+    table.add_column("Decision", style="bold")
+
+    for relation in RELATION_TYPES:
+        for target in outgoing.get(relation, ()):
+            table.add_row("outgoing", relation, target)
+    for relation, source in incoming:
+        table.add_row("incoming", relation, source)
+    for issue in parse_issues:
+        table.add_row("malformed", issue.relation, issue.raw_value)
+    return table
+
+
+def trace_command(
+    decision_id: str = typer.Argument(..., help="Decision id, e.g. D-002"),
+) -> None:
     """Show how a formal judgment entered and remains in project state."""
     root = Path.cwd()
     if not is_flg_project(root):
         console.print("[red]Not a FLG project. Run 'flg init' first.[/red]")
         raise typer.Exit(1)
 
-    normalized_id = decision_id.strip().upper()
-    if not normalized_id.startswith("D-"):
+    normalized_id = normalize_decision_id(decision_id)
+    if normalized_id is None:
         console.print("[red]Decision id must look like D-002.[/red]")
         raise typer.Exit(1)
 
@@ -66,13 +103,31 @@ def trace_command(decision_id: str = typer.Argument(..., help="Decision id, e.g.
                 )
             console.print(table)
         else:
-            console.print("[yellow]No source episode index yet. Run `flg reindex` to rebuild it.[/yellow]")
+            console.print(
+                "[yellow]No source episode index yet. "
+                "Run `flg reindex` to rebuild it.[/yellow]"
+            )
 
         excerpt = item.get("source_excerpt")
         if excerpt:
-            console.print(Panel(str(excerpt), title="Retained Source Excerpt", border_style="green"))
+            console.print(
+                Panel(
+                    str(excerpt),
+                    title="Retained Source Excerpt",
+                    border_style="green",
+                )
+            )
     else:
-        console.print("[yellow]This ledger entry is not indexed. Run `flg reindex` before relying on provenance.[/yellow]")
+        console.print(
+            "[yellow]This ledger entry is not indexed. "
+            "Run `flg reindex` before relying on provenance.[/yellow]"
+        )
+
+    relation_table = _relation_table(decisions, normalized_id)
+    if relation_table:
+        console.print(relation_table)
 
     if block:
-        console.print(Panel(block, title="Formal Ledger Entry", border_style="cyan"))
+        console.print(
+            Panel(block, title="Formal Ledger Entry", border_style="cyan")
+        )

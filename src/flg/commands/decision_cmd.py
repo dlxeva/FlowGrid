@@ -13,8 +13,16 @@ from rich.console import Console
 from ..core.evidence import load_evidence_index, save_evidence_index
 from ..core.files import is_flg_project, read_file_safe
 from ..core.i18n import localize_ledger_entry, project_language
+from ..core.relations import (
+    RELATION_TYPES,
+    decision_ids,
+    format_relation_section,
+    parse_relation_argument,
+)
 
 console = Console()
+
+
 def decision_add(
     decision: str = typer.Option(
         ..., "-d", "--decision", help="Decision content (required)"
@@ -37,6 +45,26 @@ def decision_add(
     evidence: Optional[str] = typer.Option(
         None, "-e", "--evidence", help="证据来源（用户原话等）"
     ),
+    supersedes: Optional[str] = typer.Option(
+        None,
+        "--supersedes",
+        help="Existing decision IDs replaced by this decision, comma-separated",
+    ),
+    supports: Optional[str] = typer.Option(
+        None,
+        "--supports",
+        help="Existing decision IDs reinforced by this decision, comma-separated",
+    ),
+    conflicts_with: Optional[str] = typer.Option(
+        None,
+        "--conflicts-with",
+        help="Existing decision IDs that conflict with this decision, comma-separated",
+    ),
+    depends_on: Optional[str] = typer.Option(
+        None,
+        "--depends-on",
+        help="Existing decision IDs this decision depends on, comma-separated",
+    ),
 ) -> None:
     """强承诺信号直接写入 DECISIONS.md（跳过 capture 阶段）。
 
@@ -54,13 +82,61 @@ def decision_add(
     next_num = max(numbers, default=0) + 1
     decision_id = f"D-{next_num:03d}"
 
+    relation_inputs = {
+        "supersedes": supersedes,
+        "supports": supports,
+        "conflicts_with": conflicts_with,
+        "depends_on": depends_on,
+    }
+    relations: dict[str, list[str]] = {}
+    try:
+        for relation in RELATION_TYPES:
+            relations[relation] = parse_relation_argument(relation_inputs[relation])
+    except ValueError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1) from exc
+
+    known_ids = decision_ids(decisions_content)
+    unknown_targets = sorted(
+        {
+            target
+            for targets in relations.values()
+            for target in targets
+            if target not in known_ids
+        }
+    )
+    if unknown_targets:
+        console.print(
+            "[red]Unknown decision relation target(s): "
+            + ", ".join(unknown_targets)
+            + ".[/red]"
+        )
+        console.print(
+            "[dim]Relations can only point to existing formal decisions.[/dim]"
+        )
+        raise typer.Exit(1)
+
     today = datetime.now().strftime("%Y-%m-%d")
     reviewed_at = datetime.now().isoformat(timespec="seconds")
 
     language = project_language(root)
-    type_label = ("principle" if principle else "decision") if language == "en" else ("原则" if principle else "决策")
-    alt_list = [a.strip() for a in alternatives.split(",") if a.strip()] if alternatives else []
+    type_label = (
+        ("principle" if principle else "decision")
+        if language == "en"
+        else ("原则" if principle else "决策")
+    )
+    alt_list = (
+        [a.strip() for a in alternatives.split(",") if a.strip()]
+        if alternatives
+        else []
+    )
     alt_str = "、".join(alt_list) if alt_list else "未记录备选方案"
+    relation_count = sum(len(targets) for targets in relations.values())
+    relation_section = (
+        format_relation_section(relations, language) + "\n\n"
+        if relation_count
+        else ""
+    )
 
     entry = f"""## {decision_id} | {decision[:50]}
 
@@ -82,7 +158,7 @@ A. {alt_str}
 ### 最终决策
 {decision}
 
-### 决策理由
+{relation_section}### 决策理由
 {rationale}
 
 ### 放弃理由
@@ -102,7 +178,7 @@ A. {alt_str}
 *{type_label} | Source: {evidence if evidence else ('user explicit instruction' if language == "en" else '用户明确指令')}*
 """
 
-    entry = localize_ledger_entry(entry, project_language(root))
+    entry = localize_ledger_entry(entry, language)
     decisions_content = decisions_content.rstrip() + "\n\n" + entry
     decisions_path.write_text(decisions_content, encoding="utf-8")
 
@@ -122,7 +198,13 @@ A. {alt_str}
     save_evidence_index(root, evidence_index)
 
     console.print()
-    console.print(f"[bold green]✓ Decision recorded:[/bold green] [cyan]{decision_id}[/cyan]")
-    console.print(f"  Type: {'principle' if principle else 'decision'}  |  Status: confirmed")
+    console.print(
+        f"[bold green]✓ Decision recorded:[/bold green] [cyan]{decision_id}[/cyan]"
+    )
+    console.print(
+        f"  Type: {'principle' if principle else 'decision'}  |  Status: confirmed"
+    )
     console.print(f"  {decision}")
+    if relation_count:
+        console.print(f"  Relations: {relation_count}")
     console.print()
