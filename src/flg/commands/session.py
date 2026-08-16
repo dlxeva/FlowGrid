@@ -10,7 +10,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
-from ..core.files import is_flg_project
+from ..core.files import is_flg_project, normalize_user_path
 
 console = Console()
 
@@ -33,7 +33,7 @@ def archive_session(
     force: bool = False,
 ) -> Path:
     """Copy raw session evidence into the project's sessions directory."""
-    source = source_file.expanduser().resolve()
+    source = normalize_user_path(source_file).resolve()
     if not source.exists() or not source.is_file():
         raise FileNotFoundError(f"Session file not found: {source}")
     sessions_dir = (root / ".flg" / "sessions").resolve()
@@ -78,7 +78,7 @@ def save_session(
             console.print("[dim]Choose another --name or pass --force to replace it.[/dim]")
         raise typer.Exit(1) from exc
 
-    if target == Path(source_file).expanduser().resolve():
+    if target == normalize_user_path(source_file).resolve():
         console.print(f"[green]Session already archived:[/green] {target}")
     else:
         console.print(f"[green]Archived session:[/green] {target}")

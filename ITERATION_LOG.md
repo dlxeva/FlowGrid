@@ -16,6 +16,22 @@
 
 ---
 
+## 2026-08-16：中文 owner 范围收拢与外部 Windows 案例收口
+
+### FLG-ITER-20260816-01：中文 owner 范围收拢在短句与长口述中重复漏提取 [confirmed — P0]
+
+**场景**：2026-08-11，FlightModeAI owner 用长段中文口述把产品收拢为飞行学习包，说明飞行前选主题、飞行中完成、落地后分享的闭环，也指出端侧模型体验与互动方式仍待验证。`closeout` 只触发 lessons，正式候选为 0。2026-08-16，owner 又用一句“我们主要做 Canvas Prompt FlowGrid 其他我觉得意义不大”收拢资源范围，`closeout` 再次返回空候选。
+
+**发现**：两次样本长度不同，暴露的是同一缺陷。中文 owner 通过“收拢、定义为、主要做、其他意义不大”等自然口语表达范围取舍时，现有入口和提取器不能稳定保存来源明确的候选。[confirmed]
+
+**影响**：安全 review gate 阻止了错误自动写入，但 owner 已经明确的范围可能静默丢失。宿主随后只能人工使用 `decision add` 或 confirmed capture 补账，正式决策还可能夹带无证据的模板字段。
+
+**处理方向**：一句带明确 owner 来源的短判断走 source-backed capture 草稿；会议、长讨论和包含范围、闭环、体验证据、待验证问题的口述走 `closeout`。长口述只有在保留 `User:` 归因、范围收拢信号和流程信号时生成 pending candidate；普通项目名列表 abstain。正式决策只写真实存在的字段，继续保留 review 与来源门。
+
+**本地候选验证**：新增 8 月 11 日真实长口述 fixture、8 月 16 日短 capture 回归和无来源实体列表反例。外部 Windows + WorkBuddy 案例另建隐私安全的冷启动输入预检，普通项目文件提供 1/6 个连续性不变量，FlowGrid Context Pack 提供 6/6；该结果只度量输入信息，不证明 Agent 输出更好、用户满意或跨会话增益。
+
+---
+
 ## 2026-08-08：主线优化审计与合并收口
 
 **场景**：项目主编排同时核对映射 runtime、Vault 治理层、遗留开发 worktree、`flg status`、`flg capture list`、`doctor --strict` 和全量测试。

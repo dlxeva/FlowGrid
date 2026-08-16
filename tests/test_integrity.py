@@ -3,10 +3,13 @@
 import json
 import os
 import subprocess
+from pathlib import Path
 
 from typer.testing import CliRunner
 
 from flg.cli import app
+from flg.core.evidence import validate_project
+from flg.core.files import normalize_user_path
 
 runner = CliRunner()
 
@@ -80,6 +83,50 @@ The project facts changed.
         assert item["source_excerpt"] == "Use the current evidence."
         assert item["source_type"] == "ledger_rebuild"
         assert "source_patch" not in item
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_reindex_recovers_capture_provenance_declared_in_minimal_ledger(tmp_path):
+    old_cwd = _project(tmp_path)
+    try:
+        capture = tmp_path / ".flg" / "captures" / "cap-owner.md"
+        capture.parent.mkdir(parents=True, exist_ok=True)
+        capture.write_text("User: 只保留 FlowGrid 的本地影响。\n", encoding="utf-8")
+        (tmp_path / "DECISIONS.md").write_text(
+            """# Decision Log
+
+## D-001 | FlowGrid 只保存本地影响
+
+### 决策状态
+confirmed
+
+### 最终决策
+FlowGrid 是两条主要推进线之一，AML 只作为验证证据。
+
+---
+
+*Decision | Source: capture_review: .flg/captures/cap-owner.md; reviewed_at: 2026-08-16T23:03:07; user_text: User: 只保留 FlowGrid 的本地影响。*
+""",
+            encoding="utf-8",
+        )
+        assert runner.invoke(app, ["reindex"]).exit_code == 0
+        item = json.loads(
+            (tmp_path / ".flg" / "context" / "evidence_index.json").read_text(encoding="utf-8")
+        )["items"]["D-001"]
+        assert item["source_type"] == "capture_review"
+        assert item["source_capture"] == ".flg/captures/cap-owner.md"
+        assert item["source_excerpt"] == "User: 只保留 FlowGrid 的本地影响。"
+        assert item["reviewed_at"] == "2026-08-16T23:03:07"
+        assert runner.invoke(app, ["reindex"]).exit_code == 0
+        rebuilt_twice = json.loads(
+            (tmp_path / ".flg" / "context" / "evidence_index.json").read_text(encoding="utf-8")
+        )["items"]["D-001"]
+        assert rebuilt_twice["reviewed_at"] == "2026-08-16T23:03:07"
+        assert any(
+            episode["source_type"] == "review_action"
+            for episode in rebuilt_twice["source_episodes"]
+        )
     finally:
         os.chdir(old_cwd)
 
@@ -398,5 +445,34 @@ def test_doctor_strict_ignores_runtime_identity_when_repo_map_is_absent(tmp_path
         result = runner.invoke(app, ["doctor", "--strict"])
         assert result.exit_code == 0
         assert "not configured (no repo-map)" in result.output
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_windows_path_spellings_normalize_for_native_windows_input():
+    assert str(normalize_user_path(r"C:\Users\owner\project\session.md", windows=True)) == r"C:\Users\owner\project\session.md"
+    assert str(normalize_user_path("C:/Users/owner/project/session.md", windows=True)) == "C:/Users/owner/project/session.md"
+    assert str(normalize_user_path("/c/Users/owner/project/session.md", windows=True)) == "C:/Users/owner/project/session.md"
+
+
+def test_integrity_recognizes_all_supported_windows_path_spellings(tmp_path):
+    old_cwd = _project(tmp_path)
+    try:
+        assert runner.invoke(app, ["reindex"]).exit_code == 0
+        state_path = tmp_path / ".flg" / "state.json"
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+        state["windows_path_examples"] = [
+            r"C:\Users\owner\project",
+            "D:/Work/project",
+            "/c/Users/owner/project",
+        ]
+        state["ordinary_url"] = "https://example.test/a/project"
+        state_path.write_text(json.dumps(state), encoding="utf-8")
+
+        report = validate_project(Path(tmp_path))
+        assert len(report["legacy_paths"]) == 3
+        assert any(item.startswith("C:\\") for item in report["legacy_paths"])
+        assert any(item.startswith("D:/") for item in report["legacy_paths"])
+        assert any(item.startswith("/c/") for item in report["legacy_paths"])
     finally:
         os.chdir(old_cwd)

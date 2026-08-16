@@ -463,51 +463,37 @@ def _build_decision_entry(number: int, meta: dict) -> str:
     language = project_language(Path.cwd())
     claim = meta.get("claim", "")
     rationale = meta.get("rationale", "")
-    question = meta.get("question") or ("Key judgment in the current project" if language == "en" else "项目推进中的关键判断")
+    question = meta.get("question")
     alternatives = meta.get("alternatives", [])
-    alt_str = "、".join(alternatives) if alternatives else ("No alternatives recorded" if language == "en" else "未记录备选方案")
-    risks = meta.get("risks") or ("To be completed from project context" if language == "en" else "待结合项目上下文补充")
+    risks = meta.get("risks")
     evidence = meta.get("raw_evidence", "")
+    capture_id = meta.get("id", "unknown")
+    reviewed_at = meta.get("reviewed_at", "unknown")
 
-    return f"""## D-{number:03d} | {claim[:50]}
+    sections = [f"""## D-{number:03d} | {claim}
 
 ### 决策时间
 {today}
 
-### 所属阶段
-执行
-
-### 决策背景
-由 `flg capture review` 从候选判断中确认写入。
-
-### 核心问题
-{question}
-
-### 备选方案
-A. {alt_str}
+### 决策状态
+confirmed
 
 ### 最终决策
 {claim}
+"""]
+    if question and question not in {"(not specified)", "Not provided", "未提供"}:
+        sections.append(f"### 核心问题\n{question}\n")
+    if rationale:
+        sections.append(f"### 决策理由\n{rationale}\n")
+    if alternatives:
+        sections.append(f"### 备选方案\n" + "\n".join(f"- {item}" for item in alternatives) + "\n")
+    if risks:
+        sections.append(f"### 风险判断\n{risks}\n")
+    sections.append(f"""---
 
-### 决策理由
-{rationale}
-
-### 放弃理由
-选择了当前方案，放弃其他备选方案。
-
-### 风险判断
-{risks}
-
-### 后续验证
-通过后续执行结果和项目反馈验证。
-
-### 复盘入口
-如果关键前提变化或出现新的替代方案，需要重新评估。
-
----
-
-*Source: {evidence if evidence else ('user judgment' if language == "en" else '用户判断')}*
-"""
+*Source: capture_review: .flg/captures/{capture_id}.md; reviewed_at: {reviewed_at}; user_text: {evidence if evidence else ('user judgment' if language == 'en' else '用户判断')}*
+""")
+    return "\n".join(sections)
 
 
 def _load_evidence_index(root: Path) -> dict:
@@ -600,6 +586,7 @@ def capture_review(
 
         if choice == "a":
             decision_id = f"D-{next_num:03d}"
+            meta["reviewed_at"] = reviewed_at
             entry = _build_decision_entry(next_num, meta)
             entry = localize_ledger_entry(entry, project_language(root))
             decisions_content = decisions_content.rstrip() + "\n\n" + entry
@@ -616,7 +603,6 @@ def capture_review(
                 "rejected_alternatives": ", ".join(meta.get("alternatives", [])),
             }
             meta["status"] = "confirmed"
-            meta["reviewed_at"] = reviewed_at
             _write_frontmatter(filepath, meta)
             accepted.append((capture_id, decision_id))
             next_num += 1

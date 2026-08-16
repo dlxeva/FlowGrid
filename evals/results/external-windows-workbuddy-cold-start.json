@@ -1,0 +1,31 @@
+{
+  "case_id": "external-windows-workbuddy-cold-start-v1",
+  "method": "deterministic input-invariant preflight",
+  "results": {
+    "no_flg": {
+      "passed": 1,
+      "total": 6,
+      "checks": [
+        {"id": "scope-mobile-game-csr", "passed": true},
+        {"id": "reject-physical-gardening", "passed": false},
+        {"id": "reject-ecommerce", "passed": false},
+        {"id": "preserve-d001-d003", "passed": false},
+        {"id": "do-not-invent-owner-facts", "passed": false},
+        {"id": "visual-revision-does-not-reopen", "passed": false}
+      ]
+    },
+    "flg": {
+      "passed": 6,
+      "total": 6,
+      "checks": [
+        {"id": "scope-mobile-game-csr", "passed": true},
+        {"id": "reject-physical-gardening", "passed": true},
+        {"id": "reject-ecommerce", "passed": true},
+        {"id": "preserve-d001-d003", "passed": true},
+        {"id": "do-not-invent-owner-facts", "passed": true},
+        {"id": "visual-revision-does-not-reopen", "passed": true}
+      ]
+    }
+  },
+  "boundary": "Measures information available to a cold-start agent. Does not measure agent output quality, user satisfaction, or cross-session improvement."
+}

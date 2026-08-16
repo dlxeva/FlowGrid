@@ -1,0 +1,15 @@
+{
+  "case_id": "external-windows-workbuddy-cold-start-v1",
+  "modes": {
+    "no_flg": "no-flg-project-files.md",
+    "flg": "flg-context-pack.md"
+  },
+  "invariants": [
+    {"id": "scope-mobile-game-csr", "needles": ["mobile game", "CSR"]},
+    {"id": "reject-physical-gardening", "needles": ["reject", "physical gardening"]},
+    {"id": "reject-ecommerce", "needles": ["e-commerce", "rejected paths"]},
+    {"id": "preserve-d001-d003", "needles": ["D-001", "D-002", "D-003"]},
+    {"id": "do-not-invent-owner-facts", "needles": ["Do not invent", "DAU", "budget", "average order value", "contracting entity"]},
+    {"id": "visual-revision-does-not-reopen", "needles": ["visual revision", "does not reopen"]}
+  ]
+}

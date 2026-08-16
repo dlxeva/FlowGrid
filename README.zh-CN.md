@@ -11,29 +11,12 @@
 [![CI](https://github.com/dlxeva/FlowGrid/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/dlxeva/FlowGrid/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-%3E%3D3.10-3776AB?logo=python&logoColor=white)
 [![License](https://img.shields.io/github/license/dlxeva/FlowGrid)](./LICENSE)
-[![AML 学术文本榜 #8](https://img.shields.io/badge/AML%20Academic%20Textual-%238-7C3AED)](https://agentmemories.ai/leaderboard/academic/textual)
 
 FlowGrid 帮助业务项目型知识工作者，把混乱的 AI 协作过程转成有状态边界、可追溯、可恢复的项目上下文。
 
 > **当前状态：** 代码包版本仍为 `v0.3.0`，项目正在进行 v0.4 核心验证。当前重点是原始会话稳定入账、账本状态可重建，以及真实项目续接；目前不把 v0.4 宣称为正式发布版本。
 
 它适合长期推进的模糊项目。此类项目的交付物通常不只是一份文档，还包括一条能被解释和质询的判断链：为什么这个方案成立，为什么选择这个方向，哪些备选被放弃，什么情况下旧判断需要修正。
-
-## 公开评测成绩
-
-独立参赛项目 [FlowGrid AML Retriever](https://github.com/dlxeva/flowgrid-aml-retriever)
-在 Agent Memory Leaderboard 首期公开评测的学术方法文本记忆榜中位列
-**第 8 名**，综合分 **43.98**，与榜首相差 **1.08 分**。
-[查看公开榜单 →](https://agentmemories.ai/leaderboard/academic/textual)
-
-参赛 Retriever 与 FlowGrid Core 共享证据来源、时间状态、冲突保留和可追溯检索等思想，
-但两者不是同一个系统：
-
-- **AML Retriever** 是针对统一评测契约构建的确定性 Add/Search 记忆检索器，负责保存消息、构建检索视图并返回排序后的原始证据。
-- **FlowGrid Core** 是本地项目连续性层，负责保存经过审核的判断、约束、被否决路径、当前行动和长期人机项目的交接状态。
-
-这项成绩验证的是参赛 Retriever 在 AML 统一环境中的表现，不等同于 FlowGrid Core
-整体产品能力、用户采用情况，也不能证明它普遍优于其他记忆系统。
 
 ## 一张图看懂如何续接项目
 
@@ -112,6 +95,10 @@ flg context --mode resume
 flg handoff
 ```
 
+宿主应把一句带明确 owner 来源的短判断送入有来源的 capture 草稿，例如
+`flg capture add`。会议、长讨论或包含多个产品信号的口述走 `flg closeout`。
+只有项目名、没有来源归因和取舍关系的列表不生成决策候选。
+
 跑完以后，你会得到：
 
 - 一套本地项目账本：`PROJECT.md`、`FRAMING.md`、`DECISIONS.md`、`SNAPSHOT.md`、`PROGRESS.md`
@@ -123,6 +110,19 @@ flg handoff
 缺少上下文的空壳候选会保持 pending，不会被写成正式决策。
 
 这条流程可以运行在 Codex、Claude、OpenClaw、Hermes 或其他 AI agent work 产品里，不要求用户改用新的工作台。
+
+## 公开评测成绩
+
+[![AML 学术文本榜 #8](https://img.shields.io/badge/AML%20Academic%20Textual-%238-7C3AED)](https://agentmemories.ai/leaderboard/academic/textual)
+
+独立参赛项目 [FlowGrid AML Retriever](https://github.com/dlxeva/flowgrid-aml-retriever)
+在 Agent Memory Leaderboard 首期公开评测的学术方法文本记忆榜中位列
+**第 8 名**，综合分 **43.98**，与榜首相差 **1.08 分**。
+[查看公开榜单 →](https://agentmemories.ai/leaderboard/academic/textual)
+
+参赛 Retriever 与 FlowGrid Core 共享证据来源、时间状态、冲突保留和可追溯检索等思想。
+AML Retriever 是面向榜单契约的确定性 Add/Search 系统，FlowGrid Core 是上文描述的
+本地项目连续性产品。这项成绩不构成 Core 产品质量、用户采用或普遍优越性的证明。
 
 ## 独立运行时实验
 

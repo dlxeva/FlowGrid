@@ -281,7 +281,7 @@ def iter_segments(content: str) -> list[str]:
         re.IGNORECASE,
     )
     inline_actor = re.compile(
-        r"^\s*(?:user|human|client|customer|assistant|agent|ai|用户|客户|甲方|助手|系统)\s*[:：]",
+        r"^\s*(user|human|client|customer|assistant|agent|ai|用户|客户|甲方|助手|系统)\s*[:：]",
         re.IGNORECASE,
     )
     for line in content.splitlines():
@@ -293,7 +293,10 @@ def iter_segments(content: str) -> list[str]:
             segment = match.strip()
             if not segment:
                 continue
-            if current_actor and not inline_actor.match(segment):
+            inline_match = inline_actor.match(segment)
+            if inline_match:
+                current_actor = inline_match.group(1)
+            elif current_actor:
                 segment = f"{current_actor}: {segment}"
             segments.append(segment)
     return segments
@@ -372,6 +375,34 @@ def is_user_directive(segment: str) -> bool:
         r"^[^,.;]{1,24}\b(?:must|must not|should never|may only)\b",
     )
     return bool(match_pattern(utterance, list(directive_patterns)))
+
+
+def is_long_user_scope_narrowing(segment: str) -> bool:
+    """Recognize an attributed, discussion-length owner scope contraction.
+
+    Short owner statements belong in the real-time capture path.  Closeout
+    handles the longer case where the owner explains a product boundary,
+    operating loop, and unresolved experience questions in one utterance.
+    Requiring an explicit human label keeps entity lists and agent summaries
+    from becoming candidate decisions.
+    """
+    if source_actor_for_segment(segment) != "user":
+        return False
+    utterance = _segment_utterance(segment).strip()
+    if len(utterance) < 120 or "?" in utterance or "？" in utterance:
+        return False
+    scope_signal = match_pattern(
+        utterance,
+        [
+            r"(?:收拢|收窄|聚焦).{0,80}(?:定义为|只做|主要做|就是)",
+            r"(?:功能|范围|产品).{0,30}(?:太泛|过于宽泛).{0,80}(?:定义为|收拢|收窄)",
+        ],
+    )
+    loop_signal = match_pattern(
+        utterance,
+        [r"(?:整个|完整).{0,12}(?:流程|循环|闭环)", r"(?:之前|过程中|落地后|结束后).{0,80}(?:然后|之后)"],
+    )
+    return bool(scope_signal and loop_signal)
 
 
 def confirmed_assistant_scope(segments: list[str], confirmation_index: int) -> str | None:
@@ -561,6 +592,27 @@ def extract_decisions(
                 "type": "user_directive",
                 "confidence": "high",
                 "keyword": _segment_utterance(sentence).split(maxsplit=1)[0],
+                "reasoning": "; ".join(context_info["reasoning"]),
+                "rejected_alternatives": "; ".join(context_info["rejected_alternatives"]),
+                "reversal_conditions": "; ".join(context_info["reversal_conditions"]),
+            })
+            continue
+
+        owner_block = sentence
+        if source_actor_for_segment(sentence) == "user":
+            block_end = index + 1
+            while block_end < len(clean_segments) and source_actor_for_segment(clean_segments[block_end]) == "user":
+                block_end += 1
+            owner_block = " ".join(clean_segments[index:block_end])
+        if is_long_user_scope_narrowing(owner_block):
+            original_block = " ".join(aligned_original[index:index + (block_end - index)])
+            ctx = _get_context_window(clean_content, sentence, all_segments=clean_segments)
+            context_info = extract_decision_context(ctx)
+            decisions.append({
+                "content": original_block,
+                "type": "owner_scope_narrowing",
+                "confidence": "high",
+                "keyword": "attributed long-form scope narrowing",
                 "reasoning": "; ".join(context_info["reasoning"]),
                 "rejected_alternatives": "; ".join(context_info["rejected_alternatives"]),
                 "reversal_conditions": "; ".join(context_info["reversal_conditions"]),
@@ -964,6 +1016,10 @@ REASONING_PATTERNS = [
     r"(?:conversion|conversion path) (?:is|was) weak\b",
     r"(?:did not|does not) (?:prove|explain) (?:conversion|the conversion path)\b",
     r"surface visibility\b",
+    # Chinese spoken owner reasoning and negative experience evidence.
+    r"(?:功能|范围|产品).{0,30}(?:太泛|过于宽泛)",
+    r"(?:体验|效果).{0,30}(?:不好|不够好|不理想)",
+    r"没有.{0,20}(?:学到|获得感|完成感)",
 ]
 
 # Rejection patterns - what alternatives were rejected
@@ -1081,6 +1137,8 @@ def why_this_is_a_decision(decision: dict) -> str:
         return f"Attributed user confirmation of one assistant proposal: '{decision['keyword']}'"
     elif decision["type"] == "user_directive":
         return f"Attributed imperative user rule detected: '{decision['keyword']}'"
+    elif decision["type"] == "owner_scope_narrowing":
+        return "Attributed long-form owner scope narrowing with an operating-loop signal"
     return "Decision keyword detected"
 
 
