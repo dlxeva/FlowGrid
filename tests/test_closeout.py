@@ -1137,6 +1137,51 @@ fixture 数据归属代码区，不是配置区。
         os.chdir(old_cwd)
 
 
+def test_closeout_extracts_long_attributed_chinese_owner_scope(tmp_path):
+    """The real long-form Chinese contraction reaches a reviewable closeout candidate."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Long Chinese Owner Scope Test"])
+        fixture = Path(__file__).parent / "fixtures" / "closeout" / "chinese-owner-scope-long.md"
+        result = runner.invoke(app, ["closeout", "--transcript", str(fixture), "--no-llm"])
+        assert result.exit_code == 0
+        patch = next((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
+        decision_section = patch.read_text(encoding="utf-8").split(
+            "## 2. Candidate Decisions"
+        )[1].split("## 3.")[0]
+        assert "decision_type: owner_scope_narrowing" in decision_section
+        assert "source_actor: user" in decision_section
+        assert "定义为这个飞行学习包" in decision_section
+        assert "端侧模型体验不好" in decision_section
+        assert "low_confidence_shell" not in decision_section
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_closeout_abstains_on_unattributed_long_chinese_entity_list(tmp_path):
+    """Scope-like words without a human actor must not become project truth."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Chinese Scope Abstain Test"])
+        transcript = tmp_path / "entities.md"
+        transcript.write_text(
+            "产品列表包括 Canvas Prompt、FlowGrid、AML Retriever 和 Memory Runtime。"
+            "这份材料介绍整个流程、循环和产品范围，后面可以再收拢。\n",
+            encoding="utf-8",
+        )
+        result = runner.invoke(app, ["closeout", "--transcript", str(transcript), "--no-llm"])
+        assert result.exit_code == 0
+        patch = next((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
+        decision_section = patch.read_text(encoding="utf-8").split(
+            "## 2. Candidate Decisions"
+        )[1].split("## 3.")[0]
+        assert "(no candidate decisions extracted)" in decision_section
+    finally:
+        os.chdir(old_cwd)
+
+
 def test_closeout_removed_weak_keywords_dont_fire(tmp_path):
     """Removed weak keywords ('优先' '边界' '选择') must NOT trigger decisions.
 

@@ -48,6 +48,17 @@ def run_cmd(
 
 def resolve_flg_command() -> tuple[list[str], dict[str, str] | None, str]:
     """Use the current repo build, not an unrelated global installation."""
+    if os.environ.get("FLOWGRID_SMOKE_SOURCE") == "1":
+        existing_pythonpath = os.environ.get("PYTHONPATH", "")
+        pythonpath = os.pathsep.join(
+            part for part in (str(REPO_ROOT / "src"), existing_pythonpath) if part
+        )
+        return (
+            [sys.executable, "-m", "flg.cli"],
+            {"PYTHONPATH": pythonpath},
+            "forced repository source tree",
+        )
+
     exe_name = "flg.exe" if sys.platform.startswith("win") else "flg"
     repo_venv_exe = REPO_ROOT / ".venv" / ("Scripts" if sys.platform.startswith("win") else "bin") / exe_name
     if repo_venv_exe.exists():

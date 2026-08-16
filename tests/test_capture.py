@@ -66,7 +66,43 @@ def test_auto_confirm_processes_explicitly_confirmed_capture(tmp_path):
 
         assert result.exit_code == 0
         assert "decision(s) written" in result.output
-        assert "Use the smaller experiment" in (tmp_path / "DECISIONS.md").read_text()
+        ledger = (tmp_path / "DECISIONS.md").read_text()
+        assert "Use the smaller experiment" in ledger
+        assert "### 决策状态\nconfirmed" in ledger
+        assert "capture_review: .flg/captures/" in ledger
+        assert "未记录备选方案" not in ledger
+        assert "选择了当前方案，放弃其他备选方案" not in ledger
+        assert "待结合项目上下文补充" not in ledger
+        assert "通过后续执行结果和项目反馈验证" not in ledger
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_short_attributed_owner_scope_uses_capture_draft_path(tmp_path):
+    """A short owner contraction stays a source-attributed capture candidate."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        assert runner.invoke(app, ["init", "Chinese Scope Capture Test"]).exit_code == 0
+        quote = "User: 我们主要做 Canvas Prompt 和 FlowGrid，其他我觉得意义不大。"
+        result = runner.invoke(
+            app,
+            [
+                "capture", "add",
+                "--claim", "FlowGrid 是两条主要海外推进线之一",
+                "--rationale", "Owner 明确收拢资源范围",
+                "--type", "decision",
+                "--confidence", "confirmed",
+                "--evidence", quote,
+                "--confirmation-event-id", "owner-scope-20260816-turn-1",
+            ],
+        )
+        assert result.exit_code == 0
+        capture = next((tmp_path / ".flg" / "captures").glob("cap-*.md"))
+        raw = capture.read_text(encoding="utf-8")
+        assert "source_actor: user" in raw
+        assert "status: pending_review" in raw
+        assert quote in raw
     finally:
         os.chdir(old_cwd)
 

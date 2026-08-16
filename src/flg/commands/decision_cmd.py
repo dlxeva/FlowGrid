@@ -130,8 +130,6 @@ def decision_add(
         if alternatives
         else []
     )
-    missing = "Not provided" if language == "en" else "未提供"
-    alt_str = "、".join(alt_list) if alt_list else missing
     source_type = "user_confirmation" if evidence else "direct_command"
     authority = "high" if evidence else "medium"
     source_label = (
@@ -144,51 +142,31 @@ def decision_add(
         )
     )
     relation_count = sum(len(targets) for targets in relations.values())
-    relation_section = (
-        format_relation_section(relations, language) + "\n\n"
-        if relation_count
-        else ""
-    )
-
-    entry = f"""## {decision_id} | {decision[:50]}
+    sections = [f"""## {decision_id} | {decision}
 
 ### 决策时间
 {today}
 
-### 所属阶段
-执行
-
-### 决策背景
-由 `flg decision add` 直接写入决策日志。
-
-### 核心问题
-{question or ('Key judgment in the current project' if language == "en" else '项目推进中的关键判断')}
-
-### 备选方案
-A. {alt_str}
+### 决策状态
+confirmed
 
 ### 最终决策
 {decision}
-
-{relation_section}### 决策理由
-{rationale}
-
-### 放弃理由
-{missing}
-
-### 风险判断
-{risks or missing}
-
-### 后续验证
-{missing}
-
-### 复盘入口
-{missing}
-
----
+"""]
+    if question:
+        sections.append(f"### 核心问题\n{question}\n")
+    if relation_count:
+        sections.append(format_relation_section(relations, language) + "\n")
+    sections.append(f"### 决策理由\n{rationale}\n")
+    if alt_list:
+        sections.append("### 备选方案\nA. " + "、".join(alt_list) + "\n")
+    if risks:
+        sections.append(f"### 风险判断\n{risks}\n")
+    sections.append(f"""---
 
 *{type_label} | Source: {source_label}*
-"""
+""")
+    entry = "\n".join(sections)
 
     entry = localize_ledger_entry(entry, language)
     decisions_content = decisions_content.rstrip() + "\n\n" + entry

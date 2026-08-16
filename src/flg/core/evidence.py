@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from hashlib import sha256
 from datetime import datetime
@@ -137,7 +138,7 @@ def normalize_decision_status(value: str) -> str:
 def _section(block: str, headings: tuple[str, ...]) -> str:
     heading_pattern = "|".join(re.escape(heading) for heading in headings)
     match = re.search(
-        rf"^###\s+(?:{heading_pattern})\s*$\n([\s\S]*?)(?=^###\s|^##\s|\Z)",
+        rf"^###\s+(?:{heading_pattern})\s*$\n([\s\S]*?)(?=^###\s|^##\s|^---\s*$|\Z)",
         block,
         re.MULTILINE,
     )
@@ -186,6 +187,9 @@ def parse_decisions_ledger(content: str) -> list[dict[str, str]]:
 
         source_match = re.search(r"^\*.*?\|\s*Source:\s*(.*?)\*\s*$", block, re.MULTILINE)
         source = source_match.group(1).strip() if source_match else _section(block, ("证据来源", "Evidence"))
+        source_capture_match = re.search(r"(?:^|\s)(\.flg/captures/[^;\s*]+)", source)
+        source_excerpt_match = re.search(r"(?:^|;\s*)user_text:\s*(.+)$", source)
+        reviewed_at_match = re.search(r"(?:^|;\s*)reviewed_at:\s*([^;]+)", source)
         if "用户明确指令" in source or "用户原话" in source or "user_confirmation" in source:
             source_type = "user_confirmation"
         elif "直接写入命令" in source or "direct command" in source.lower():
@@ -209,6 +213,9 @@ def parse_decisions_ledger(content: str) -> list[dict[str, str]]:
                 "status": status,
                 "source_type": source_type,
                 "source": source,
+                "source_capture": source_capture_match.group(1) if source_capture_match else "",
+                "source_excerpt": source_excerpt_match.group(1).strip() if source_excerpt_match else "",
+                "reviewed_at": reviewed_at_match.group(1).strip() if reviewed_at_match else "",
             }
         )
     return decisions
@@ -274,7 +281,11 @@ def rebuild_evidence_index(root: Path) -> dict[str, Any]:
                 "medium" if decision["source_type"] == "direct_command" else "high",
             ),
             "source_type": old.get("source_type") if same_provenance and old.get("source_type") else decision["source_type"],
-            "source_excerpt": old.get("source_excerpt") if same_provenance and old.get("source_excerpt") else decision["what_decided"],
+            "source_excerpt": (
+                old.get("source_excerpt")
+                if same_provenance and old.get("source_excerpt")
+                else decision.get("source_excerpt") or decision["what_decided"]
+            ),
             "title": decision["title"],
             "rationale": decision["rationale"],
             "alternatives": decision["alternatives"],
@@ -285,6 +296,10 @@ def rebuild_evidence_index(root: Path) -> dict[str, Any]:
             for field in _PROVENANCE_FIELDS:
                 if old.get(field):
                     item[field] = old[field]
+        elif decision.get("source_capture"):
+            item["source_capture"] = decision["source_capture"]
+        if not item.get("reviewed_at") and decision.get("reviewed_at"):
+            item["reviewed_at"] = decision["reviewed_at"]
         items[decision_id] = item
 
     return enrich_source_episodes(root, {
@@ -296,7 +311,13 @@ def rebuild_evidence_index(root: Path) -> dict[str, Any]:
 
 
 def _path_exists(root: Path, value: str) -> bool:
-    path = Path(value)
+    from .files import normalize_user_path
+
+    path = normalize_user_path(value)
+    # A drive-qualified path is absolute on Windows but looks relative to
+    # pathlib on POSIX. Never join it to the project root on a foreign host.
+    if os.name != "nt" and re.match(r"^[A-Za-z]:[\\/]", value):
+        return False
     return path.exists() if path.is_absolute() else (root / path).exists()
 
 
@@ -340,7 +361,14 @@ def validate_project(root: Path) -> dict[str, Any]:
 
     state_path = root / ".flg" / "state.json"
     state_text = state_path.read_text(encoding="utf-8") if state_path.exists() else ""
-    legacy_paths = sorted(set(re.findall(r"(?:/mnt/c/|/root/|[A-Za-z]:\\)[^\"\n]*", state_text)))
+    legacy_paths = sorted(
+        set(
+            re.findall(
+                r"(?:/mnt/[A-Za-z]/|(?<![A-Za-z0-9:/])/[A-Za-z]/|/root/|(?<![A-Za-z0-9])[A-Za-z]:[\\/])[^\"\n]*",
+                state_text,
+            )
+        )
+    )
     merged_pending = []
     closed_statuses = {"merged", "rejected", "superseded"}
     try:

@@ -125,8 +125,14 @@ def test_decision_add_without_source_does_not_invent_high_authority_evidence(tmp
         assert result.exit_code == 0
 
         ledger = (tmp_path / "DECISIONS.md").read_text(encoding="utf-8")
+        recorded = ledger.split("## D-001 | Keep the project state local", 1)[1]
         assert "直接写入命令；未提供来源摘录" in ledger
-        assert ledger.count("未提供") >= 4
+        assert recorded.count("未提供") == 1
+        assert "### 备选方案" not in recorded
+        assert "### 放弃理由" not in recorded
+        assert "### 风险判断" not in recorded
+        assert "### 后续验证" not in recorded
+        assert "### 复盘入口" not in recorded
         assert "用户明确指令" not in ledger
         assert "通过后续执行结果和项目反馈验证" not in ledger
 

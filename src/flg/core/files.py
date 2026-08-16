@@ -2,6 +2,7 @@
 
 import hashlib
 import os
+import re
 from pathlib import Path
 from typing import Optional
 
@@ -18,6 +19,23 @@ def is_flg_project(path: Path) -> bool:
 def get_project_root() -> Path:
     """Get the current directory as project root."""
     return Path.cwd()
+
+
+def normalize_user_path(value: str | Path, *, windows: bool | None = None) -> Path:
+    """Normalize CLI path spellings without changing stored evidence text.
+
+    Native Windows accepts both ``C:\\...`` and ``C:/...``. Git Bash commonly
+    passes the same location as ``/c/...``; convert only that drive-root form
+    when running on Windows. POSIX hosts retain the original spelling so a
+    foreign path is reported as unavailable instead of being silently mapped.
+    """
+    text = str(value)
+    use_windows_rules = os.name == "nt" if windows is None else windows
+    if use_windows_rules:
+        match = re.match(r"^[\\/]([A-Za-z])[\\/](.*)$", text)
+        if match:
+            text = f"{match.group(1).upper()}:/{match.group(2)}"
+    return Path(text).expanduser()
 
 
 def compute_file_hash(filepath: Path) -> str:

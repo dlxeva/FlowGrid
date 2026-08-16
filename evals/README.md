@@ -7,6 +7,20 @@ scenario; Context Pack is not assumed to outperform a clean raw history.
 
 This directory contains scenario fixtures for evaluating that claim.
 
+## External cold-start fixture preflight
+
+The privacy-safe Windows + WorkBuddy fixture compares which known continuity
+invariants are available in ordinary project files and a FlowGrid Context Pack:
+
+```bash
+python evals/cold_start_ab.py --output-dir evals/results
+```
+
+The deterministic result is recorded in
+[`results/external-windows-workbuddy-cold-start.md`](results/external-windows-workbuddy-cold-start.md).
+It measures input information only. A fresh-agent output A/B remains required
+before claiming a continuation gain.
+
 Real-project, dogfood, customer-field, and host-acceptance evidence is indexed
 separately in [`case-registry.json`](case-registry.json). The registry records
 both the supported claim and limitation of every case; it must not label
