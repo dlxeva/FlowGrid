@@ -43,6 +43,10 @@ jobs:
   windows:
     name: Windows Python 3.12
     runs-on: windows-latest
+    # FlowGrid ledgers and repository fixtures are UTF-8. Python otherwise
+    # falls back to a Windows locale encoding for unqualified test file I/O.
+    env:
+      PYTHONUTF8: "1"
 
     steps:
       - name: Check out repository
