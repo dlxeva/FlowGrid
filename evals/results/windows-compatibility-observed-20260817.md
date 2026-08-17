@@ -77,5 +77,10 @@ follow-up defines `PYTHONUTF8=1` as the Windows repository test-process contract
 and changes the status regression to assert the warning behavior rather than a
 fully rendered table cell.
 
+That follow-up reduced the remote result to `1 failed, 230 passed`. The remaining
+failure exposed a same-timestamp capture-ID collision in a two-item BIZ import
+on Windows. The next candidate replaces the timestamp-derived six-character
+suffix with an independent UUID suffix and adds a frozen-clock uniqueness test.
+
 The original PowerShell and Git Bash commands still need a Windows-host rerun
 before the two runtime defects can be described as fixed in the field.

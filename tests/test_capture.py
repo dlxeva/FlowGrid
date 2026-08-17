@@ -2,13 +2,26 @@
 
 import json
 import os
+from datetime import datetime as RealDateTime
 
 from typer.testing import CliRunner
 
 from flg.cli import app
+from flg.commands import capture as capture_command
 
 
 runner = CliRunner()
+
+
+def test_capture_ids_remain_unique_when_wall_clock_is_unchanged(monkeypatch):
+    class FrozenDateTime:
+        @classmethod
+        def now(cls):
+            return RealDateTime(2026, 8, 17, 14, 44, 8)
+
+    monkeypatch.setattr(capture_command, "datetime", FrozenDateTime)
+
+    assert capture_command._generate_id() != capture_command._generate_id()
 
 
 def test_auto_confirm_keeps_inferred_capture_pending(tmp_path):

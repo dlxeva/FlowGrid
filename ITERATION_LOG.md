@@ -32,6 +32,8 @@
 
 **首次 Windows CI**：`fef01e0` 的 Windows Python 3.12 job 为 `38 failed, 193 passed`。日志逐项显示其中 37 项来自测试和 fixture 的无编码 `pathlib` I/O 在 Windows 默认落到 `cp1252`，另 1 项来自 Rich 表格对 `pending_review` 的平台相关截断。后续候选把 UTF-8 明确为 Windows 测试进程契约，在 job 设置 `PYTHONUTF8=1`，并将 status 回归改为验证 pending warning 语义。
 
+**第二次 Windows CI**：UTF-8 修复将结果收敛到 `1 failed, 230 passed`。残余失败揭示 BIZ 批量导入在 Windows 同一时钟刻度内生成相同 capture ID，后一条覆盖前一条。候选保留原有 ID 形态，改用独立 UUID 后缀，并增加冻结时钟下的唯一性回归。
+
 **边界**：本地与 GitHub CI 不能替代原 Windows 主机复测。候选通过后仍只能说明代码与回归闭环完成，现场修复状态保持待验证。
 
 ## 2026-08-16：中文 owner 范围收拢与外部 Windows 案例收口

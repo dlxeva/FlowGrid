@@ -49,6 +49,11 @@ Its job is to let project state, boundaries, judgments, progress, and next actio
   documents UTF-8 as the Windows test-process contract, enables `PYTHONUTF8=1`
   for the Windows job, and asserts status warning semantics independently of
   table rendering.
+- The UTF-8 follow-up reduced Windows CI to `1 failed, 230 passed`. The remaining
+  failure exposed a real same-timestamp capture-ID collision during a multi-item
+  BIZ import on Windows. The next candidate preserves the `cap-...-xxxxxx` ID
+  shape while replacing the timestamp-derived suffix with an independent UUID
+  suffix and adds a frozen-clock uniqueness regression.
 
 - PR #44 established the pre-Continuation V2 `master` baseline at merge commit
   `11c337d`

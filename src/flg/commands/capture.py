@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import re
+import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -40,7 +40,10 @@ def _ensure_captures_dir(root: Path) -> Path:
 def _generate_id() -> str:
     now = datetime.now()
     ts = now.strftime("%Y%m%d-%H%M%S")
-    rand = hashlib.md5(str(now.timestamp()).encode()).hexdigest()[:6]
+    # Windows wall-clock resolution can return the same timestamp for multiple
+    # captures created in one import loop. Keep the public ID shape while using
+    # an independent random suffix so one judgment cannot overwrite another.
+    rand = uuid.uuid4().hex[:6]
     return f"cap-{ts}-{rand}"
 
 
