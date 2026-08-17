@@ -21,3 +21,13 @@ def test_current_state_classifier_ignores_non_product_changes():
     assert product_changes_after_state_update(
         ["README.md", "ITERATION_LOG.md", "docs/product/current-state.md"]
     ) == []
+
+
+def test_current_state_classifier_normalizes_windows_git_paths():
+    assert product_changes_after_state_update(
+        [
+            "README.md",
+            "docs\\product\\current-state.md",
+            "src\\flg\\commands\\init.py",
+        ]
+    ) == ["src\\flg\\commands\\init.py"]
