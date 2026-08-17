@@ -43,6 +43,12 @@ Its job is to let project state, boundaries, judgments, progress, and next actio
   forced source-tree smoke, current-state freshness, workflow parsing, and diff
   checks. A Windows-host rerun remains required before claiming the field
   defects fixed.
+- The first Windows CI run at `fef01e0` reported `38 failed, 193 passed`:
+  37 failures came from Python defaulting unqualified test and fixture I/O to
+  `cp1252`, and one came from Rich table-cell truncation. The follow-up candidate
+  documents UTF-8 as the Windows test-process contract, enables `PYTHONUTF8=1`
+  for the Windows job, and asserts status warning semantics independently of
+  table rendering.
 
 - PR #44 established the pre-Continuation V2 `master` baseline at merge commit
   `11c337d`

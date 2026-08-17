@@ -30,6 +30,8 @@
 
 **本地候选验证**：Windows 定向回归 `10 passed`，全量 `231 passed`，强制 repository source-tree smoke、current-state freshness、workflow YAML 解析与 `git diff --check` 均通过。Windows CI 已加入候选，尚未通过远端 runner 执行。
 
+**首次 Windows CI**：`fef01e0` 的 Windows Python 3.12 job 为 `38 failed, 193 passed`。日志逐项显示其中 37 项来自测试和 fixture 的无编码 `pathlib` I/O 在 Windows 默认落到 `cp1252`，另 1 项来自 Rich 表格对 `pending_review` 的平台相关截断。后续候选把 UTF-8 明确为 Windows 测试进程契约，在 job 设置 `PYTHONUTF8=1`，并将 status 回归改为验证 pending warning 语义。
+
 **边界**：本地与 GitHub CI 不能替代原 Windows 主机复测。候选通过后仍只能说明代码与回归闭环完成，现场修复状态保持待验证。
 
 ## 2026-08-16：中文 owner 范围收拢与外部 Windows 案例收口

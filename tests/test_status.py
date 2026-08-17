@@ -115,14 +115,13 @@ def test_status_warns_on_pending_review_patches(tmp_path):
         (flg_dir / "state.json").write_text(json.dumps(legacy_state, ensure_ascii=False), encoding="utf-8")
         (flg_dir / "CONTRACT.md").write_text("# Contract", encoding="utf-8")
 
-        # Fix the capture width so Rich's platform-specific terminal detection
-        # does not truncate the lifecycle value under test.
-        result = runner.invoke(app, ["status"], terminal_width=160)
+        result = runner.invoke(app, ["status"])
         assert result.exit_code == 0
-        # Warning must trigger for pending_review patches
+        # Assert the lifecycle behavior, not Rich's platform-dependent table
+        # cell rendering, which may truncate the literal status value.
         assert "⚠" in result.output
         assert "1 pending patch" in result.output
-        assert "pending_review" in result.output
+        assert "needing review" in result.output
     finally:
         os.chdir(old_cwd)
 

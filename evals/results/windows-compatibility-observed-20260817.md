@@ -70,5 +70,12 @@ not change doctor semantics.
 - workflow YAML parse and `git diff --check`: passed
 - Windows Python 3.12 GitHub Actions job: added, not executed locally
 
+The first remote Windows job at `fef01e0` produced `38 failed, 193 passed`.
+Log review assigned 37 failures to unqualified test and fixture I/O using the
+runner's `cp1252` default, plus one failure to Rich table-cell truncation. The
+follow-up defines `PYTHONUTF8=1` as the Windows repository test-process contract
+and changes the status regression to assert the warning behavior rather than a
+fully rendered table cell.
+
 The original PowerShell and Git Bash commands still need a Windows-host rerun
 before the two runtime defects can be described as fixed in the field.
