@@ -16,6 +16,22 @@
 
 ---
 
+## 2026-08-17：真实 Windows 兼容性报告回灌
+
+### FLG-ITER-20260817-01：GBK 首次初始化、MSYS 路径和 Windows 测试链暴露兼容性缺口 [fixing — P0]
+
+**场景**：一位外部测试者在 Windows 11、PowerShell 5.1 代码页 936、PortableGit Git Bash 和 Python 3.13.14 上，按项目提供的测试任务运行合并提交 `4cd893b`。测试使用真实营销讨论作为 raw session，原始报告和私有素材不进入公开仓库。
+
+**观察**：`flg version`、smoke、`C:\` 和 `C:/` session 路径通过；pytest 为 `7 failed, 221 passed`。中文和空格目录已经完成文件写入，但 `init` 打印字面量 checkmark 时触发 GBK `UnicodeEncodeError`。Git Bash `/c/...` 目标没有经过已有路径归一化，被创建到 `C:\c\...`。
+
+**逐项复核**：7 个 pytest failure 中，路径显示、`PYTHONPATH` 分隔符、manifest 路径和 Rich 表格宽度属于测试可移植性问题；`current-state` 分类器把 Windows `Path` 字符串与 Git 的 POSIX 路径直接比较，属于真实脚本兼容性缺陷。不能把 7 项统一归为测试错误。
+
+**本地候选方向**：首次初始化成功标记改为 GBK 可编码 ASCII；`init --dir` 接入 `normalize_user_path`；修复跨平台断言和 current-state 路径分类；增加 Windows Python 3.12 CI。`doctor` 缺少 repo-map 当前只显示信息，不单独导致 strict 失败，本轮不改变这一产品语义。
+
+**本地候选验证**：Windows 定向回归 `10 passed`，全量 `231 passed`，强制 repository source-tree smoke、current-state freshness、workflow YAML 解析与 `git diff --check` 均通过。Windows CI 已加入候选，尚未通过远端 runner 执行。
+
+**边界**：本地与 GitHub CI 不能替代原 Windows 主机复测。候选通过后仍只能说明代码与回归闭环完成，现场修复状态保持待验证。
+
 ## 2026-08-16：中文 owner 范围收拢与外部 Windows 案例收口
 
 ### FLG-ITER-20260816-01：中文 owner 范围收拢在短句与长口述中重复漏提取 [confirmed — P0]

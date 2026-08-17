@@ -11,6 +11,7 @@ import glob
 import os
 import os.path
 import json
+from pathlib import Path
 
 from typer.testing import CliRunner
 
@@ -549,7 +550,7 @@ def test_continuity_manifest_is_compact_and_expands_by_decision_id(tmp_path):
         assert "flg trace D-002" in manifest
         assert "long rationale" not in manifest
         assert ".flg/sessions" not in manifest
-        assert metadata["path"].endswith(".flg/context/manifest.md")
+        assert Path(metadata["path"]).parts[-3:] == (".flg", "context", "manifest.md")
     finally:
         os.chdir(old_cwd)
 

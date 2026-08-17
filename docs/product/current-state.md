@@ -1,6 +1,6 @@
 # FlowGrid Current State
 
-Last updated: 2026-08-12
+Last updated: 2026-08-17
 Primary branch: `master`
 Current code version: `v0.3.0`
 Current stage: `v0.4 core validation`
@@ -27,6 +27,22 @@ Its job is to let project state, boundaries, judgments, progress, and next actio
 - A machine-readable real-case registry with bounded claims and limitations
 
 ## Current Verification
+
+- PR #46 merged feedback-driven continuity hardening into `master` at
+  `4cd893b`; Linux CI passed on Python 3.10, 3.11, and 3.12 with `228` tests.
+- A 2026-08-17 external Windows 11 run against `4cd893b` passed installation,
+  version, smoke, and `C:\` / `C:/` session paths. It observed a GBK `init`
+  output crash, an MSYS `/c/` init target error, and seven pytest failures.
+- The seven failures were reviewed individually: five are platform-sensitive
+  assertions, while two expose one real Windows path-normalization bug in the
+  current-state freshness classifier. See the
+  [bounded compatibility record](../../evals/results/windows-compatibility-observed-20260817.md).
+- The current local candidate uses a GBK-safe init success marker, routes
+  `init --dir` through the shared MSYS path normalizer, makes the affected tests
+  platform-aware, and adds Windows Python 3.12 CI. It passes `231` local tests,
+  forced source-tree smoke, current-state freshness, workflow parsing, and diff
+  checks. A Windows-host rerun remains required before claiming the field
+  defects fixed.
 
 - PR #44 established the pre-Continuation V2 `master` baseline at merge commit
   `11c337d`

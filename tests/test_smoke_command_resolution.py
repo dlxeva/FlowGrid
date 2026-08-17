@@ -1,5 +1,6 @@
 """Regression tests for selecting the checkout under test in smoke runs."""
 
+import os
 from pathlib import Path
 
 from scripts import smoke_test
@@ -15,7 +16,9 @@ def test_source_tree_fallback_preserves_dependency_pythonpath(monkeypatch, tmp_p
 
     assert command == ["/usr/bin/python3", "-m", "flg.cli"]
     assert environment == {
-        "PYTHONPATH": f"{tmp_path / 'src'}:/tmp/dependency-site"
+        "PYTHONPATH": os.pathsep.join(
+            (str(tmp_path / "src"), "/tmp/dependency-site")
+        )
     }
     assert mode == "repository source tree"
 
@@ -30,6 +33,8 @@ def test_forced_source_tree_ignores_sibling_console_script(monkeypatch, tmp_path
 
     assert command == ["/venv/bin/python", "-m", "flg.cli"]
     assert environment == {
-        "PYTHONPATH": f"{tmp_path / 'src'}:/tmp/dependency-site"
+        "PYTHONPATH": os.pathsep.join(
+            (str(tmp_path / "src"), "/tmp/dependency-site")
+        )
     }
     assert mode == "forced repository source tree"
