@@ -18,7 +18,7 @@
 
 ## 2026-08-17：真实 Windows 兼容性报告回灌
 
-### FLG-ITER-20260817-01：GBK 首次初始化、MSYS 路径和 Windows 测试链暴露兼容性缺口 [fixing — P0]
+### FLG-ITER-20260817-01：GBK 首次初始化、MSYS 路径和 Windows 测试链暴露兼容性缺口 [fixed — P0]
 
 **场景**：一位外部测试者在 Windows 11、PowerShell 5.1 代码页 936、PortableGit Git Bash 和 Python 3.13.14 上，按项目提供的测试任务运行合并提交 `4cd893b`。测试使用真实营销讨论作为 raw session，原始报告和私有素材不进入公开仓库。
 
@@ -34,7 +34,9 @@
 
 **第二次 Windows CI**：UTF-8 修复将结果收敛到 `1 failed, 230 passed`。残余失败揭示 BIZ 批量导入在 Windows 同一时钟刻度内生成相同 capture ID，后一条覆盖前一条。候选保留原有 ID 形态，改用独立 UUID 后缀，并增加冻结时钟下的唯一性回归。
 
-**边界**：本地与 GitHub CI 不能替代原 Windows 主机复测。候选通过后仍只能说明代码与回归闭环完成，现场修复状态保持待验证。
+**现场复测**：外部测试者在同一 Windows 11 环境特征下，以独立虚拟环境复测固定提交 `ed527d0abd442d53027100937295e5cd32690c8c`。PowerShell 5.1 代码页 936 初始化中文空格目录退出码为 0、无 `UnicodeEncodeError`；Git Bash `/c/Users/...` 正确落到 `C:\Users\...`，进入目标目录后 `flg status` 能识别项目。全量测试记录为 `232 passed / 0 failed / 0 errors`，smoke 通过。
+
+**收口**：两个原始运行时缺陷已在报告主机和固定提交上闭环，PR #47 的 Linux 与 Windows CI 也全部通过。结论保持有界：这是单一外部 Windows 主机的直接修复证据，不代表全部 Windows 环境，也不推导用户满意度或产品采用情况。
 
 ## 2026-08-16：中文 owner 范围收拢与外部 Windows 案例收口
 

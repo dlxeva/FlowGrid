@@ -9,8 +9,9 @@ Tested base: `4cd893b5b8198b7e74426fd0c3bde9e3d2e99b92`
 This record summarizes an externally executed Windows report supplied to the
 project owner. The original report and its real marketing transcript remain
 outside this repository. They establish observed behavior on one Windows host;
-they do not establish user satisfaction, broad Windows compatibility, or a
-successful rerun of the candidate fixes.
+they do not establish user satisfaction or broad Windows compatibility. A
+second report from the same host reran the bounded compatibility scenarios
+against candidate commit `ed527d0abd442d53027100937295e5cd32690c8c`.
 
 Observed environment:
 
@@ -82,5 +83,24 @@ failure exposed a same-timestamp capture-ID collision in a two-item BIZ import
 on Windows. The next candidate replaces the timestamp-derived six-character
 suffix with an independent UUID suffix and adds a frozen-clock uniqueness test.
 
-The original PowerShell and Git Bash commands still need a Windows-host rerun
-before the two runtime defects can be described as fixed in the field.
+## Windows-host candidate rerun
+
+On 2026-08-17, the external tester reran the bounded scenarios against fixed
+candidate commit `ed527d0abd442d53027100937295e5cd32690c8c` in a fresh Python
+3.13.14 virtual environment on the same Windows 11 host characteristics.
+
+- PowerShell 5.1 at code page 936 initialized a Chinese, spaced project path
+  with exit code 0, no `UnicodeEncodeError`, and an intact `.flg` directory.
+- Git Bash initialized an explicit `/c/Users/...` target under the intended
+  `C:\Users\...` path, not `C:\c\Users\...`; `flg status` then recognized
+  the project.
+- The repository suite reported `232` tests, `0` failures, and `0` errors after
+  PortableGit was made available to subprocesses.
+- The repository smoke test ended with `Smoke test passed.`
+- `doctor --strict` still reported `Needs attention` for the temporary project
+  because no runtime identity was configured. That observation is outside the
+  two compatibility acceptance criteria and does not change doctor semantics.
+
+This rerun is direct field evidence that the two reported runtime defects are
+fixed for the tested host and commit. It remains one-host evidence, not a claim
+of universal Windows compatibility.

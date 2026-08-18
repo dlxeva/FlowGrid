@@ -37,12 +37,10 @@ Its job is to let project state, boundaries, judgments, progress, and next actio
   assertions, while two expose one real Windows path-normalization bug in the
   current-state freshness classifier. See the
   [bounded compatibility record](../../evals/results/windows-compatibility-observed-20260817.md).
-- The current local candidate uses a GBK-safe init success marker, routes
+- The current PR #47 candidate uses a GBK-safe init success marker, routes
   `init --dir` through the shared MSYS path normalizer, makes the affected tests
-  platform-aware, and adds Windows Python 3.12 CI. It passes `231` local tests,
-  forced source-tree smoke, current-state freshness, workflow parsing, and diff
-  checks. A Windows-host rerun remains required before claiming the field
-  defects fixed.
+  platform-aware, and adds Windows Python 3.12 CI. GitHub Actions passes on
+  Python 3.10, 3.11, 3.12, and Windows Python 3.12.
 - The first Windows CI run at `fef01e0` reported `38 failed, 193 passed`:
   37 failures came from Python defaulting unqualified test and fixture I/O to
   `cp1252`, and one came from Rich table-cell truncation. The follow-up candidate
@@ -54,6 +52,14 @@ Its job is to let project state, boundaries, judgments, progress, and next actio
   BIZ import on Windows. The next candidate preserves the `cap-...-xxxxxx` ID
   shape while replacing the timestamp-derived suffix with an independent UUID
   suffix and adds a frozen-clock uniqueness regression.
+- A same-host field rerun against fixed commit `ed527d0` then passed the two
+  original runtime scenarios: PowerShell 5.1 at code page 936 initialized a
+  Chinese, spaced path without an encoding crash, and Git Bash mapped an
+  explicit `/c/Users/...` target to `C:\Users\...` rather than
+  `C:\c\Users\...`. The rerun also reported `232` tests with zero failures
+  or errors and a passing repository smoke test. This closes the reported
+  defects for that host and fixed commit; it does not establish universal
+  Windows compatibility.
 
 - PR #44 established the pre-Continuation V2 `master` baseline at merge commit
   `11c337d`
