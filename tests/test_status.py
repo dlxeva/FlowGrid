@@ -117,10 +117,11 @@ def test_status_warns_on_pending_review_patches(tmp_path):
 
         result = runner.invoke(app, ["status"])
         assert result.exit_code == 0
-        # Warning must trigger for pending_review patches
+        # Assert the lifecycle behavior, not Rich's platform-dependent table
+        # cell rendering, which may truncate the literal status value.
         assert "⚠" in result.output
         assert "1 pending patch" in result.output
-        assert "pending_review" in result.output
+        assert "needing review" in result.output
     finally:
         os.chdir(old_cwd)
 

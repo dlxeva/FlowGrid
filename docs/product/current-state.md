@@ -1,6 +1,6 @@
 # FlowGrid Current State
 
-Last updated: 2026-08-12
+Last updated: 2026-08-17
 Primary branch: `master`
 Current code version: `v0.3.0`
 Current stage: `v0.4 core validation`
@@ -27,6 +27,39 @@ Its job is to let project state, boundaries, judgments, progress, and next actio
 - A machine-readable real-case registry with bounded claims and limitations
 
 ## Current Verification
+
+- PR #46 merged feedback-driven continuity hardening into `master` at
+  `4cd893b`; Linux CI passed on Python 3.10, 3.11, and 3.12 with `228` tests.
+- A 2026-08-17 external Windows 11 run against `4cd893b` passed installation,
+  version, smoke, and `C:\` / `C:/` session paths. It observed a GBK `init`
+  output crash, an MSYS `/c/` init target error, and seven pytest failures.
+- The seven failures were reviewed individually: five are platform-sensitive
+  assertions, while two expose one real Windows path-normalization bug in the
+  current-state freshness classifier. See the
+  [bounded compatibility record](../../evals/results/windows-compatibility-observed-20260817.md).
+- The current PR #47 candidate uses a GBK-safe init success marker, routes
+  `init --dir` through the shared MSYS path normalizer, makes the affected tests
+  platform-aware, and adds Windows Python 3.12 CI. GitHub Actions passes on
+  Python 3.10, 3.11, 3.12, and Windows Python 3.12.
+- The first Windows CI run at `fef01e0` reported `38 failed, 193 passed`:
+  37 failures came from Python defaulting unqualified test and fixture I/O to
+  `cp1252`, and one came from Rich table-cell truncation. The follow-up candidate
+  documents UTF-8 as the Windows test-process contract, enables `PYTHONUTF8=1`
+  for the Windows job, and asserts status warning semantics independently of
+  table rendering.
+- The UTF-8 follow-up reduced Windows CI to `1 failed, 230 passed`. The remaining
+  failure exposed a real same-timestamp capture-ID collision during a multi-item
+  BIZ import on Windows. The next candidate preserves the `cap-...-xxxxxx` ID
+  shape while replacing the timestamp-derived suffix with an independent UUID
+  suffix and adds a frozen-clock uniqueness regression.
+- A same-host field rerun against fixed commit `ed527d0` then passed the two
+  original runtime scenarios: PowerShell 5.1 at code page 936 initialized a
+  Chinese, spaced path without an encoding crash, and Git Bash mapped an
+  explicit `/c/Users/...` target to `C:\Users\...` rather than
+  `C:\c\Users\...`. The rerun also reported `232` tests with zero failures
+  or errors and a passing repository smoke test. This closes the reported
+  defects for that host and fixed commit; it does not establish universal
+  Windows compatibility.
 
 - PR #44 established the pre-Continuation V2 `master` baseline at merge commit
   `11c337d`

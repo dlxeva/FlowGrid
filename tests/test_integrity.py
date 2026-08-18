@@ -3,7 +3,7 @@
 import json
 import os
 import subprocess
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 from typer.testing import CliRunner
 
@@ -450,9 +450,10 @@ def test_doctor_strict_ignores_runtime_identity_when_repo_map_is_absent(tmp_path
 
 
 def test_windows_path_spellings_normalize_for_native_windows_input():
-    assert str(normalize_user_path(r"C:\Users\owner\project\session.md", windows=True)) == r"C:\Users\owner\project\session.md"
-    assert str(normalize_user_path("C:/Users/owner/project/session.md", windows=True)) == "C:/Users/owner/project/session.md"
-    assert str(normalize_user_path("/c/Users/owner/project/session.md", windows=True)) == "C:/Users/owner/project/session.md"
+    expected = PureWindowsPath("C:/Users/owner/project/session.md")
+    assert PureWindowsPath(str(normalize_user_path(r"C:\Users\owner\project\session.md", windows=True))) == expected
+    assert PureWindowsPath(str(normalize_user_path("C:/Users/owner/project/session.md", windows=True))) == expected
+    assert PureWindowsPath(str(normalize_user_path("/c/Users/owner/project/session.md", windows=True))) == expected
 
 
 def test_integrity_recognizes_all_supported_windows_path_spellings(tmp_path):
