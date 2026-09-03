@@ -76,7 +76,8 @@ Inside `.flg/`:
 - `sessions/` — raw session artifacts
 - `memory/` — project-local memory artifacts
 - `exports/` — resumable handoff packs
-- `context/` — generated context packs and evidence indexes
+- `context/` — generated context packs, evidence indexes, and optional wiki manifests
+- `wiki.json` — optional project wiki root and home-page configuration
 
 ## State Model
 

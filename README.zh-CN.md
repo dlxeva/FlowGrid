@@ -61,6 +61,7 @@ Agent 会在后台运行协议。用户不应该为了保存项目状态而学�
 - [快速开始](#快速开始)
 - [CLI 命令](#cli-命令)
 - [用户痛点模型](./docs/product/user-pain-model.md)
+- [Wiki 连续性](./docs/product/wiki-continuity.md)
 - [协议文档](./docs/protocol.md)
 - [宿主使用说明](./docs/host-usage.md)
 - [独立运行时实验](#独立运行时实验)
@@ -343,6 +344,9 @@ Agent 开始工作时，必须读取两层状态：
 | `flg session save <file>` | 在 closeout 前归档原始会话 |
 | `flg review --patch <file> [--report-only] [--autonomous]` | 先在后台检查候选，再处理可安全入账的决策 |
 | `flg context --mode resume` | 生成 Agent 启动上下文包 |
+| `flg wiki init --root docs --home docs/README.md` | 索引现有项目 Wiki，不移动原文件 |
+| `flg wiki status` | 只读检查 Wiki 是否有新增、修改或删除 |
+| `flg wiki build` | 在确认资料变化后刷新 Wiki Manifest |
 | `flg evidence <decision-id>` | 查看决策背后的证据来源 |
 | `flg evidence --query "<问题或主题>"` | 只读检索带状态与来源的证据线索，不改变项目状态 |
 | `flg merge --patch <file> [--yes]` | 无提示合并常规 patch 更新 |
