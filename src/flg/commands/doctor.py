@@ -9,8 +9,11 @@ from rich.console import Console
 from rich.table import Table
 
 from ..core.evidence import rebuild_evidence_index, save_evidence_index, validate_project
+from ..core.delivery import active_delivery_issues
 from ..core.files import is_flg_project
 from ..core.relations import validate_decision_relations
+from ..core.state import load_state
+from ..core.wiki import wiki_health_issues
 
 console = Console()
 
@@ -99,6 +102,8 @@ def doctor(
     relation_issues = validate_decision_relations(decisions_content)
     identity = _runtime_identity(root)
     identity_issues = identity.get("issues", []) if identity else []
+    delivery_issues = active_delivery_issues(load_state(root) or {})
+    wiki_issues = wiki_health_issues(root)
     table = Table(title=f"FlowGrid Doctor: {root}")
     table.add_column("Check", style="cyan")
     table.add_column("Result", style="bold")
@@ -106,6 +111,8 @@ def doctor(
         report["status"] == "ok"
         and not relation_issues
         and not identity_issues
+        and not delivery_issues
+        and not wiki_issues
     )
     table.add_row("Overall", "OK" if overall_ok else "Needs attention")
     table.add_row("Formal decisions", str(report["decision_count"]))
@@ -142,6 +149,15 @@ def doctor(
     table.add_row(
         "Closed patches still pending",
         str(len(report["merged_pending"])),
+    )
+    table.add_row(
+        "Active delivery contract",
+        "OK" if not delivery_issues else f"Needs attention ({len(delivery_issues)})",
+    )
+    table.add_row(
+        "Wiki continuity",
+        "not configured" if not (root / ".flg" / "wiki.json").exists()
+        else ("OK" if not wiki_issues else f"Needs attention ({len(wiki_issues)})"),
     )
     if identity is None:
         table.add_row("Runtime identity", "not configured (no repo-map)")
@@ -191,6 +207,16 @@ def doctor(
     if identity_issues:
         console.print("[yellow]runtime_identity:[/yellow]")
         for issue in identity_issues:
+            console.print(f"  - {issue}")
+
+    if delivery_issues:
+        console.print("[yellow]active_delivery:[/yellow]")
+        for issue in delivery_issues:
+            console.print(f"  - {issue}")
+
+    if wiki_issues:
+        console.print("[yellow]wiki_continuity:[/yellow]")
+        for issue in wiki_issues:
             console.print(f"  - {issue}")
 
     if strict and not overall_ok:

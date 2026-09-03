@@ -75,6 +75,7 @@ current host boundaries.
 - [Quick start](#quick-start)
 - [CLI commands](#cli-commands)
 - [User pain model](./docs/product/user-pain-model.md)
+- [Wiki continuity](./docs/product/wiki-continuity.md)
 - [Protocol docs](./docs/protocol.md)
 - [Host usage](./docs/host-usage.md)
 - [Independent runtime experiments](#independent-runtime-experiments)
@@ -431,6 +432,9 @@ This ensures multi-agent relay works correctly: Agent B can see Agent A's closeo
 | `flg review --patch <file> [--report-only] [--autonomous]` | Inspect candidates internally, then process eligible decisions in the background |
 | `flg context --mode resume` | Generate the bounded full startup Context Pack |
 | `flg context --mode manifest` | Generate a compact project map with evidence/trace expansion commands |
+| `flg wiki init --root docs --home docs/README.md` | Index an existing project wiki without moving its files |
+| `flg wiki status` | Check wiki freshness without writing state |
+| `flg wiki build` | Refresh the wiki manifest after reviewed source changes |
 | `flg evidence <decision-id>` | Show evidence behind a reviewed decision |
 | `flg evidence --query "<question or topic>"` | Find read-only, status-scoped evidence leads without changing project state |
 | `flg merge --patch <file> [--yes]` | Merge routine patch updates without a prompt |

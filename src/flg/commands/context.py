@@ -16,6 +16,7 @@ from ..core.current_action import resolve_current_action
 from ..core.evidence import load_evidence_index, parse_decisions_ledger, validate_project
 from ..core.files import is_flg_project, read_file_safe
 from ..core.state import load_state
+from ..core.wiki import wiki_context_summary
 from .handoff import parse_patch_for_handoff
 
 console = Console()
@@ -311,6 +312,31 @@ def _pending_patch_summaries(root: Path, limit: int = 5) -> list[dict]:
         if len(patches) >= limit:
             break
     return patches
+
+
+def _wiki_display(value: object, limit: int = 180) -> str:
+    """Render untrusted wiki metadata without allowing Markdown structure injection."""
+    compact = re.sub(r"\s+", " ", str(value or "")).strip()
+    return compact.replace("|", "\\|")[:limit]
+
+
+def _fit_optional_section(section: str, available: int) -> str:
+    """Fit an optional section using whole lines without consuming reserved content."""
+    if available <= 0:
+        return ""
+    if len(section) <= available:
+        return section
+    kept: list[str] = []
+    used = 0
+    for line in section.splitlines(keepends=True):
+        if used + len(line) > available:
+            break
+        kept.append(line)
+        used += len(line)
+    notice = "- Additional wiki entries omitted to preserve required Context Pack sections.\n"
+    if used + len(notice) <= available:
+        kept.append(notice)
+    return "".join(kept)
 
 
 def _render_items(items: list[str], empty: str = "(none recorded)") -> str:
@@ -781,6 +807,42 @@ def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> 
     if not framing_is_obsolete:
         sources_included.insert(1, "FRAMING.md")
 
+    decision_ids = {item["id"] for item in confirmed_decisions}
+    wiki_summary = wiki_context_summary(root, decision_ids=decision_ids)
+    wiki_section = ""
+    wiki_truncated = False
+    if wiki_summary:
+        sources_included.append(wiki_summary["manifest"])
+        wiki_lines = [
+            "## Project Wiki",
+            "",
+            "- Authority: reference only; wiki pages do not become confirmed project truth unless promoted through FLG review.",
+            f"- Status: {_wiki_display(wiki_summary['status'], 20)}",
+            f"- Home: {_wiki_display(wiki_summary['home'], 240)}",
+            f"- Indexed pages: {wiki_summary['page_count']}",
+            f"- Manifest: {_wiki_display(wiki_summary['manifest'], 240)}",
+            f"- Drift: +{wiki_summary['added_count']} / ~{wiki_summary['changed_count']} / -{wiki_summary['removed_count']} / config={str(wiki_summary['config_changed']).lower()}",
+        ]
+        if wiki_summary["pages"]:
+            wiki_lines.append("- Relevant pages:")
+            for page in wiki_summary["pages"]:
+                relations = ", ".join(page.get("related_decisions", [])) or "reference"
+                wiki_lines.append(
+                    "  - "
+                    + " | ".join(
+                        (
+                            _wiki_display(page.get("id"), 80),
+                            _wiki_display(page.get("title"), 160),
+                            _wiki_display(page.get("path"), 240),
+                            _wiki_display(relations, 240),
+                        )
+                    )
+                )
+        wiki_lines.append("")
+        raw_wiki_section = "\n".join(wiki_lines) + "\n"
+        wiki_section = _fit_optional_section(raw_wiki_section, 2000)
+        wiki_truncated = wiki_section != raw_wiki_section
+
     content = f"""# FLG Context Pack
 
 ## Project Identity
@@ -843,7 +905,7 @@ def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> 
 ## Source Health
 
 {_render_source_health(source_health)}
-## Evidence References
+{wiki_section}## Evidence References
 
 {_render_evidence_refs(confirmed_decisions, pending_patches)}
 ## Agent Instructions
@@ -867,6 +929,13 @@ def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> 
 {_render_items(sources_included)}"""
 
     max_chars = max(1200, budget * 4)
+    if wiki_section and len(content) > max_chars:
+        required_chars = len(content) - len(wiki_section)
+        available_for_wiki = max(0, max_chars - required_chars)
+        fitted_wiki = _fit_optional_section(wiki_section, available_for_wiki)
+        wiki_truncated = wiki_truncated or fitted_wiki != wiki_section
+        content = content.replace(wiki_section, fitted_wiki, 1)
+
     truncated = False
     if len(content) > max_chars:
         content = content[: max_chars - 120].rstrip() + "\n\n<!-- Context Pack truncated to budget. Increase --budget for a larger pack. -->\n"
@@ -881,6 +950,8 @@ def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> 
         "confirmed_decisions_count": len(confirmed_decisions),
         "source_health": source_health,
         "current_action": current_action,
+        "wiki": wiki_summary,
+        "wiki_truncated": wiki_truncated,
         "truncated": truncated,
     }
     return content, metadata

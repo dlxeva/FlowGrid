@@ -20,8 +20,10 @@ from .commands.decision_cmd import decision_add
 from .commands.patch_cmd import patch_supersede, patch_discard
 from .commands.onboard import onboard
 from .commands.doctor import doctor, reindex
+from .commands.delivery import delivery_show, delivery_set
 from .commands.trace import trace_command
 from .commands.session import save_session
+from .commands.wiki import wiki_build, wiki_init, wiki_status
 from .core.state import load_state, get_state_schema_info
 
 console = Console()
@@ -75,6 +77,19 @@ patch_app = typer.Typer(help="Manage patch lifecycle: supersede or discard stale
 patch_app.command(name="supersede", help="Mark a patch as superseded (replaced by a newer patch)")(patch_supersede)
 patch_app.command(name="discard", help="Mark a patch as discarded (rejected / no longer relevant)")(patch_discard)
 app.add_typer(patch_app, name="patch")
+
+# Optional project wiki continuity group
+wiki_app = typer.Typer(help="Index and monitor project wiki knowledge", no_args_is_help=True)
+wiki_app.command(name="init", help="Configure and build the project wiki index")(wiki_init)
+wiki_app.command(name="build", help="Rebuild the project wiki manifest")(wiki_build)
+wiki_app.command(name="status", help="Check wiki freshness without writing")(wiki_status)
+app.add_typer(wiki_app, name="wiki")
+
+# Optional active delivery contract group
+delivery_app = typer.Typer(help="Manage an explicit current delivery contract", no_args_is_help=True)
+delivery_app.command(name="show", help="Show the active delivery contract")(delivery_show)
+delivery_app.command(name="set", help="Replace the active delivery contract explicitly")(delivery_set)
+app.add_typer(delivery_app, name="delivery")
 
 
 @app.command(name="version")
