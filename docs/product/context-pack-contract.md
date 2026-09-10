@@ -28,6 +28,52 @@ For a smaller navigation-first entrypoint, use:
 flg context --mode manifest
 ```
 
+For projects whose live work queue is maintained in one authoritative source
+block, declare a `work_source` extension in `.flg/state.json` and build the
+derived view:
+
+```json
+{
+  "work_source": {
+    "schema_version": "1",
+    "path": "docs/work-ledger.md",
+    "start_marker": "<!-- current-work:start -->",
+    "end_marker": "<!-- current-work:end -->"
+  }
+}
+```
+
+```bash
+flg context --mode work
+flg doctor --strict
+```
+
+The generated `.flg/context/work-view.md` is not another writable ledger. It
+is a bounded projection containing the current action, blockers, necessary
+constraints, source locator, and marked-block SHA. Changes outside the marked
+block do not invalidate it. Changes inside the block make the prior view stale
+and remove its action from canonical continuation until a human or agent
+rechecks the source and rebuilds the view. Omitting both markers intentionally
+uses the whole file. Source paths must remain inside the project and symlinks
+are rejected.
+
+The generic extractor recognizes these headings inside the declared block:
+
+```markdown
+## Current Action
+- Continue the one action that is safe to inherit.
+
+## Blockers
+- Record a blocker, or an explicit `none` item.
+
+## Necessary Constraints
+- Record only constraints needed for the current action.
+```
+
+Project-specific task tables may keep their own adapter and still use the same
+block-SHA freshness contract. FlowGrid core does not infer proprietary IDs,
+owners, or table semantics from arbitrary columns.
+
 The generated Continuity Manifest contains identity, the current goal, judgment
 statuses and IDs, active-work pointers, source health, and exact commands for
 expanding a judgment through the existing `evidence` and `trace` paths. It is a

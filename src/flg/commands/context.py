@@ -17,6 +17,7 @@ from ..core.evidence import load_evidence_index, parse_decisions_ledger, validat
 from ..core.files import is_flg_project, read_file_safe
 from ..core.state import load_state
 from ..core.wiki import wiki_context_summary
+from ..core.work_view import build_work_view, inspect_work_view, write_work_view_manifest
 from .handoff import parse_patch_for_handoff
 
 console = Console()
@@ -428,6 +429,52 @@ def _render_source_health(report: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _work_source_current_action(current_action: dict, work_view: dict | None) -> dict:
+    """Use an explicitly declared, SHA-checked work source when configured."""
+    if work_view is None:
+        return current_action
+    return {
+        "status": work_view["action_status"],
+        "action": (
+            work_view.get("current_action")
+            if work_view["action_status"] == "current"
+            else None
+        ),
+        "source": f"{work_view['source_path']} ({work_view['locator']})",
+        "source_updated_at": work_view.get("generated_at", "not generated"),
+        "ignored_fallback_count": current_action.get("ignored_fallback_count", 0),
+        "reason": work_view["reason"],
+    }
+
+
+def _render_work_view(work_view: dict | None) -> str:
+    if work_view is None:
+        return "- Status: not configured\n"
+    blockers = work_view.get("blockers") or []
+    constraints = work_view.get("constraints") or []
+    missing = work_view.get("missing") or []
+    lines = [
+        f"- Status: {work_view['status']}",
+        f"- Action status: {work_view['action_status']}",
+        f"- Source path: {work_view['source_path']}",
+        f"- Locator: {work_view['locator']}",
+        f"- Current block SHA-256: {work_view['current_block_sha256']}",
+    ]
+    if work_view.get("recorded_block_sha256"):
+        lines.append(f"- Recorded block SHA-256: {work_view['recorded_block_sha256']}")
+    lines.extend(
+        (
+            f"- Blockers: {'; '.join(blockers) if blockers else '(not recorded)'}",
+            f"- Necessary constraints: {'; '.join(constraints) if constraints else '(not recorded)'}",
+            f"- Missing information: {'; '.join(missing) if missing else '(none detected)'}",
+            f"- Reason: {work_view['reason']}",
+            "- Inspect source: open the path at the locator above before refreshing.",
+            "- Refresh after recheck: `flg context --mode work`",
+        )
+    )
+    return "\n".join(lines) + "\n"
+
+
 def _render_current_action(current_action: dict) -> str:
     """Render the same canonical action contract in every continuation view."""
     action = current_action.get("action") or "(none; reconcile state before acting)"
@@ -539,12 +586,14 @@ def _build_continuity_manifest(root: Path, budget: int) -> tuple[str, dict]:
     pending_patches = _pending_patch_summaries(root)
     pending_captures = _pending_capture_ids(root)
     source_health = validate_project(root)
+    work_view = inspect_work_view(root, state)
     current_action = resolve_current_action(
         snapshot_content,
         state,
         pending_patches_count=len(pending_patches),
         framing_goal_defined=framing_goal_defined,
     )
+    current_action = _work_source_current_action(current_action, work_view)
 
     pending_decision_ids = [
         decision["decision_id"]
@@ -606,6 +655,11 @@ def _build_continuity_manifest(root: Path, budget: int) -> tuple[str, dict]:
 ## Current Action
 
 {_render_current_action(current_action)}"""
+    work_view_section = f"""
+
+## Source-backed Work View
+
+{_render_work_view(work_view)}"""
     work_pointer_section = f"""
 
 ## Work Pointers
@@ -636,6 +690,7 @@ def _build_continuity_manifest(root: Path, budget: int) -> tuple[str, dict]:
     content = (
         identity_section
         + current_action_section
+        + work_view_section
         + judgment_section
         + work_pointer_section
         + source_health_section
@@ -655,6 +710,7 @@ def _build_continuity_manifest(root: Path, budget: int) -> tuple[str, dict]:
         content = (
             identity_section
             + current_action_section
+            + work_view_section
             + compact_judgment_section
             + work_pointer_section
             + source_health_section
@@ -686,16 +742,31 @@ def _build_continuity_manifest(root: Path, budget: int) -> tuple[str, dict]:
         ),
         "source_health": source_health,
         "current_action": current_action,
+        "work_view": work_view,
         "truncated": truncated,
     }
     return content, metadata
 
 
 def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> tuple[str, dict]:
+    if mode == "work":
+        state = load_state(root)
+        if not state:
+            raise ValueError("No readable state found. Run 'flg init' first.")
+        content, metadata = build_work_view(root, state, budget=budget)
+        metadata.update(
+            {
+                "path": str(root / ".flg" / "context" / "work-view.md"),
+                "sources_included": [".flg/state.json#work_source", metadata["source"]["path"]],
+                "pending_patches_count": 0,
+                "confirmed_decisions_count": 0,
+            }
+        )
+        return content, metadata
     if mode == "manifest":
         return _build_continuity_manifest(root, budget)
     if mode != "resume":
-        raise ValueError("Supported context modes: resume, manifest")
+        raise ValueError("Supported context modes: resume, manifest, work")
 
     state = load_state(root)
     if not state:
@@ -746,12 +817,14 @@ def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> 
     confirmed_decisions = _parse_confirmed_decisions(decisions_content, evidence_items)
     pending_patches = _pending_patch_summaries(root)
     source_health = validate_project(root)
+    work_view = inspect_work_view(root, state)
     current_action = resolve_current_action(
         snapshot_content,
         state,
         pending_patches_count=len(pending_patches),
         framing_goal_defined=bool(framing_goal),
     )
+    current_action = _work_source_current_action(current_action, work_view)
 
     assumptions = _list_items(_section(snapshot_content, "Unconfirmed"), limit=8)
     assumptions += _list_items(_section(snapshot_content, "未确认"), limit=8)
@@ -869,6 +942,9 @@ def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> 
 ## Current Action
 
 {_render_current_action(current_action)}
+## Source-backed Work View
+
+{_render_work_view(work_view)}
 ## Project Frame
 
 {project_frame}
@@ -950,6 +1026,7 @@ def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> 
         "confirmed_decisions_count": len(confirmed_decisions),
         "source_health": source_health,
         "current_action": current_action,
+        "work_view": work_view,
         "wiki": wiki_summary,
         "wiki_truncated": wiki_truncated,
         "truncated": truncated,
@@ -958,7 +1035,7 @@ def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> 
 
 
 def context_command(
-    mode: str = typer.Option("resume", "--mode", help="Context mode: 'resume' or compact 'manifest'."),
+    mode: str = typer.Option("resume", "--mode", help="Context mode: 'resume', compact 'manifest', or source-backed 'work'."),
     budget: int = typer.Option(4000, "--budget", help="Approximate token budget for the generated context pack."),
     output: Optional[str] = typer.Option(None, "--output", "-o", help="Optional output path. Defaults by mode under .flg/context/."),
     print_pack: bool = typer.Option(False, "--print", help="Print the generated context pack after writing it."),
@@ -975,22 +1052,24 @@ def context_command(
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(1) from exc
 
-    default_name = "manifest.md" if mode == "manifest" else "startup.md"
+    default_name = {"manifest": "manifest.md", "work": "work-view.md"}.get(mode, "startup.md")
     output_path = Path(output) if output else root / ".flg" / "context" / default_name
     if not output_path.is_absolute():
         output_path = root / output_path
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(content, encoding="utf-8")
+    if mode == "work":
+        write_work_view_manifest(root, metadata)
 
     console.print()
-    artifact_name = "Continuity Manifest" if mode == "manifest" else "Context Pack"
+    artifact_name = {"manifest": "Continuity Manifest", "work": "Source-backed Work View"}.get(mode, "Context Pack")
     console.print(f"[bold green]✓ {artifact_name} generated[/bold green]")
     console.print(f"[bold]Path:[/bold] {output_path}")
     console.print(f"[bold]Size:[/bold] {metadata['chars']} chars (~{metadata['estimated_tokens']} tokens)")
     console.print(f"[bold]Sources included:[/bold] {len(metadata['sources_included'])}")
     console.print(f"[bold]Pending patches:[/bold] {metadata['pending_patches_count']}")
     console.print(f"[bold]Confirmed decisions:[/bold] {metadata['confirmed_decisions_count']}")
-    if metadata["confirmed_decisions_count"] == 0:
+    if mode != "work" and metadata["confirmed_decisions_count"] == 0:
         console.print(f"[yellow]Warning: no reviewed decisions found. {artifact_name} will rely on current state and pending material.[/yellow]")
     if metadata["truncated"]:
         if mode == "manifest":

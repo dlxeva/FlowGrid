@@ -14,6 +14,7 @@ from ..core.files import is_flg_project
 from ..core.relations import validate_decision_relations
 from ..core.state import load_state
 from ..core.wiki import wiki_health_issues
+from ..core.work_view import work_view_health_issues
 
 console = Console()
 
@@ -102,8 +103,10 @@ def doctor(
     relation_issues = validate_decision_relations(decisions_content)
     identity = _runtime_identity(root)
     identity_issues = identity.get("issues", []) if identity else []
-    delivery_issues = active_delivery_issues(load_state(root) or {})
+    state = load_state(root) or {}
+    delivery_issues = active_delivery_issues(state)
     wiki_issues = wiki_health_issues(root)
+    work_view_issues = work_view_health_issues(root, state)
     table = Table(title=f"FlowGrid Doctor: {root}")
     table.add_column("Check", style="cyan")
     table.add_column("Result", style="bold")
@@ -113,6 +116,7 @@ def doctor(
         and not identity_issues
         and not delivery_issues
         and not wiki_issues
+        and not work_view_issues
     )
     table.add_row("Overall", "OK" if overall_ok else "Needs attention")
     table.add_row("Formal decisions", str(report["decision_count"]))
@@ -158,6 +162,11 @@ def doctor(
         "Wiki continuity",
         "not configured" if not (root / ".flg" / "wiki.json").exists()
         else ("OK" if not wiki_issues else f"Needs attention ({len(wiki_issues)})"),
+    )
+    table.add_row(
+        "Source-backed work view",
+        "not configured" if "work_source" not in state
+        else ("OK" if not work_view_issues else f"Needs attention ({len(work_view_issues)})"),
     )
     if identity is None:
         table.add_row("Runtime identity", "not configured (no repo-map)")
@@ -217,6 +226,11 @@ def doctor(
     if wiki_issues:
         console.print("[yellow]wiki_continuity:[/yellow]")
         for issue in wiki_issues:
+            console.print(f"  - {issue}")
+
+    if work_view_issues:
+        console.print("[yellow]source_backed_work_view:[/yellow]")
+        for issue in work_view_issues:
             console.print(f"  - {issue}")
 
     if strict and not overall_ok:
