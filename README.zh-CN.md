@@ -2,292 +2,256 @@
 
 [English](./README.md) | [简体中文](./README.zh-CN.md)
 
-> 面向同时使用多个 AI Agent 和模型的推导密集型非代码业务项目的本地项目状态上下文引擎。
-> 它让不同 Agent 共享一份可审计的本地项目判断状态，而不是各自重新解释项目历史。
+> 面向多 AI 宿主、多模型推导密集型非代码工作的本地项目状态上下文引擎。
 
 ![阶段](https://img.shields.io/badge/stage-v0.4--validation-4c6ef5)
 ![运行方式](https://img.shields.io/badge/runtime-local--first-2b8a3e)
-![接口](https://img.shields.io/badge/interface-CLI%20%2B%20protocol-495057)
+![入口](https://img.shields.io/badge/interface-host%20%2B%20CLI-495057)
 [![CI](https://github.com/dlxeva/FlowGrid/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/dlxeva/FlowGrid/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-%3E%3D3.10-3776AB?logo=python&logoColor=white)
 [![License](https://img.shields.io/github/license/dlxeva/FlowGrid)](./LICENSE)
 
-FlowGrid 帮助业务项目型知识工作者，把混乱的 AI 协作过程转成有状态边界、可追溯、可恢复的项目上下文。
+FlowGrid 让项目判断跨会话、跨模型、跨本地 AI 宿主延续。它把已审核决策、
+决策证据、待审核变化和有边界的续接上下文保存在项目文件中。
 
-> **当前状态：** 代码包版本仍为 `v0.3.0`，项目正在进行 v0.4 核心验证。当前重点是原始会话稳定入账、账本状态可重建，以及真实项目续接；目前不把 v0.4 宣称为正式发布版本。
+主要入口是 AI 宿主里的自然语言。CLI 是宿主在后台调用、用户可以检查的底层协议。
 
-它适合长期推进的模糊项目。此类项目的交付物通常不只是一份文档，还包括一条能被解释和质询的判断链：为什么这个方案成立，为什么选择这个方向，哪些备选被放弃，什么情况下旧判断需要修正。
+> **当前状态：** 软件包版本为 `v0.3.0`，仓库正在验证 v0.4 Core。
+> 当前重点是宿主入口可靠性、可重建状态、来源支撑的工作视图和真实项目续接。
+> v0.4 尚未作为已发布版本呈现。
 
-## 一张图看懂如何续接项目
+## 在 AI 宿主里开始
 
-![FlowGrid 项目续接生命周期](./docs/assets/flowgrid-lifecycle.svg)
-
-FlowGrid 不会把所有聊天记录重新塞给每一个 Agent。它保留可回溯的原始证据，分开未确认候选和正式项目状态，再为下一个继续项目的宿主或模型编译最小、可信的 Context Pack。
-
-<details>
-<summary><strong>查看当前协议全景图</strong></summary>
-
-<br />
-
-![FlowGrid 当前系统全景图](./docs/assets/flowgrid-system-map.zh-CN.svg)
-
-图中区分了已实现的协议状态、可重建缓存和健康检查；它不代表通用 Agent Memory 平台或模型编排系统。
-
-</details>
-
-## 在你的 AI 宿主里开始
-
-对 Codex、Claude、Hermes 或其他本地 Agent 宿主，推荐先安装操作 Skill，而不是先学习手动 CLI。FlowGrid 让一个知识工作者能在这些工具之间继承同一份经过审核的项目状态；它不负责选择模型，也不管理 Agent 团队：
+以 editable 模式安装仓库，再把内置 operator skill 安装到支持的本地宿主：
 
 ```bash
 pip install -e .
 flg onboard --skip-demo --yes
 ```
 
-`flg onboard` 会检测已支持的宿主并安装 `flowgrid-operator` Skill。这个安全安装路径不会在当前目录创建 demo 项目；如需运行可选引导 demo，请先进入一个可丢弃目录，再运行 `flg onboard`。`FLG` 和 `FlowGrid` 都是支持的自然语言触发词。之后直接在你习惯的宿主里用自然语言继续，例如：
+回到常用宿主，用类似下面的自然语言继续：
 
 > 用 FLG 管理并继续这个项目。
 
-Agent 会在后台运行协议。用户不应该为了保存项目状态而学习一套新的账本操作流程。预期体验与当前宿主边界见[首次宿主使用说明](./docs/first-run-in-hosts.md)。
+宿主会定位项目，读取已审核状态和待审核状态，执行必要的 `flg` 命令，
+只汇报实质变化或审核边界。用户无需手工维护账本。
 
-## 快速入口
+`flg onboard` 也能运行引导 demo。demo 会创建样例项目，请在一次性目录中运行。
+当前集成边界见
+[AI 宿主首次使用](./docs/first-run-in-hosts.md)和
+[宿主使用说明](./docs/host-usage.md)。
 
-- [公开评测成绩](#公开评测成绩)
-- [它到底是什么](#什么是-flowgrid)
-- [在 AI 宿主中开始](#在你的-ai-宿主里开始)
-- [匿名客户方案续接案例](./docs/use-cases/client-solution-continuation.md)
-- [30 秒 CLI demo](#30-秒-cli-demo)
-- [适合谁用](#适合谁用)
-- [快速开始](#快速开始)
-- [CLI 命令](#cli-命令)
-- [用户痛点模型](./docs/product/user-pain-model.md)
-- [Wiki 连续性](./docs/product/wiki-continuity.md)
-- [协议文档](./docs/protocol.md)
-- [宿主使用说明](./docs/host-usage.md)
-- [独立运行时实验](#独立运行时实验)
-- [English README](./README.md)
+## FlowGrid 提供什么
 
-## 一眼看懂
+长期 AI 协作会积累大量对话。下一个模型不适合重新加载全部历史。
+普通摘要又常常删掉保证项目安全续接所需的理由。
 
-- **本地优先：** 项目真相在文件里，不在聊天记忆里
-- **上下文优先：** Agent 启动时读取带有状态边界的项目状态，避免直接吞整段历史
-- **判断链优先：** 决策记录为什么选、放弃了什么、依赖哪些前提、什么条件会反转
-- **后台安全写入：** 宿主在后台处理常规 patch，不要求用户学习账本工作流
-- **宿主与模型无关：** 用户可在 Codex、Claude、OpenClaw、Hermes 或任何能读文件/跑命令的 Agent 之间续接同一份经过审核的账本
-- **业务项目导向：** 面向提案、campaign、brief、策略、机制设计和复盘
+FlowGrid 把五类内容分开保存：
 
-## 匿名案例：客户项目临时改变方向
+- 以后可以回查的原始来源材料；
+- 带理由、放弃方案和反转条件的正式决策；
+- 不得自动变成当前事实的待审核候选；
+- 当前行动、阻塞、约束和开放问题；
+- 为下一次会话或宿主重建的紧凑视图。
 
-一次客户会议推翻了原来的问题判断后，换一个 Agent 或模型也不应该继续润色旧方案。FlowGrid 会把新的方向、其证据、被否决的路径和下一步行动分开保存。
+![FlowGrid 项目续接生命周期](./docs/assets/flowgrid-lifecycle.svg)
 
-[阅读完整的匿名客户方案续接案例 →](./docs/use-cases/client-solution-continuation.md)
+新宿主可以从有边界的项目状态开始，按需展开证据，并识别已经过期的视图。
+FlowGrid 不负责模型路由，不调度 Agent 团队，也不替代治理项目的原始文档。
 
-## 30 秒 CLI demo
+## 三层项目状态
+
+FlowGrid 使用权威等级不同的三层状态。
+
+| 层级 | 内容 | 权威边界 |
+| --- | --- | --- |
+| 1. 权威来源与正式账本 | 已声明的来源文档，以及审核后的 `PROJECT.md`、`FRAMING.md`、`DECISIONS.md`、`SNAPSHOT.md`、`PROGRESS.md` | 当前项目事实，具体范围由各来源声明决定 |
+| 2. 待审核变化 | 带来源的 `status: pending_review` patch 和 capture | 仅为候选状态，宿主不得当作已确认事实 |
+| 3. 可重建视图 | Context Pack、Continuity Manifest、Source-backed Work View、证据索引和 handoff 输出 | 用于导航和启动的派生内容，从第一层和第二层重建 |
+
+这套模型替代旧版 Two-Layer State。第三层单独存在，因为生成后的上下文文件可能过期，
+其来源仍然可以保持权威。
+
+正式账本是人能直接阅读的 Markdown。派生索引和上下文文件可以丢弃。
+两者发生冲突时，先检查来源和正式账本，再重建视图。
+
+## Source-backed Work View
+
+有些项目已经用一份详细的工作账本、brief 或执行文档记录当前行动。
+把它复制进另一套状态系统会产生漂移。
+
+Source-backed Work View 在已声明的项目内来源上生成有边界的投影视图。
+它提取当前行动、阻塞项和必要约束，同时保留来源定位。
+
+用户得到的价值：
+
+- 从正在使用的工作来源续接，无需加载整份文档；
+- 运行上下文和正式决策审批保持分离；
+- 精确识别已声明来源区块是否变化；
+- 阻止过期的当前行动在下次会话中继续生效。
+
+### 声明来源
+
+在 `.flg/state.json` 中增加可选的 `work_source` 扩展字段：
+
+```json
+{
+  "work_source": {
+    "schema_version": "1",
+    "path": "docs/work-ledger.md",
+    "start_marker": "<!-- current-work:start -->",
+    "end_marker": "<!-- current-work:end -->"
+  }
+}
+```
+
+路径必须相对于项目目录。指向项目外的路径和符号链接会被拒绝。
+文件必须是 UTF-8 文本。marker 可以省略；使用时必须成对提供，各出现一次，
+并保持起止顺序。
+
+一个通用的标记区块可以写成：
+
+```markdown
+<!-- current-work:start -->
+## Current Action
+
+- Compare the two approved outline options.
+
+## Blockers
+
+- Waiting for one sample export.
+
+## Necessary Constraints
+
+- Treat draft copy as unapproved.
+<!-- current-work:end -->
+```
+
+生成视图：
 
 ```bash
-mkdir demo && cd demo
-flg init "Launch Proposal" --type proposal --client "Client A"
-flg frame
-flg closeout --transcript meeting-notes.md
-flg review --patch .flg/patches/<closeout-patch>.md --report-only
-flg review --patch .flg/patches/<closeout-patch>.md --autonomous
-flg merge --patch .flg/patches/<closeout-patch>.md --yes
-flg context --mode resume
-flg handoff
+flg context --mode work
 ```
 
-宿主应把一句带明确 owner 来源的短判断送入有来源的 capture 草稿，例如
-`flg capture add`。会议、长讨论或包含多个产品信号的口述走 `flg closeout`。
-只有项目名、没有来源归因和取舍关系的列表不生成决策候选。
+命令会写入 `.flg/context/work-view.md`，并生成包含来源定位和区块 SHA-256
+的 manifest。
 
-跑完以后，你会得到：
+### 区块 SHA 过期保护
 
-- 一套本地项目账本：`PROJECT.md`、`FRAMING.md`、`DECISIONS.md`、`SNAPSHOT.md`、`PROGRESS.md`
-- 一个协议目录：`.flg/`
-- 一批可审查的待合并变更：`.flg/patches/`
-- 一份可续接的 handoff 摘要，给下次会话或下一个 Agent 用
+FlowGrid 计算已声明区块的哈希值，不计算整份来源文件。修改 marker 之外的内容
+不会让视图过期。修改区块、来源路径或 marker 配置会把视图标记为 stale。
 
-在宿主集成模式下，审核和合并都在后台完成，用户继续用自然语言推进项目。
-缺少上下文的空壳候选会保持 pending，不会被写成正式决策。
+视图过期后：
 
-这条流程可以运行在 Codex、Claude、OpenClaw、Hermes 或其他 AI agent work 产品里，不要求用户改用新的工作台。
+- `flg doctor --strict` 会报告 Source-backed Work View 已过期；
+- Continuity Manifest 把当前行动标为 `needs_recheck`；
+- manifest 的当前行动字段不会继续暴露过期行动文本；
+- 人或宿主必须先检查已变化的来源，再运行
+  `flg context --mode work` 重建。
 
-## 公开评测成绩
+SHA 检查只能发现变化。它不能判断新文本是否正确、是否获批或是否属于正式决策。
+决策候选仍要经过常规 review 和 merge gate。
 
-[![AML 学术文本榜 #8](https://img.shields.io/badge/AML%20Academic%20Textual-%238-7C3AED)](https://agentmemories.ai/leaderboard/academic/textual)
+## 决策日志
 
-独立参赛项目 [FlowGrid AML Retriever](https://github.com/dlxeva/flowgrid-aml-retriever)
-在 Agent Memory Leaderboard 首期公开评测的学术方法文本记忆榜中位列
-**第 8 名**，综合分 **43.98**，与榜首相差 **1.08 分**。
-[查看公开榜单 →](https://agentmemories.ai/leaderboard/academic/textual)
+FlowGrid 起源于 Markdown 决策日志机制。这套机制至今仍是项目中心。
 
-参赛 Retriever 与 FlowGrid Core 共享证据来源、时间状态、冲突保留和可追溯检索等思想。
-AML Retriever 是面向榜单契约的确定性 Add/Search 系统，FlowGrid Core 是上文描述的
-本地项目连续性产品。这项成绩不构成 Core 产品质量、用户采用或普遍优越性的证明。
+`DECISIONS.md` 记录做了什么决定、为何选择、放弃了什么，以及什么条件会触发重审。
+每条决策使用以下字段：
 
-## 独立运行时实验
+| 字段 | 用途 |
+| --- | --- |
+| `id` | 稳定的决策标识 |
+| `date` | 决策日期 |
+| `context` | 需要做出判断的情境 |
+| `decision` | 审核后的选择 |
+| `rationale` | 选择理由 |
+| `alternatives_rejected` | 考虑后放弃的方案 |
+| `reversal_conditions` | 应重新打开决策的证据或事件 |
+| `impact` | 预期影响 |
+| `status` | active、superseded 或 revisited 状态 |
 
-FlowGrid 的主产品仍是本地优先 CLI 与项目协议。三个独立仓库在受控运行环境或评测契约下验证部分思路：
+原始会话作为证据保留。证据索引用于追溯，但它属于可重建缓存。
+抽取出的句子和 Agent 提议都不是正式决策。review 流程需要确认其权威和来源。
 
-- [FlowGrid AML Retriever](https://github.com/dlxeva/flowgrid-aml-retriever)：把来源、时间、冲突和多视图检索思路用于 Agent Memory Leaderboard 的 Add/Search 契约，并在首期公开学术方法文本记忆榜取得第 8 名。
-- [FlowGrid Memory Runtime](https://github.com/dlxeva/flowgrid-memory-runtime)：使用合成数据，在 CockroachDB 与 AWS 上演示 confirmed、pending、superseded 判断状态。
-- [FlowGrid MemoryAgent for Qwen Cloud](https://github.com/dlxeva/flowgrid-qwen-memory-agent)：在 Alibaba Cloud 上演示 Qwen 驱动的候选提取、人工授权和受限的 confirmed 状态检索。
+## 核心流程
 
-这些项目只在更窄的契约下验证 FlowGrid 的部分思路。它们不让 AML、AWS、CockroachDB、Qwen 或 Alibaba Cloud 成为 FlowGrid Core 的依赖，也不构成 Core 用户采用、留存或产品市场匹配的证据。主线仍聚焦自然语言宿主操作、本地账本可重建和真实项目续接。
-
-## 什么是 FlowGrid
-
-FlowGrid（技术简称 FLG）面向同时使用多个 AI Agent 和模型推进推导密集型非代码业务项目的人。
-
-它为这些 Agent 提供一套本地协议，用来共享项目判断、当前状态、待审核变更和跨会话、跨宿主的 handoff 上下文。FlowGrid 不负责模型路由，也不管理 Agent 团队。
-
-它处理的核心问题：
-
-> 长期 AI 协作会产生大量历史记录，但 Agent 每次重启时不应该直接读取整段历史；业务项目又需要足够结构化的判断链，才能保持可信。
-
-FlowGrid 会区分原始讨论、候选判断、已审核决策、待审核 patch 和当前项目状态。
-
-## 适合谁用
-
-FlowGrid 适合业务项目型知识工作者。这里的核心不是岗位名称，而是工作结构：你负责一个模糊项目，并会在不同 AI Agent 或模型之间反复澄清、判断、修正、解释和交接项目状态。
-
-典型角色包括：
-
-- 运营负责人：设计机制、节奏、约束和复盘
-- 营销负责人：管理 campaign、brief、内容方向和传播判断
-- 策略 / 增长负责人：做取舍、定方向、形成项目建议
-- 方案负责人：把客户需求翻译成可交付逻辑
-- 创意或研究型业务人员：维护长期选题、观点和方向判断
-- 独立顾问或小团队 owner：同时承担上面多种职责
-
-FlowGrid 服务的是一种工作结构，不是一个岗位标签。
-
-最适合的任务模式：
-
-- **方案说服：** 为什么这个方案、campaign 或 deck 成立
-- **机制推进：** 项目如何在真实约束下继续推进
-- **判断修正：** 为什么旧判断现在需要调整
-
-## 它和普通提示词工作流有什么区别
-
-| 维度 | 普通提示词工作流 | FlowGrid |
-|------|------------------|----------|
-| 范围 | 一次对话 | 整个项目生命周期 |
-| 记忆 | AI 临时记忆 | 项目文件长期保存 |
-| 事实源 | 散落在聊天里 | 统一项目账本 |
-| 判断链 | 容易被埋掉 | 可审核、可追溯 |
-| 可迁移性 | 绑定具体 AI | 任何本地 Agent 都可继续 |
-
-## 为什么决策日志重要
-
-AI 每次换会话，都可能丢掉你之前为什么这样判断。FLG 会把这件事放进项目文件。
-
-`DECISIONS.md` 记录“决定了什么”，也记录：
-
-- 当时的背景
-- 为什么这样选
-- 放弃了什么方案
-- 什么条件会让这个判断反转
-
-这让项目判断成为可追溯、可复盘、可交接的资产。
-
-## 不适合谁
-
-如果你更像下面这些场景，别勉强用它：
-
-| 场景 | 更适合的工具 |
-|------|--------------|
-| 在 git 仓库里做多 Agent 代码协作 | [oh-my-codex (OMX)](https://github.com/Yeachan-Heo/oh-my-codex) |
-| 企业 PM 管理冲刺、需求池、团队状态 | [Atlassian AI Agents](https://www.atlassian.com/agile/project-management/ai-agents) |
-| 团队级自治工作空间、自动化协同 | [Taskade Genesis / Workspace DNA](https://www.taskade.com/blog/autonomous-project-management) |
-| 只想低门槛找个 Agent 帮你跑任务 | [Claude Cowork](https://www.scrum.org/resources/blog/claude-cowork-ai-agents-email-moment-non-coding-agile-practitioners) |
-
-**FlowGrid 的定位：** 单兵、非编码、推导密集型业务项目。交付物更偏提案、brief、campaign、机制、策略、复盘和可辩护判断链。
-
-## 安装
+### 1. 初始化项目
 
 ```bash
-pip install -e .
-flg version
+mkdir example-project
+cd example-project
+flg init 'Example Project' --type proposal --client 'Example Client'
 ```
 
-## 开发模式
-
-通过 editable install 的控制台脚本运行：
+正式账本以英文为主时：
 
 ```bash
-pip install -e .
-flg version
+flg init 'Example Project' --language en
 ```
 
-不安装，直接从源码树运行：
+初始化会创建正式 Markdown 账本和 `.flg/` 协议状态。
 
-```bash
-PYTHONPATH=src python -m flg.cli version
-```
-
-Windows PowerShell：
-
-```powershell
-$env:PYTHONPATH="src"
-python -m flg.cli version
-```
-
-## 快速开始
-
-### 1. 初始化一个项目
-
-```bash
-mkdir my-project && cd my-project
-flg init "My Project" --type proposal --client "Client Name"\n# 英语优先账本：追加 --language en
-```
-
-会创建这些核心文件：
-
-- `PROJECT.md`：项目概览
-- `FRAMING.md`：问题定义
-- `DECISIONS.md`：决策日志
-- `SNAPSHOT.md`：当前快照
-- `PROGRESS.md`：进展记录
-- `.flg/`：FLG 内部协议目录
-
-### 2. 检查 framing 完整度
+### 2. 校准 framing
 
 ```bash
 flg frame
 ```
 
-它会检查 `FRAMING.md` 缺哪些关键字段，并生成 patch 建议。
+`flg frame` 检查 framing 是否完整，并为缺失问题生成 patch。
+它也会报告缺少证据依据、仅有二手依据或依赖推测的情况。
 
-### 3. 会话结束时 closeout
+### 3. 捕获一段工作
 
-```bash
-flg closeout --transcript path/to/transcript.md
-```
-
-它会从对话或记录里提取决策、风险、进展，并生成 closeout patch。
-
-推荐输入原始会议纪要、原始对话记录，或 `.flg/sessions/` 下的 session 文件。
-不要直接拿 `PROGRESS.md`、`SNAPSHOT.md`、`DECISIONS.md` 这类结构化账本文件做 closeout，除非你明确知道自己在做什么，并显式加 `--force`。
-
-外部原始会话会在 closeout 时自动复制到 `.flg/sessions/`；只有需要固定归档文件名时，才先手动归档：
+使用带说话人归属的原始笔记或转写：
 
 ```bash
-flg session save path/to/transcript.md --name 20260715-topic
-flg closeout --transcript .flg/sessions/20260715-topic.md
+flg closeout --transcript session-notes.md
 ```
 
-检查跨文件状态一致性或重建证据索引：
+外部 transcript 会在抽取前复制到 `.flg/sessions/`。
+不要把 `PROGRESS.md`、`SNAPSHOT.md`、`DECISIONS.md`
+或其他结构化账本文件当作普通 closeout 输入。
+
+一句有明确归属的短判断可以走 `flg capture add`。
+会议或包含多条信号的解释应走 `flg closeout`。
+
+### 4. 审核后再吸收
 
 ```bash
-flg doctor
-flg reindex
+flg review --patch .flg/patches/<patch-file>.md --report-only
+flg review --patch .flg/patches/<patch-file>.md --autonomous
+flg merge --patch .flg/patches/<patch-file>.md --yes
 ```
+
+`--report-only` 执行不写账本的质量检查。autonomous review 只吸收
+来源明确的用户或客户候选。Agent 自己提出、缺少归属、空壳或含糊的候选保持 pending。
+
+merge 写入已接受决策和常规进展，并保留 patch 与来源链。
+过期 patch 可用 `flg patch supersede` 或 `flg patch discard` 关闭。
+
+### 5. 从有边界的上下文继续
+
+```bash
+flg status
+flg context --mode resume --budget 4000
+```
+
+完整 Context Pack 在预算内包含已审核决策、待处理材料、当前状态和来源健康信息。
+默认不会加载原始会话。
+
+需要紧凑导航视图时：
+
+```bash
+flg context --mode manifest
+```
+
+Continuity Manifest 指向来源区段和证据展开命令。它是生成视图，不替代权威来源。
 
 ## 项目结构
 
 ```text
-my-project/
+example-project/
 ├── PROJECT.md
 ├── FRAMING.md
 ├── DECISIONS.md
@@ -300,131 +264,133 @@ my-project/
     ├── state.json
     ├── index.json
     ├── patches/
+    ├── captures/
     ├── sessions/
-    └── memory/
+    └── context/
 ```
 
-## patch-first 写入策略
+并非每个项目都会出现全部可选目录。正式账本使用纯 Markdown。
+`.flg/state.json` 保存协议状态和扩展字段。生成视图与索引都可重建。
 
-FlowGrid 默认不让 AI 直接覆盖重要项目文件。
+## CLI 参考
 
-- **低风险：** 进展日志可直接追加
-- **中风险：** 快照更新先生成 patch
-- **高风险：** 目标/边界/关键判断变更必须保留来源和明确的行动边界
+宿主通常在后台调用这些命令。用户仍可用它们检查、自动化和排错。
 
-所有 patch 都放在 `.flg/patches/` 里，由宿主在后台处理。
-`--report-only` 用于诊断；`--autonomous` 只会在候选保留明确用户或客户来源时，以中等权威在后台吸收。Agent 自己提出、无来源、空壳或含糊的候选均保持 pending；候选风险与下一步也不会直接写入 `SNAPSHOT.md`。
+| 命令 | 用途 |
+| --- | --- |
+| `flg onboard [--skip-demo] [--yes]` | 检查环境并安装 operator skill |
+| `flg init <name> [--language en|zh]` | 初始化项目 |
+| `flg frame` | 检查 framing 并生成 frame patch |
+| `flg closeout --transcript <file>` | 归档工作段并抽取为 patch |
+| `flg session save <file>` | 用稳定来源路径归档原始会话 |
+| `flg capture add` | 记录实时判断候选 |
+| `flg capture review` | 处理 confirmed capture，保留 inferred capture |
+| `flg review --patch <file> --report-only` | 检查候选，不写正式账本 |
+| `flg review --patch <file> --autonomous` | 吸收符合条件且归属明确的候选 |
+| `flg merge --patch <file> --yes` | 合并已接受内容和常规 patch 内容 |
+| `flg patch supersede <id> --reason <text>` | 关闭已被新工作替代的 patch |
+| `flg patch discard <id> --reason <text>` | 关闭已拒绝或不可吸收的 patch |
+| `flg status` | 查看待审核和已关闭状态 |
+| `flg context --mode resume` | 生成完整启动 Context Pack |
+| `flg context --mode manifest` | 生成紧凑 Continuity Manifest |
+| `flg context --mode work` | 生成 Source-backed Work View |
+| `flg evidence <decision-id>` | 查看已审核决策的证据 |
+| `flg trace <decision-id>` | 沿来源 episode 追溯判断 |
+| `flg handoff` | 生成 handoff 摘要 |
+| `flg export-handoff` | 导出可续接 handoff pack |
+| `flg doctor [--strict]` | 检查账本、索引、来源和视图一致性 |
+| `flg reindex` | 从 `DECISIONS.md` 重建证据索引 |
+| `flg audit <path>` | 审计已有项目，不执行初始化 |
+| `flg import <source>` | 把已有项目导入 FlowGrid |
+| `flg wiki status` | 只读检查可选 Wiki 索引 |
 
-### Two-Layer State（Agent 启动协议）
+运行 `flg <command> --help` 查看当前选项。
 
-Agent 开始工作时，必须读取两层状态：
+## 适用范围与边界
 
-**Layer 1 - Formal Ledger（已合并事实）**
+FlowGrid 面向单个项目 owner 或小团队。他们需要让推导密集型工作跨 AI 会话和宿主延续。
+典型工作包括方案、campaign、运营机制、研究 brief、策略和复盘。
 
-- `PROJECT.md`
-- `FRAMING.md`
-- `SNAPSHOT.md`
-- `DECISIONS.md`
-- `PROGRESS.md`
+以下情况不太适合：
 
-**Layer 2 - Pending Patches（待审核事实）**
+- 任务在一次对话内结束；
+- sprint tracker 或代码 Agent 编排器已经保存所需状态；
+- 用户希望系统绕过审核边界自动做决定；
+- 治理项目的来源无法在本地保存或引用。
 
-- `.flg/patches/` 中所有 `status: pending_review` 的后台待处理 patch
+FlowGrid 采用 local-first 设计，但不承诺所有路径都只在本地执行。
+部分可选 closeout 路径能够调用远程模型。未经用户对具体服务商和用途的明确授权，
+不得向远程提供商发送原始 transcript。
 
-这样 Agent B 即使接手时 patch 还没 merge，也不会丢掉 Agent A 的 closeout 结果。
+项目不宣称所有宿主集成都已完成，不宣称生成上下文永远正确，也不把榜单成绩
+当作产品采用证明。文件、来源健康、测试和审核状态属于不同证据层。
 
-## CLI 命令
+## 验证范围
 
-| 命令 | 说明 |
-|------|------|
-| `flg init <name>` | 初始化项目 |
-| `flg frame` | 检查 framing 完整度 |
-| `flg closeout --transcript <file>` | 生成 closeout patch |
-| `flg onboard [--yes]` | 检查环境、运行引导 demo、安装宿主 Skill |
-| `flg session save <file>` | 在 closeout 前归档原始会话 |
-| `flg review --patch <file> [--report-only] [--autonomous]` | 先在后台检查候选，再处理可安全入账的决策 |
-| `flg context --mode resume` | 生成 Agent 启动上下文包 |
-| `flg wiki init --root docs --home docs/README.md` | 索引现有项目 Wiki，不移动原文件 |
-| `flg wiki status` | 只读检查 Wiki 是否有新增、修改或删除 |
-| `flg wiki build` | 在确认资料变化后刷新 Wiki Manifest |
-| `flg evidence <decision-id>` | 查看决策背后的证据来源 |
-| `flg evidence --query "<问题或主题>"` | 只读检索带状态与来源的证据线索，不改变项目状态 |
-| `flg merge --patch <file> [--yes]` | 无提示合并常规 patch 更新 |
-| `flg handoff` | 生成 Agent 接力摘要 |
-| `flg audit <path>` | 审计已有项目目录 |
-| `flg extract-decisions <path>` | 提取候选决策 |
-| `flg import <source>` | 导入已有项目 |
-| `flg status` | 查看项目状态 |
-| `flg version` | 查看 FLG 版本 |
-| `flg doctor` | 检查账本和索引的一致性 |
-| `flg reindex` | 从正式账本重建运行时索引 |
-| `flg capture add -c <判断> -r <理由>` | 实时捕获候选判断 |
-| `flg capture list` | 列出候选判断（可按类型/状态筛选） |
-| `flg capture review` | 后台处理候选判断并写入 DECISIONS.md |
-| `flg decision add -d <决策> -r <理由>` | 强承诺决策直入（用户说\"定了/记一条\"时） |
+仓库正在进行 v0.4 Core 验证，当前关注：
 
-> `flg trace` 已规划，当前版本尚未实现。
+- 自然语言宿主入口和命令解析；
+- 正式、待审核和派生状态的分离；
+- 来源支撑的当前工作视图是否新鲜；
+- 证据与索引是否可重建；
+- 更长、含矛盾项目历史的续接。
 
-## 当前 v0.4 验证重点
+仓库测试和 smoke check 验证已经实现的契约。它们不能单独证明真实用户价值、
+跨宿主可靠性或真人验收。
 
-- 原始会话能否稳定进入 `.flg/sessions/`
-- 候选判断能否在写入正式账本前被可靠处理并保留状态
-- `doctor` 和 `reindex` 能否从正式文件恢复索引状态
-- 真实、较长且包含矛盾的项目历史能否被下一个 Agent 正确续接
-
-四象限自动路由、blindspot engine 和 `flg trace` 目前不属于已完成能力。
-
-## Smoke Test
-
-安装后可以跑仓库内 smoke test：
+安装后可运行本地检查：
 
 ```bash
+python -m pytest -q
 python scripts/smoke_test.py
-pytest -q
+flg doctor --strict
 ```
 
-smoke test 会在临时目录里创建 demo 项目，依次运行 `init`、`frame`、`closeout`、`review`、`evidence`、`context`、`handoff`、`status`，最后打印生成的文件。
+请在已初始化项目中运行 `flg doctor --strict`。strict 检查失败表示项目状态需要处理，
+该命令不会自动修复。
 
-## 历史与命名
+## 公开评测成绩
 
-FlowGrid 保留 `FLG` 作为技术简称、CLI 前缀和 `.flg/` 项目目录。更早的迭代里，这个项目曾使用 `Framing Ledger` 作为全称；现在对外切到 `FlowGrid`，是为了让第一次看到的人更容易把它理解成一个工具，同时保留既有 FLG 技术表面。
+[![AML 学术文本榜 #8](https://img.shields.io/badge/AML%20Academic%20Textual-%238-7C3AED)](https://agentmemories.ai/leaderboard/academic/textual)
 
-## 协议层
+独立项目
+[FlowGrid AML Retriever](https://github.com/dlxeva/flowgrid-aml-retriever)
+在首期公开 Agent Memory Leaderboard Academic Textual 赛道位列
+**第 8 名**，综合分 **43.98**，与榜首相差 **1.08 分**。
+结果见[公开榜单](https://agentmemories.ai/leaderboard/academic/textual)。
 
-FlowGrid 是一套本地项目协议：
+AML Retriever 与 FlowGrid Core 共享来源、时间状态、冲突保留和可追溯检索等思路。
+它们是两个独立系统。AML Retriever 实现榜单要求的确定性 Add/Search 契约。
+这项成绩不能证明 FlowGrid Core 的产品质量、用户采用、留存或普遍优越性。
 
-- 文件系统是事实源
-- Markdown 文件承载持久项目状态
-- `.flg/` 目录承载运行态与审查态
-- Agent 可以提出修改，但中高风险更新必须可审查
+## 相关实验
 
-详细说明见 [docs/protocol.md](./docs/protocol.md)。
+这些支线在更窄的契约中测试部分思路。它们不是 FlowGrid Core 的依赖，
+也不能证明 Core 已经成熟。
 
-## AI 宿主使用方式
+- [FlowGrid AML Retriever 摘要](https://github.com/dlxeva/flowgrid-aml-retriever)
+- [FlowGrid Memory Runtime 摘要](https://github.com/dlxeva/flowgrid-memory-runtime)
+- [FlowGrid MemoryAgent for Qwen Cloud 摘要](https://github.com/dlxeva/flowgrid-qwen-memory-agent)
 
-FlowGrid 的更自然用法是：
+## 文档
 
-- 用户继续在 Codex / Claude / OpenClaw / Hermes 等 AI agent work 产品里自然说话
-- AI 在合适的时候调用 `flg`
-- FlowGrid 负责把项目状态稳定落盘
+- [协议说明](./docs/protocol.md)
+- [Context Pack 契约](./docs/product/context-pack-contract.md)
+- [判断捕获流程](./docs/product/judgment-capture-pipeline.md)
+- [决策关系](./docs/product/decision-relations-v0.md)
+- [用户痛点模型](./docs/product/user-pain-model.md)
+- [虚构客户方案续接案例](./docs/use-cases/client-solution-continuation.md)
+- [开发日志](./docs/devlog/README.md)
+- [安全策略](./SECURITY.md)
+- [贡献指南](./CONTRIBUTING.md)
 
-详细说明见 [docs/host-usage.md](./docs/host-usage.md)。
+系统图将正式状态、派生视图和健康检查分开：
 
-## 灵感来源
+![FlowGrid 当前系统图](./docs/assets/flowgrid-system-map.zh-CN.svg)
 
-FLG 的灵感来自 [Oh My Codex (OMX)](https://github.com/Yeachan-Heo/oh-my-codex)。OMX 把“项目目录本身就是事实源”这件事做得很彻底：规则在文件里、状态能持久化、文件系统就是协作层。
+## 治理与许可证
 
-FlowGrid 把这套思路迁移到推导密集型非代码业务项目：
+FlowGrid Core 使用 [MIT License](./LICENSE)。
+名称和 logo 的使用规则见 [TRADEMARK.md](./TRADEMARK.md)。
 
-| | OMX | FLG |
-|---|---|---|
-| **目标用户** | 开发者 | 业务项目型知识工作者 |
-| **主要交付物** | 代码、PR、运行中的应用 | 提案、brief、campaign、机制、判断链 |
-| **项目结构** | Git repo + worktree | 明文本地项目账本目录 |
-| **Agent 协作方式** | 多 Agent 代码流水线 | 单兵 + Agent 接力 |
-
-核心思想没变：**让项目目录成为事实源，让后来的 Agent 能从同一个地方继续工作。**
-
-## License
-
-MIT
+安全问题请按 [SECURITY.md](./SECURITY.md) 提交。
