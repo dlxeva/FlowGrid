@@ -2,377 +2,248 @@
 
 [English](./README.md) | [简体中文](./README.zh-CN.md)
 
-> A local project-state context engine for people who use multiple AI agents and models on rationale-heavy, non-coding business projects.
-> It gives those agents one auditable local judgment state instead of asking each one to reconstruct project history.
+> A local project-state context engine for people who use multiple AI hosts and
+> models on rationale-heavy, non-coding work.
 
 ![Stage](https://img.shields.io/badge/stage-v0.4--validation-4c6ef5)
 ![Runtime](https://img.shields.io/badge/runtime-local--first-2b8a3e)
-![Interface](https://img.shields.io/badge/interface-CLI%20%2B%20protocol-495057)
+![Interface](https://img.shields.io/badge/interface-host%20%2B%20CLI-495057)
 [![CI](https://github.com/dlxeva/FlowGrid/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/dlxeva/FlowGrid/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-%3E%3D3.10-3776AB?logo=python&logoColor=white)
 [![License](https://img.shields.io/github/license/dlxeva/FlowGrid)](./LICENSE)
 
-FlowGrid helps business-project knowledge workers turn messy AI work sessions into state-aware, traceable, and resumable project context.
+FlowGrid keeps the judgment behind a project available across sessions, models, and local AI hosts. It stores reviewed decisions, their evidence, pending changes, and bounded continuation context in project files.
 
-> **Current status:** the codebase reports `v0.3.0` and is in v0.4 core validation. The current focus is entry reliability, rebuildable ledger state, and real-project continuation; v0.4 is not presented as a released version yet.
+The primary interface is natural language in an AI host. The CLI is the underlying protocol that the host operates and that people can inspect.
 
-It is built for long-running work where the deliverable is not just a document, but a defensible judgment chain: why this proposal makes sense, why this direction was chosen, what alternatives were rejected, and when a past judgment should be revised.
+> **Current status:** the package reports `v0.3.0`. The repository is validating
+> the v0.4 core. Current work focuses on reliable host entry, rebuildable state,
+> source-backed work views, and real-project continuation. v0.4 is not presented
+> as a released version.
 
-## How It Carries a Project Forward
+## Start in an AI Host
 
-![FlowGrid project continuation lifecycle](./docs/assets/flowgrid-lifecycle.svg)
-
-FlowGrid does not replay every conversation. It keeps raw evidence available,
-separates unconfirmed candidates from formal project state, and compiles the
-smallest trustworthy Context Pack for whichever host or model continues next.
-
-<details>
-<summary><strong>See the current protocol system map</strong></summary>
-
-<br />
-
-![FlowGrid current system map](./docs/assets/flowgrid-system-map.svg)
-
-The map distinguishes implemented protocol state from rebuildable caches and
-health checks. It does not describe a generic agent-memory platform or model
-orchestration system.
-
-</details>
-
-## Start in Your AI Host
-
-For Codex, Claude, Hermes, or another local agent host, the recommended entry
-point is the operator skill rather than manual CLI operation. FlowGrid lets a
-single knowledge worker carry the same reviewed state across those tools; it
-does not select models or orchestrate an agent team.
+Install the repository in editable mode, then install the included operator skill into supported local hosts:
 
 ```bash
 pip install -e .
 flg onboard --skip-demo --yes
 ```
 
-`flg onboard` detects supported hosts and installs the `flowgrid-operator`
-skill. This safe setup path does not create a demo project in the current
-directory. To run the optional guided demo, first enter a disposable directory
-and run `flg onboard` there. `FLG` and `FlowGrid` are both supported
-natural-language triggers. Then continue in your usual host, for example:
+Continue in your usual host with a request such as:
 
 > Use FLG to manage and continue this project.
 
-The agent operates the protocol in the background. You should not need to
-learn a new ledger workflow to keep project state durable. See the
-[first-run host guide](./docs/first-run-in-hosts.md) for the expected flow and
-current host boundaries.
+The host resolves the project, reads reviewed and pending state, runs the necessary `flg` commands, and reports material changes or review boundaries. The user should not have to maintain a ledger by hand.
 
-## Quick Links
+`flg onboard` can also run a guided demo. Run the demo in a disposable directory because it creates a sample project. See
+[First run in AI hosts](./docs/first-run-in-hosts.md) and
+[Host usage](./docs/host-usage.md) for current integration boundaries.
 
-- [Public benchmark result](#public-benchmark-result)
-- [Why it exists](#what-is-flowgrid)
-- [Start in an AI host](#start-in-your-ai-host)
-- [Synthetic client-solution use case](./docs/use-cases/client-solution-continuation.md)
-- [30-second CLI demo](#30-second-cli-demo)
-- [Who it is for](#who-is-it-for)
-- [Quick start](#quick-start)
-- [CLI commands](#cli-commands)
-- [User pain model](./docs/product/user-pain-model.md)
-- [Wiki continuity](./docs/product/wiki-continuity.md)
-- [Protocol docs](./docs/protocol.md)
-- [Host usage](./docs/host-usage.md)
-- [Independent runtime experiments](#independent-runtime-experiments)
-- [Chinese README](./README.zh-CN.md)
+## What FlowGrid Gives You
 
-## At a Glance
+Long-running AI work accumulates more conversation than the next model should reload, while ordinary summaries often remove the reasons that make a project safe to continue.
 
-- **Local-first:** project truth lives in files, not chat memory
-- **Context-first:** agent startup should load bounded project state, not raw history dumps
-- **Judgment-aware:** decisions store why, rejected options, assumptions, and reversal conditions
-- **Background-safe writes:** the host processes routine patches without making the user operate a ledger workflow
-- **Host- and model-agnostic:** continue the same reviewed ledger from Codex, Hermes, OpenClaw, Claude, or any agent shell that can read files and run commands
-- **Business-project oriented:** built for proposals, campaigns, briefs, strategies, mechanisms, and retrospectives
+FlowGrid keeps five things distinct:
 
-## Synthetic Use Case: A Client Project Changes Direction
+- raw source material that can be inspected later;
+- formal decisions with rationale, rejected alternatives, and reversal
+  conditions;
+- unreviewed candidates that must not become current truth by accident;
+- the current action, blockers, constraints, and open questions;
+- compact views that can be rebuilt for the next session or host.
 
-After a client meeting disproves the original problem diagnosis, a different
-agent or model must not keep polishing the old proposal. FlowGrid keeps the
-changed direction, the evidence behind it, the rejected path, and the next
-action distinct.
+![FlowGrid project continuation lifecycle](./docs/assets/flowgrid-lifecycle.svg)
 
-[Read the synthetic client-solution continuation example →](./docs/use-cases/client-solution-continuation.md)
+A new host can start from bounded project state, expand evidence when needed, and see when a view is stale. FlowGrid does not route models, schedule an agent team, or replace the source documents that govern the work.
 
-## 30-Second CLI Demo
+## Three-Layer Project State
 
-```bash
-mkdir demo && cd demo
-flg init "Launch Proposal" --type proposal --client "Client A"
-flg frame
-flg closeout --transcript meeting-notes.md
-flg review --patch .flg/patches/<closeout-patch>.md --report-only
-flg review --patch .flg/patches/<closeout-patch>.md --autonomous
-flg merge --patch .flg/patches/<closeout-patch>.md --yes
-flg context --mode resume
-flg context --mode manifest
-flg handoff
+FlowGrid uses three layers with different authority.
+
+| Layer | Contents | Authority |
+| --- | --- | --- |
+| 1. Authoritative sources and formal ledger | Declared source documents plus reviewed `PROJECT.md`, `FRAMING.md`, `DECISIONS.md`, `SNAPSHOT.md`, and `PROGRESS.md` | Current project truth, subject to each source's declared scope |
+| 2. Pending changes | `status: pending_review` patches and captures with provenance | Candidate state only; the host must not present it as confirmed |
+| 3. Rebuildable views | Context Packs, Continuity Manifest, Source-backed Work View, evidence index, and handoff output | Derived navigation and startup material; rebuild from Layers 1 and 2 |
+
+This replaces the older Two-Layer State description. The third layer matters because a generated context file can become stale even when its source remains authoritative.
+
+The formal ledger remains human-readable Markdown. Derived indexes and context files are disposable. If they disagree, inspect the source and formal ledger, then rebuild the view.
+
+## Source-backed Work View
+
+Some projects already have a detailed work ledger, brief, or operating document that names the current action. Copying that document into another status system creates drift.
+
+The Source-backed Work View gives an AI host a bounded projection over a declared project-relative source. It extracts the current action, blockers, and necessary constraints while keeping the source location visible.
+
+User value:
+
+- continue from the live work source without loading the whole document;
+- keep operational context separate from formal decision approval;
+- detect when the exact source block has changed;
+- stop stale current-action text from silently driving the next session.
+
+### Declare the source
+
+Add an optional `work_source` extension to `.flg/state.json`:
+
+```json
+{
+  "work_source": {
+    "schema_version": "1",
+    "path": "docs/work-ledger.md",
+    "start_marker": "<!-- current-work:start -->",
+    "end_marker": "<!-- current-work:end -->"
+  }
+}
 ```
 
-Hosts should route one short, explicitly attributed owner judgment to a
-source-backed capture draft, for example `flg capture add`. A meeting, long
-discussion, or multi-signal product explanation goes through `flg closeout`.
-An entity list with no attributed trade-off produces no decision candidate.
+The path must be relative to the project. Symlinked sources and paths that
+escape the project are rejected. The file must be UTF-8 text. Markers are
+optional, but when used they must both appear exactly once and in order.
 
-After that, you will have:
+A generic marked block can look like this:
 
-- a local project ledger: `PROJECT.md`, `FRAMING.md`, `DECISIONS.md`, `SNAPSHOT.md`, `PROGRESS.md`
-- a protocol directory: `.flg/`
-- reviewable pending changes in `.flg/patches/`
-- a resumable handoff summary for the next session or agent
+```markdown
+<!-- current-work:start -->
+## Current Action
 
-In host-integrated use, the review and merge lines run in the background. The
-user continues the project in natural language. Background automation only
-adopts candidates that preserve explicit user or client attribution; agent-authored,
-unattributed, shell, and ambiguous candidates remain pending. A host closes its
-patch after preserving the audit trail, while a material unresolved ambiguity
-remains pending.
+- Compare the two approved outline options.
 
-You can run that flow from Codex, Hermes, OpenClaw, Claude, or any AI agent work product that can read files and run commands.
+## Blockers
 
-## Public Benchmark Result
+- Waiting for one sample export.
 
-[![AML Academic Textual #8](https://img.shields.io/badge/AML%20Academic%20Textual-%238-7C3AED)](https://agentmemories.ai/leaderboard/academic/textual)
+## Necessary Constraints
 
-The independent [FlowGrid AML Retriever](https://github.com/dlxeva/flowgrid-aml-retriever)
-ranked **#8** in the first public Agent Memory Leaderboard Academic Textual
-track, with an overall score of **43.98**, **1.08 points behind the top-ranked
-entry**. [View the public leaderboard →](https://agentmemories.ai/leaderboard/academic/textual)
+- Treat draft copy as unapproved.
+<!-- current-work:end -->
+```
 
-The competition entry and FlowGrid Core share ideas about evidence provenance,
-temporal state, conflict preservation, and traceable retrieval, but they are
-different systems. AML Retriever is a benchmark-specific deterministic
-Add/Search system. FlowGrid Core is the local continuity product described
-above. The ranking does not establish Core product quality, user adoption, or
-universal superiority.
+Build the view:
 
-## Independent Runtime Experiments
+```bash
+flg context --mode work
+```
 
-FlowGrid's local-first CLI and protocol are the main product. Three independent
-repositories test selected ideas in bounded external runtimes and benchmark
-contracts:
+The command writes `.flg/context/work-view.md` and a manifest containing the source locator and block SHA-256.
 
-- [FlowGrid AML Retriever](https://github.com/dlxeva/flowgrid-aml-retriever)
-  applies provenance, temporal, conflict, and multi-view retrieval ideas to the
-  Agent Memory Leaderboard Add/Search contract. It ranked #8 in the first
-  public Academic Textual track.
-- [FlowGrid Memory Runtime](https://github.com/dlxeva/flowgrid-memory-runtime)
-  uses synthetic data to demonstrate confirmed, pending, and superseded
-  judgment state on CockroachDB and AWS.
-- [FlowGrid MemoryAgent for Qwen Cloud](https://github.com/dlxeva/flowgrid-qwen-memory-agent)
-  demonstrates Qwen-driven candidate extraction, human authorization, and
-  constrained confirmed-state retrieval on Alibaba Cloud.
+### Block SHA expiry protection
 
-These projects test selected FlowGrid ideas under narrower contracts. They do
-not make AML, AWS, CockroachDB, Qwen, or Alibaba Cloud dependencies of FlowGrid
-Core, and they do not establish Core user adoption, retention, or product-market
-fit. Core validation remains focused on natural-language host operation,
-rebuildable local ledger state, and real-project continuation.
+FlowGrid hashes the declared block, not the entire source file. Editing outside the marked block does not expire the view. Changing the block, source path, or markers makes the view stale.
 
-## What is FlowGrid?
+When stale:
 
-FlowGrid (FLG) is a local project-state context engine for people who use
-multiple AI agents and models on rationale-heavy, non-coding business projects.
+- `flg doctor --strict` reports the stale Source-backed Work View;
+- the Continuity Manifest marks the current action as `needs_recheck`;
+- stale action text is withheld from the manifest's current-action field;
+- a person or host must inspect the changed source before rebuilding with
+  `flg context --mode work`.
 
-It gives those agents a durable local protocol for sharing project judgments,
-current state, pending changes, and handoff context across sessions and hosts.
-FlowGrid does not route models or manage an agent team.
+The SHA check detects change. It does not judge whether the new text is correct, approved, or a formal decision. Decision candidates still use the normal review and merge gates.
 
-The core problem it addresses:
+## Decision Logs
 
-> Long-running AI collaboration produces more history than an agent should reload, but less structure than a business project needs to stay trustworthy.
+FlowGrid began as a Markdown decision-log mechanism. That remains the center of the project.
 
-FlowGrid separates raw discussion, candidate judgments, reviewed decisions, pending patches, and current project state.
-
-## Who is it for?
-
-FlowGrid is for business-project knowledge workers who own fuzzy projects and
-move them across different AI agents or models as they repeatedly clarify,
-judge, revise, explain, and hand off project state.
-
-Typical roles include:
-
-- operations leads designing mechanisms, rhythms, and retrospectives
-- marketing leads planning campaigns, briefs, and content directions
-- strategy / growth leads making trade-offs and project recommendations
-- solution and proposal owners translating client needs into deliverable logic
-- creative or research-oriented operators building long-running judgment chains
-- independent consultants and small-team owners who do several of these at once
-
-FlowGrid serves a work structure, not a job title.
-
-Best-fit task modes:
-
-- **Proposal persuasion:** why this proposal, campaign, or deck makes sense
-- **Mechanism progression:** how the project keeps moving under real constraints
-- **Judgment revision:** why a previous judgment should change now
-
-## How is it different from prompt workflows?
-
-| Dimension | Prompt Workflow | FlowGrid |
-|-----------|----------------|----------|
-| Scope | Single conversation | Full project lifecycle |
-| Memory | AI memory (temporary) | Project files (persistent) |
-| Truth source | Scattered across conversations | Unified project ledger |
-| Judgment chain | Easily buried | Reviewable and traceable |
-| Portability | Tied to specific AI | Any local agent can continue |
-
-## Why Decision Logs Matter
-
-Your AI may lose the reasoning behind a decision every conversation. FLG keeps it in the project.
-
-`DECISIONS.md` records *what* you decided, *why* you decided it, *what you rejected*, and *under what conditions you would reverse the call*. This is the difference between a history log and a judgment tool.
-
-Each decision entry uses a 9-field structure:
+`DECISIONS.md` records what was decided, why it was chosen, what was rejected, and what would justify revisiting it. A decision entry uses these fields:
 
 | Field | Purpose |
-|-------|---------|
-| `id` | Unique decision identifier |
-| `date` | When the decision was made |
-| `context` | The situation that triggered it |
-| `decision` | What was decided |
-| `rationale` | Why this over alternatives |
-| `alternatives_rejected` | What was considered and ruled out |
-| `reversal_conditions` | What would change this decision |
+| --- | --- |
+| `id` | Stable decision identifier |
+| `date` | Decision date |
+| `context` | Situation that required a judgment |
+| `decision` | Reviewed choice |
+| `rationale` | Reason for the choice |
+| `alternatives_rejected` | Options considered and rejected |
+| `reversal_conditions` | Evidence or events that should reopen the choice |
 | `impact` | Expected consequences |
-| `status` | Active / Superseded / Revisited |
+| `status` | Active, superseded, or revisited state |
 
-Over time, this creates three forms of value:
+Raw sessions remain available for evidence. The evidence index supports traceability, but it is a rebuildable cache. An extracted sentence or an agent-authored suggestion is not a decision until the review path establishes its authority and provenance.
 
-- **Retrospective clarity** — revisit past decisions with full context, not just outcomes
-- **Agent relay continuity** — any agent picking up your project sees the judgment chain, not only the current task
-- **Judgment compounding** — your reasoning patterns become explicit, transferable, and improvable
-
-## Who is it NOT for?
-
-There are tools that already serve these users better:
-
-| Profile | Use this instead |
-|---|---|
-| Software engineer working in a git repo with code-agent team | [oh-my-codex (OMX)](https://github.com/Yeachan-Heo/oh-my-codex) — worktree-isolated multi-agent pipeline, MCP-backed state, `ralph`/`team`/`tdd` skills |
-| Enterprise PM running structured sprint backlogs | [Atlassian AI Agents](https://www.atlassian.com/agile/project-management/ai-agents) — coordination, status sync, enterprise integration |
-| Team lead running self-driving project workspaces | [Taskade Genesis / Workspace DNA](https://www.taskade.com/blog/autonomous-project-management) — 100+ integrations, prompt → running project |
-| Solo non-coder wanting low-friction agent task execution | [Claude Cowork](https://www.scrum.org/resources/blog/claude-cowork-ai-agents-email-moment-non-coding-agile-practitioners) — packaging code-agent power for non-coders |
-
-**FlowGrid's niche:** single-operator, non-coding, rationale-heavy business project work where the deliverable is a proposal, strategy, brief, mechanism, campaign, retrospective, or defensible judgment chain.
-
-If your work is to figure out what should be done and why it should be done, FLG is for you.
-
-## Installation
-
-```bash
-pip install -e .
-flg version
-```
-
-## First Run
-
-After installation, run onboarding to check your environment, try a guided demo of the core loop, and install the FLG skill into your AI host:
-
-```bash
-flg onboard
-```
-
-This will:
-1. **Check your environment** — FLG version, PATH status, detected AI hosts (Codex, Hermes, ZCode, Claude), and whether the FLG skill is installed in each.
-2. **Run a guided demo** — a 5-minute walkthrough of `init → closeout → review → merge → context` using a built-in sample transcript. Skip with `--skip-demo`.
-3. **Install the skill** — symlinks `skills/flowgrid-operator/` into each detected host's skills directory so your AI agent knows when and how to call `flg`.
-
-Use `flg onboard --yes` for non-interactive mode (CI, scripts).
-
-## Development Mode
-
-Run through the editable-installed console script:
-
-```bash
-pip install -e .
-flg version
-```
-
-Run without installation by using the source tree directly:
-
-```bash
-PYTHONPATH=src python -m flg.cli version
-```
-
-On Windows PowerShell:
-
-```powershell
-$env:PYTHONPATH="src"
-python -m flg.cli version
-```
-
-## Quick Start
+## Core Workflow
 
 ### 1. Initialize a project
 
 ```bash
-mkdir my-project && cd my-project
-flg init "My Project" --type proposal --client "Client Name"
+mkdir example-project
+cd example-project
+flg init 'Example Project' --type proposal --client 'Example Client'
 ```
 
-For an English-first project, initialize the formal ledger in English:
+For an English-first formal ledger:
 
 ```bash
-flg init "My Project" --language en
+flg init 'Example Project' --language en
 ```
 
-The language is stored in `.flg/state.json`; existing projects remain compatible and default to Chinese unless explicitly migrated.
+Initialization creates the formal Markdown ledger and `.flg/` protocol state.
 
-This creates:
-- `PROJECT.md` - Project overview
-- `FRAMING.md` - Problem definition
-- `DECISIONS.md` - Decision log
-- `SNAPSHOT.md` - Current state
-- `PROGRESS.md` - Progress log
-- `.flg/` - FLG internal directory
-
-### 2. Frame the problem
+### 2. Frame the work
 
 ```bash
 flg frame
 ```
 
-This checks FRAMING.md for missing fields and generates a patch with suggested questions.
-It also reports when the framing has no declared evidence basis or relies on
-secondary/speculative evidence.
+`flg frame` checks framing completeness and creates a patch with missing questions. It also reports a missing, secondary, or speculative evidence basis.
 
-### 3. Close out a session
+### 3. Capture a work segment
 
-```bash
-flg closeout --transcript path/to/transcript.md
-```
-
-This extracts decisions, risks, and progress from a transcript and generates a closeout patch. External raw transcripts are automatically copied into `.flg/sessions/` so the evidence path is durable.
-
-English transcripts are supported, including confirmation, trade-off, risk, question, rationale, rejection, and reversal language. Low-confidence candidates remain pending for background handling.
-
-Use raw meeting notes, session transcripts, or files under `.flg/sessions/`.
-Do not use structured ledger files such as `PROGRESS.md`, `SNAPSHOT.md`, or `DECISIONS.md` as closeout input unless you explicitly know why and pass `--force`.
-
-To archive a raw transcript before closeout:
+Use raw notes or a transcript with speaker attribution:
 
 ```bash
-flg session save path/to/transcript.md --name 20260715-topic
-flg closeout --transcript .flg/sessions/20260715-topic.md
+flg closeout --transcript session-notes.md
 ```
 
-To inspect or repair cross-file state:
+An external transcript is copied into `.flg/sessions/` before extraction.
+Do not pass `PROGRESS.md`, `SNAPSHOT.md`, `DECISIONS.md`, or another
+structured ledger file as ordinary closeout input.
+
+A short, explicitly attributed judgment can enter through `flg capture add`.
+A meeting or multi-signal explanation should use `flg closeout`.
+
+### 4. Review before adoption
 
 ```bash
-flg doctor
-flg reindex
+flg review --patch .flg/patches/<patch-file>.md --report-only
+flg review --patch .flg/patches/<patch-file>.md --autonomous
+flg merge --patch .flg/patches/<patch-file>.md --yes
 ```
 
-## Project Structure
+`--report-only` performs a non-writing quality gate. Autonomous review adopts
+only clear candidates with explicit user or client attribution. Agent-authored,
+unattributed, shell, and ambiguous candidates stay pending.
 
+Merge applies accepted decisions and routine progress while preserving the
+patch and source trail. A stale patch can be closed with `flg patch supersede`
+or `flg patch discard`.
+
+### 5. Continue from bounded context
+
+```bash
+flg status
+flg context --mode resume --budget 4000
 ```
-my-project/
+
+The full Context Pack includes reviewed decisions, pending material, current
+state, and source health within a budget. Raw sessions are not loaded by
+default.
+
+For a compact navigation view:
+
+```bash
+flg context --mode manifest
+```
+
+The Continuity Manifest points back to source sections and evidence expansion
+commands. It is a generated view, not a replacement authority.
+
+## Project Layout
+
+```text
+example-project/
 ├── PROJECT.md
 ├── FRAMING.md
 ├── DECISIONS.md
@@ -385,194 +256,143 @@ my-project/
     ├── state.json
     ├── index.json
     ├── patches/
+    ├── captures/
     ├── sessions/
-    └── memory/
+    └── context/
 ```
 
-## Patch-First Write Strategy
+Not every optional directory appears in every project. The formal ledger is
+plain Markdown. `.flg/state.json` carries protocol state and extensions.
+Generated views and indexes can be rebuilt.
 
-FlowGrid uses a patch-first approach to avoid AI accidentally overwriting important project files:
+## CLI Reference
 
-- **Low risk** (progress logs): Can be appended directly
-- **Medium risk** (snapshot updates): Generate patch for review
-- **High risk** (goal/boundary changes): Must retain provenance and an explicit action boundary
+The host normally calls these commands. They remain available for inspection,
+automation, and debugging.
 
-All patches are stored in `.flg/patches/` and processed by the host in the
-background. `--report-only` is available for diagnostics; `--autonomous` adopts
-only clear candidates with explicit user or client attribution, at medium
-authority. Agent-authored, unattributed, shell, and ambiguous candidates stay
-out of the formal ledger. Candidate risks and next actions remain in the patch
-until they have their own confirmation path. The host then merges routine
-updates or discards a non-adoptable patch, keeping its raw source and closed
-patch for audit.
+| Command | Purpose |
+| --- | --- |
+| `flg onboard [--skip-demo] [--yes]` | Check the environment and install the operator skill |
+| `flg init <name> [--language en|zh]` | Initialize a project |
+| `flg frame` | Check framing and create a frame patch |
+| `flg closeout --transcript <file>` | Archive and extract a work segment into a patch |
+| `flg session save <file>` | Archive a raw session with a stable source path |
+| `flg capture add` | Record a real-time judgment candidate |
+| `flg capture review` | Process confirmed captures and retain inferred ones |
+| `flg review --patch <file> --report-only` | Inspect candidates without writing the ledger |
+| `flg review --patch <file> --autonomous` | Adopt eligible attributed candidates |
+| `flg merge --patch <file> --yes` | Merge accepted and routine patch content |
+| `flg patch supersede <id> --reason <text>` | Retire a patch replaced by newer work |
+| `flg patch discard <id> --reason <text>` | Close a rejected or non-adoptable patch |
+| `flg status` | Show pending and closed project state |
+| `flg context --mode resume` | Build the full startup Context Pack |
+| `flg context --mode manifest` | Build the compact Continuity Manifest |
+| `flg context --mode work` | Build the Source-backed Work View |
+| `flg evidence <decision-id>` | Show evidence for a reviewed decision |
+| `flg trace <decision-id>` | Trace a judgment through source episodes |
+| `flg handoff` | Generate a handoff summary |
+| `flg export-handoff` | Export a resumable handoff pack |
+| `flg doctor [--strict]` | Check ledger, index, source, and view consistency |
+| `flg reindex` | Rebuild the evidence index from `DECISIONS.md` |
+| `flg audit <path>` | Audit an existing project without initializing it |
+| `flg import <source>` | Import an existing project into FlowGrid |
+| `flg wiki status` | Check an optional wiki index without writing |
 
-### Two-Layer State (Agent Startup Protocol)
+Run `flg <command> --help` for current options.
 
-When an agent starts working on a FLG project, it must read **two layers** of state:
+## Fit and Boundaries
 
-**Layer 1 - Formal Ledger (merged facts):**
-- `PROJECT.md`, `FRAMING.md`, `SNAPSHOT.md`, `DECISIONS.md`, `PROGRESS.md`
+FlowGrid is designed for a single project owner or small team carrying
+rationale-heavy work across AI sessions and hosts. Typical work includes
+proposals, campaigns, operating mechanisms, research briefs, strategy, and
+retrospectives.
 
-**Layer 2 - Pending Patches (unmerged facts):**
-- `.flg/patches/` 中所有 `status: pending_review` 的 patch
-- Pending patches are not formal facts, but represent "pending project state"
-- Agents must read and understand pending patches before continuing
+It is less useful when:
 
-This ensures multi-agent relay works correctly: Agent B can see Agent A's closeout output while the host preserves pending and ambiguous state internally.
+- the task ends in one conversation;
+- a sprint tracker or code-agent orchestrator already holds the required state;
+- the user wants automatic decisions without a review boundary;
+- the governing source cannot be stored or referenced locally.
 
-## CLI Commands
+FlowGrid is local-first, not local-only by guarantee. Some optional closeout
+paths can call a remote model. Raw transcripts must not be sent to a remote
+provider without explicit authorization for that provider and purpose.
 
-| Command | Description |
-|---------|-------------|
-| `flg init <name>` | Initialize a new project |
-| `flg frame` | Check framing completeness |
-| `flg closeout --transcript <file>` | Generate closeout patch |
-| `flg onboard [--yes]` | Check the environment, run the guided demo, and install the host skill |
-| `flg session save <file>` | Archive a raw session before closeout |
-| `flg review --patch <file> [--report-only] [--autonomous]` | Inspect candidates internally, then process eligible decisions in the background |
-| `flg context --mode resume` | Generate the bounded full startup Context Pack |
-| `flg context --mode manifest` | Generate a compact project map with evidence/trace expansion commands |
-| `flg wiki init --root docs --home docs/README.md` | Index an existing project wiki without moving its files |
-| `flg wiki status` | Check wiki freshness without writing state |
-| `flg wiki build` | Refresh the wiki manifest after reviewed source changes |
-| `flg evidence <decision-id>` | Show evidence behind a reviewed decision |
-| `flg evidence --query "<question or topic>"` | Find read-only, status-scoped evidence leads without changing project state |
-| `flg merge --patch <file> [--yes]` | Merge routine patch updates without a prompt |
-| `flg handoff` | Generate agent handoff summary |
-| `flg audit <path>` | Audit existing project directory |
-| `flg extract-decisions <path>` | Extract candidate decisions |
-| `flg import <source>` | Import existing project into FLG |
-| `flg status` | Show project status |
-| `flg version` | Show FLG version |
-| `flg doctor` | Check cross-file ledger and index consistency |
-| `flg reindex` | Rebuild runtime indexes from the formal ledger |
-| `flg capture add -c <claim> -r <reason>` | Capture a judgment candidate in real-time |
-| `flg capture list` | List judgment candidates (filter by type/status) |
-| `flg capture review` | Process candidates in the background → accept or keep pending |
-| `flg decision add -d <decision> -r <reason> [-e <source excerpt>]` | Direct decision write; source-less writes remain medium-authority |
+The project does not claim that every host integration is complete, that
+generated context is always correct, or that a benchmark result proves product
+adoption. Files, source health, tests, and review status remain separate forms
+of evidence.
 
-> `flg trace D-002` shows the formal ledger entry together with rebuildable
-> source episodes from raw sessions, captures, closeout patches, and review actions.
+## Validation Scope
 
-## Current v0.4 Validation Focus
+The repository is in v0.4 core validation. Current validation focuses on:
 
-- stable ingestion of raw sessions into `.flg/sessions/`
-- reliable background processing before candidate judgments enter the formal ledger
-- rebuilding runtime indexes from formal project files with `doctor` and `reindex`
-- continuation by a later agent using real, long, and contradictory project history
+- natural-language host entry and command resolution;
+- separation of formal, pending, and derived state;
+- source-backed current-work freshness;
+- evidence and index rebuildability;
+- continuation across longer, contradictory project histories.
 
-Automatic quadrant routing and a blindspot engine are not completed capabilities
-in the current version.
+Repository tests and smoke checks verify implemented contracts. They do not by
+themselves establish real-world usefulness, cross-host reliability, or human
+acceptance.
 
-## Smoke Test
-
-Run a repo-local smoke test after installation:
+Run local checks after installation:
 
 ```bash
+python -m pytest -q
 python scripts/smoke_test.py
-python scripts/check_current_state.py
-pytest -q
+flg doctor --strict
 ```
 
-The smoke test creates a temporary project, runs `init`, `frame`, `closeout`, `review`, `evidence`, `context`, `handoff`, and `status`, then prints the generated files.
+Use `flg doctor --strict` inside an initialized project. A failing strict check
+means the project state needs attention; it is not an automatic repair command.
 
-## Historical v0.1 Core Scope
+## Public Benchmark Result
 
-The original v0.1 scope included:
-- `flg init` - Project initialization
-- `flg frame` - Framing completeness check
-- `flg closeout` - Session closeout with transcript extraction
-- `flg merge` - Merge pending patches into formal ledger
-- `flg handoff` - Generate agent handoff summary
-- `flg audit` - Audit existing project directories
-- `flg extract-decisions` - Extract candidate decisions
-- `flg import` - Import existing projects
-- Basic keyword-based extraction (no LLM)
-- Patch generation for all medium/high risk writes
-- Project state management
-- Two-layer state protocol (formal ledger + pending patches)
+[![AML Academic Textual #8](https://img.shields.io/badge/AML%20Academic%20Textual-%238-7C3AED)](https://agentmemories.ai/leaderboard/academic/textual)
 
-## Historical v0.1.5 Legacy (Implemented)
+The independent
+[FlowGrid AML Retriever](https://github.com/dlxeva/flowgrid-aml-retriever)
+ranked **#8** in the first public Agent Memory Leaderboard Academic Textual
+track, with an overall score of **43.98**, **1.08 points behind the top-ranked
+entry**. See the
+[public leaderboard](https://agentmemories.ai/leaderboard/academic/textual).
 
-Legacy Audit features:
-- `flg audit --report-only` - Audit existing projects
-- `flg extract-decisions --dry-run` - Extract candidate decisions
-- `flg import --dry-run` - Import existing project files
+AML Retriever and FlowGrid Core share ideas about provenance, temporal state,
+conflict preservation, and traceable retrieval. They are separate systems.
+AML Retriever implements the benchmark's deterministic Add/Search contract.
+The result does not establish FlowGrid Core product quality, user adoption,
+retention, or general superiority.
 
-## History
+## Related Experiments
 
-FlowGrid keeps `FLG` as its technical shorthand, CLI prefix, and `.flg/` project directory. Earlier iterations used the name "Framing Ledger", but the external product name was changed because "FlowGrid" reads more like a tool while preserving the existing FLG technical surface.
+These branches test selected ideas under narrower contracts. They are not
+FlowGrid Core dependencies or evidence of Core maturity.
 
-## Protocol
+- [FlowGrid AML Retriever summary](https://github.com/dlxeva/flowgrid-aml-retriever)
+- [FlowGrid Memory Runtime summary](https://github.com/dlxeva/flowgrid-memory-runtime)
+- [FlowGrid MemoryAgent for Qwen Cloud summary](https://github.com/dlxeva/flowgrid-qwen-memory-agent)
 
-FlowGrid is not just a Python CLI. It is a local project-state protocol:
+## Documentation
 
-- the filesystem is the source of truth
-- markdown files hold the durable project state
-- `.flg/` holds runtime and review state
-- agents may propose changes, but medium/high-risk updates stay reviewable
+- [Protocol](./docs/protocol.md)
+- [Context Pack contract](./docs/product/context-pack-contract.md)
+- [Judgment capture pipeline](./docs/product/judgment-capture-pipeline.md)
+- [Decision relations](./docs/product/decision-relations-v0.md)
+- [User pain model](./docs/product/user-pain-model.md)
+- [Synthetic client-solution use case](./docs/use-cases/client-solution-continuation.md)
+- [Development log](./docs/devlog/README.md)
+- [Security policy](./SECURITY.md)
+- [Contributing](./CONTRIBUTING.md)
 
-See [docs/protocol.md](./docs/protocol.md) for the protocol-level model.
+The system map distinguishes formal state from derived views and health checks:
 
-## AI Host Usage
+![FlowGrid current system map](./docs/assets/flowgrid-system-map.svg)
 
-FlowGrid is designed to work inside Codex, Hermes, OpenClaw, Claude, or any AI agent work product that can read files and run commands.
+## Governance and License
 
-The intended pattern is:
+FlowGrid Core is released under the [MIT License](./LICENSE).
+See [TRADEMARK.md](./TRADEMARK.md) for name and logo usage.
 
-- the user speaks in natural language
-- the AI host decides when to call `flg`
-- FlowGrid writes durable local project state
-
-See [docs/host-usage.md](./docs/host-usage.md) for host-style usage.
-
-## Inspiration
-
-FLG is inspired by [Oh My Codex (OMX)](https://github.com/Yeachan-Heo/oh-my-codex), an orchestration layer that enhances Codex CLI for developers. OMX pioneered the idea that the project directory itself should be the source of truth — agents read rules, state persists across sessions, and the filesystem is the coordination layer.
-
-FLG takes this same engineering philosophy and applies it to rationale-heavy, non-coding business project work:
-
-| | OMX | FLG |
-|---|---|---|
-| **Target user** | Developers | Business-project knowledge workers |
-| **Deliverable** | Code, PRs, running apps | Proposals, briefs, campaigns, mechanisms, judgments |
-| **Project structure** | Git repo + worktree | Plain-text project ledger directory |
-| **Agent coordination** | Multi-agent code pipeline | Single-operator agent relay |
-
-The core idea is the same: *make the project directory the single source of truth so any agent can pick up where the last one left off.* The difference is whose work it serves.
-
-## Open Core Boundary
-
-FlowGrid Core is a local-first, auditable, host-agnostic open-source core.
-
-- **User project data always belongs to the user.** FlowGrid has no mandatory
-  hosted backend. Project state is stored in local files. If you enable a remote
-  LLM provider, selected transcript content may be sent to that provider under
-  its terms. Remote extraction requires the explicit
-  `--allow-remote-llm` flag. Use the default local extraction or a local
-  provider for fully local processing.
-- **The public repository does not contain real user training data.** All tests
-  and examples use synthetic data.
-- **Advanced hosted features, team collaboration, industry templates, and
-  research data** may be offered in other versions, but the core protocol and
-  CLI remain open and independently usable.
-- **The protocol is designed for portability.** Your project state is plain-text
-  markdown — you can read it, edit it, and migrate it without lock-in.
-
-See [docs/governance/OPEN_SOURCE_BOUNDARY.md](./docs/governance/OPEN_SOURCE_BOUNDARY.md)
-for the full boundary definition.
-
-## Governance
-
-- [LICENSE](./LICENSE) — MIT
-- [CONTRIBUTING.md](./CONTRIBUTING.md) — contribution guidelines
-- [SECURITY.md](./SECURITY.md) — security reporting policy
-- [TRADEMARK.md](./TRADEMARK.md) — name and branding usage
-- [Open-Source Audit](./docs/governance/OPEN_SOURCE_AUDIT.md) — file classification report
-- [Open-Source Boundary](./docs/governance/OPEN_SOURCE_BOUNDARY.md) — public/private boundary definition
-- [Dev Log](./docs/devlog/README.md) — failures, fixes, evidence, and open boundaries
-- [Future Direction](./docs/product/future-direction.md) — product roadmap insights
-
-## License
-
-MIT
+Security reports should follow [SECURITY.md](./SECURITY.md).
