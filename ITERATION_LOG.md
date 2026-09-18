@@ -32,8 +32,10 @@ MSYS 路径归一化、跨平台测试、Windows UTF-8 CI 和 capture ID 防碰�
 原生 Windows `C:/...` 被通用 legacy-path 检查误报，另外两项是 Windows
 大小写排序导致 Wiki manifest 顺序不稳定。修复改为按宿主识别原生路径，并用
 项目相对 POSIX 路径生成确定性顺序；新增两个跨平台回归后，本地全量
-`268 passed`，强制 source-tree smoke 与 diff check 通过。新的 Windows runner
-仍需再次通过后才能合并。
+`268 passed`，强制 source-tree smoke 与 diff check 通过。第二轮 Windows
+runner 收敛到 `1 failed, 267 passed`，剩余项是旧测试仍固定要求 Windows 原生
+盘符被识别为 legacy；断言现已按宿主语义拆分。新的 Windows runner 仍需再次
+通过后才能合并。
 
 ## 2026-09-19：长期项目健康复核与判断影响纵切
 

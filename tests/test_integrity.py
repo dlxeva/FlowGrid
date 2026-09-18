@@ -553,9 +553,11 @@ def test_integrity_recognizes_all_supported_windows_path_spellings(tmp_path):
         state_path.write_text(json.dumps(state), encoding="utf-8")
 
         report = validate_project(Path(tmp_path))
-        assert len(report["legacy_paths"]) == 3
-        assert any(item.startswith("C:\\") for item in report["legacy_paths"])
-        assert any(item.startswith("D:/") for item in report["legacy_paths"])
+        expected_count = 1 if os.name == "nt" else 3
+        assert len(report["legacy_paths"]) == expected_count
+        if os.name != "nt":
+            assert any(item.startswith("C:\\") for item in report["legacy_paths"])
+            assert any(item.startswith("D:/") for item in report["legacy_paths"])
         assert any(item.startswith("/c/") for item in report["legacy_paths"])
     finally:
         os.chdir(old_cwd)
