@@ -18,7 +18,7 @@
 
 ## 2026-09-19：Windows 加固重放到最新主线
 
-### FLG-ITER-20260919-07：旧 Windows PR 不能用可合并状态代替当前基线复核 [fixed — candidate]
+### FLG-ITER-20260919-07：旧 Windows PR 不能用可合并状态代替当前基线复核 [fixed]
 
 **场景**：PR #47 的历史 Windows CI 全部通过，但分支建立在早期主线上，旧版
 `ITERATION_LOG.md` 与 `current-state.md` 会覆盖后续产品事实。GitHub 显示
@@ -34,8 +34,28 @@ MSYS 路径归一化、跨平台测试、Windows UTF-8 CI 和 capture ID 防碰�
 项目相对 POSIX 路径生成确定性顺序；新增两个跨平台回归后，本地全量
 `268 passed`，强制 source-tree smoke 与 diff check 通过。第二轮 Windows
 runner 收敛到 `1 failed, 267 passed`，剩余项是旧测试仍固定要求 Windows 原生
-盘符被识别为 legacy；断言现已按宿主语义拆分。新的 Windows runner 仍需再次
-通过后才能合并。
+盘符被识别为 legacy；断言按宿主语义拆分后，Linux Python 3.10/3.11/3.12 与
+Windows Python 3.12 全部通过。PR #52 已合并到 `master`，merge commit 为
+`9849fec`；旧 Draft PR #47 已注明被替代并关闭。
+
+### FLG-ITER-20260919-08：不能从自然语言猜测行动是否过期 [fixed — PR #53]
+
+**场景**：现有 current-action 编译能识别已完成、已替代和空 patch 队列等确定性
+矛盾，但项目写了复核日期或有效期后，Resume、Manifest、Handoff 与
+`doctor --strict` 仍不会阻止过期行动继续执行。
+
+**边界**：不扫描“下周”“月底前”等普通正文，也不把 Snapshot 更新时间当作
+行动期限。只读取当前行动区内显式声明的 `Review Date` / `Valid Until`，中文账本
+对应 `复核日期` / `有效期至`，值必须是 `YYYY-MM-DD`。
+
+**处理**：复核日当天起要求 reconciliation；`Valid Until` 当天仍有效，次日起
+过期。到期、过期、重复或格式错误都会让生成视图停止输出可执行行动，并使
+`doctor --strict` 失败。未声明日期的旧项目保持兼容。
+
+**验证**：新增英文过期、未来日期、中文复核日、边界日期、重复字段、Handoff
+和 malformed date 回归；本地全量 `276 passed`，强制 source-tree smoke 与
+diff check 通过。PR #53 的 Linux Python 3.10/3.11/3.12 与 Windows Python
+3.12 CI 全部通过。
 
 ## 2026-09-19：长期项目健康复核与判断影响纵切
 

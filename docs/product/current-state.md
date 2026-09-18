@@ -33,15 +33,18 @@ Its job is to let project state, boundaries, judgments, progress, and next actio
 
 ## Current Verification
 
-- Public `master` is at merge commit `6d208db` (PR #51). It includes runtime
-  freshness and commit attestation, read-only judgment impact, the bounded
-  knowledge-source adapter direction, and Chinese temporal/hypothetical guards.
-- The rebased Windows-hardening candidate passes `268` local tests. It keeps
-  the current product baseline while adding GBK-safe first-run output, MSYS
-  path normalization, Windows UTF-8 CI, and capture-ID collision protection.
-  The first current-baseline Windows run exposed native-drive false positives
-  and host-dependent Wiki ordering; both now have deterministic regressions.
-  A rerun of the Windows job is still required before merge.
+- Public `master` is at merge commit `9849fec` (PR #52). It includes PR #51's
+  runtime freshness, read-only judgment impact, knowledge-source adapter
+  boundary, and Chinese temporal guards, plus the rebased Windows hardening.
+- Windows Python 3.12 and Linux Python 3.10/3.11/3.12 passed before PR #52
+  merged. Native drive paths, MSYS paths, deterministic Wiki ordering, GBK-safe
+  first-run output, and capture-ID collision protection have current regressions.
+- The explicit current-action date candidate adds optional `Review Date` and
+  `Valid Until` fields. Due, expired, duplicate, or malformed declared dates
+  make generated continuation views abstain and make `doctor --strict` fail;
+  ordinary prose is never scanned for inferred deadlines. The candidate passes
+  `276` local tests and forced source-tree smoke. PR #53 passes Linux Python
+  3.10/3.11/3.12 and Windows Python 3.12 CI.
 - `doctor --strict` now treats a mapped runtime that is behind its configured
   upstream as unhealthy. A clean, internally consistent but stale checkout can
   no longer pass only because `repo-map.json` points to that stale commit.
@@ -151,15 +154,15 @@ Complete the v0.4 core loop:
    narrowing and single-sentence historical/hypothetical guards now have
    regressions; reported speech, cross-sentence tense, and attribution remain
    the highest-risk silent-loss and false-attribution cases.
-2. Make expired current actions and review dates visible to `doctor --strict`.
-   The current contradiction checks do not provide general temporal freshness.
+2. Field-test the explicit current-action date contract on real project state.
+   Keep dates optional and machine-readable; do not infer deadlines from prose.
 3. Separate four continuity-health dimensions in host guidance: structural
    integrity, runtime/source freshness, knowledge coverage, and unclosed work
    increments. Do not collapse them into one green status.
 4. Validate `flg impact` on real decision reversals. Measure false-positive
    review candidates before considering any automatic state transition.
-5. Rebase and rerun the still-open Windows hardening PR against current master
-   before any merge decision.
+5. Validate the merged Windows hardening on another real Windows checkout when
+   a current external host is available; CI coverage is complete for this slice.
 6. Keep `DECISIONS.md` as formal truth. Derived impact and state views must stay
    rebuildable and must not introduce an autonomous decision authority.
 7. Define a provider-neutral knowledge-source adapter before adding any new

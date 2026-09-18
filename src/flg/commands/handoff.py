@@ -478,6 +478,10 @@ def generate_handoff_summary(root: Path, format: str = "markdown") -> str:
         summary += "- **Highest priority (SNAPSHOT.md):** (not defined)\n"
     summary += f"- **Current action status:** {current_action['status']}\n"
     summary += f"- **Current action source:** {current_action.get('source') or '(none)'}\n"
+    if current_action.get("review_date"):
+        summary += f"- **Current action review date:** {current_action['review_date']}\n"
+    if current_action.get("valid_until"):
+        summary += f"- **Current action valid until:** {current_action['valid_until']}\n"
     if current_action["status"] != "current":
         summary += f"- **Reconciliation required:** {current_action['reason']}\n"
 

@@ -443,6 +443,9 @@ def _work_source_current_action(current_action: dict, work_view: dict | None) ->
         "source": f"{work_view['source_path']} ({work_view['locator']})",
         "source_updated_at": work_view.get("generated_at", "not generated"),
         "ignored_fallback_count": current_action.get("ignored_fallback_count", 0),
+        "review_date": None,
+        "valid_until": None,
+        "temporal_checked_on": current_action.get("temporal_checked_on"),
         "reason": work_view["reason"],
     }
 
@@ -479,7 +482,7 @@ def _render_current_action(current_action: dict) -> str:
     """Render the same canonical action contract in every continuation view."""
     action = current_action.get("action") or "(none; reconcile state before acting)"
     source = current_action.get("source") or "(no formal current-action source)"
-    return (
+    rendered = (
         f"- Status: {current_action['status']}\n"
         f"- Action: {action}\n"
         f"- Source: {source}\n"
@@ -487,6 +490,11 @@ def _render_current_action(current_action: dict) -> str:
         f"- Ignored legacy fallback actions: {current_action['ignored_fallback_count']}\n"
         f"- Reason: {current_action['reason']}\n"
     )
+    if current_action.get("review_date"):
+        rendered += f"- Review date: {current_action['review_date']}\n"
+    if current_action.get("valid_until"):
+        rendered += f"- Valid until: {current_action['valid_until']}\n"
+    return rendered
 
 
 def _manifest_section_pointer(

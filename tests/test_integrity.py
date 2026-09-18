@@ -515,6 +515,50 @@ def test_doctor_strict_ignores_runtime_identity_when_repo_map_is_absent(tmp_path
         os.chdir(old_cwd)
 
 
+def test_doctor_strict_fails_on_expired_current_action(tmp_path):
+    old_cwd = _project(tmp_path)
+    try:
+        assert runner.invoke(app, ["reindex"]).exit_code == 0
+        snapshot = tmp_path / "SNAPSHOT.md"
+        snapshot.write_text(
+            "# Project Snapshot\n\n"
+            "## Next Highest Priority Action\n\n"
+            "Continue the expired rollout.\n\n"
+            "- **Valid Until:** 2000-01-01\n",
+            encoding="utf-8",
+        )
+
+        result = runner.invoke(app, ["doctor", "--strict"])
+
+        assert result.exit_code == 1
+        assert "Current action dates" in result.output
+        assert "current_action_dates:" in result.output
+        assert "current action expired after 2000-01-01" in result.output
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_doctor_strict_fails_on_malformed_current_action_date(tmp_path):
+    old_cwd = _project(tmp_path)
+    try:
+        assert runner.invoke(app, ["reindex"]).exit_code == 0
+        snapshot = tmp_path / "SNAPSHOT.md"
+        snapshot.write_text(
+            "# Project Snapshot\n\n"
+            "## Next Highest Priority Action\n\n"
+            "Continue the bounded rollout.\n\n"
+            "- **Review Date:** next Friday\n",
+            encoding="utf-8",
+        )
+
+        result = runner.invoke(app, ["doctor", "--strict"])
+
+        assert result.exit_code == 1
+        assert "must use YYYY-MM-DD: next Friday" in result.output
+    finally:
+        os.chdir(old_cwd)
+
+
 def test_windows_path_spellings_normalize_for_native_windows_input():
     expected = PureWindowsPath("C:/Users/owner/project/session.md")
     assert PureWindowsPath(str(normalize_user_path(r"C:\Users\owner\project\session.md", windows=True))) == expected
