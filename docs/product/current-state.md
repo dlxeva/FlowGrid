@@ -33,10 +33,12 @@ Its job is to let project state, boundaries, judgments, progress, and next actio
 
 ## Current Verification
 
-- Public `master` is at merge commit `fcac7b4` (PR #54). It includes PR #51's
+- The latest product-behavior merge is `fcac7b4` (PR #54). It includes PR #51's
   runtime freshness, read-only judgment impact, knowledge-source adapter
   boundary, the rebased Windows hardening, explicit current-action dates, and
   deterministic Chinese reported-speech attribution guards.
+- PR #55 adds the bounded real-ledger impact replay and state documentation; it
+  does not change runtime behavior.
 - Windows Python 3.12 and Linux Python 3.10/3.11/3.12 passed before PR #52
   merged. Native drive paths, MSYS paths, deterministic Wiki ordering, GBK-safe
   first-run output, and capture-ID collision protection have current regressions.
