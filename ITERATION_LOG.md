@@ -38,7 +38,7 @@ runner 收敛到 `1 failed, 267 passed`，剩余项是旧测试仍固定要求 W
 Windows Python 3.12 全部通过。PR #52 已合并到 `master`，merge commit 为
 `9849fec`；旧 Draft PR #47 已注明被替代并关闭。
 
-### FLG-ITER-20260919-08：不能从自然语言猜测行动是否过期 [fixed — candidate]
+### FLG-ITER-20260919-08：不能从自然语言猜测行动是否过期 [fixed — PR #53]
 
 **场景**：现有 current-action 编译能识别已完成、已替代和空 patch 队列等确定性
 矛盾，但项目写了复核日期或有效期后，Resume、Manifest、Handoff 与
@@ -55,7 +55,7 @@ Windows Python 3.12 全部通过。PR #52 已合并到 `master`，merge commit �
 **验证**：新增英文过期、未来日期、中文复核日、边界日期、重复字段、Handoff
 和 malformed date 回归；本地全量 `276 passed`，强制 source-tree smoke 与
 diff check 通过。PR #53 的 Linux Python 3.10/3.11/3.12 与 Windows Python
-3.12 CI 全部通过，合并状态仍待确认。
+3.12 CI 全部通过。
 
 ## 2026-09-19：长期项目健康复核与判断影响纵切
 

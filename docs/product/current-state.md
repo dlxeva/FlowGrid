@@ -44,7 +44,7 @@ Its job is to let project state, boundaries, judgments, progress, and next actio
   make generated continuation views abstain and make `doctor --strict` fail;
   ordinary prose is never scanned for inferred deadlines. The candidate passes
   `276` local tests and forced source-tree smoke. PR #53 passes Linux Python
-  3.10/3.11/3.12 and Windows Python 3.12 CI; merge remains pending.
+  3.10/3.11/3.12 and Windows Python 3.12 CI.
 - `doctor --strict` now treats a mapped runtime that is behind its configured
   upstream as unhealthy. A clean, internally consistent but stale checkout can
   no longer pass only because `repo-map.json` points to that stale commit.
@@ -154,8 +154,8 @@ Complete the v0.4 core loop:
    narrowing and single-sentence historical/hypothetical guards now have
    regressions; reported speech, cross-sentence tense, and attribution remain
    the highest-risk silent-loss and false-attribution cases.
-2. Merge and field-test the explicit current-action date contract. Keep dates
-   optional and machine-readable; do not infer deadlines from ordinary prose.
+2. Field-test the explicit current-action date contract on real project state.
+   Keep dates optional and machine-readable; do not infer deadlines from prose.
 3. Separate four continuity-health dimensions in host guidance: structural
    integrity, runtime/source freshness, knowledge coverage, and unclosed work
    increments. Do not collapse them into one green status.
