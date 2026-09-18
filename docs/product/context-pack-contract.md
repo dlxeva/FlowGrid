@@ -163,6 +163,21 @@ must abstain. The first enforced contradictions are an empty pending-patch
 queue paired with “Review pending patches”, and an action repeated in an
 explicit completed, superseded, or stale Snapshot section.
 
+Current-action freshness is optional and explicit. Put either field inside the
+current-action section when the project has a real time boundary:
+
+```markdown
+- **Review Date:** 2026-10-01
+- **Valid Until:** 2026-10-15
+```
+
+`Review Date` requires reconciliation on and after the named date. `Valid Until`
+is inclusive and expires the following day. Chinese ledgers may use `复核日期`
+and `有效期至`. Dates must use `YYYY-MM-DD`; FlowGrid does not infer deadlines
+from ordinary prose. A due, expired, duplicate, or malformed declared field
+makes Resume, Manifest, and Handoff abstain from returning an executable action,
+and makes `doctor --strict` fail. Projects without these fields remain valid.
+
 ## Required Sections
 
 A valid v0 Context Pack should include these sections.

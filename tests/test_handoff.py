@@ -261,6 +261,31 @@ def test_handoff_refuses_stale_snapshot_queue_action(tmp_path):
         os.chdir(old_cwd)
 
 
+def test_handoff_refuses_expired_current_action(tmp_path):
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Expired Handoff Action"])
+        (tmp_path / "SNAPSHOT.md").write_text(
+            "# Project Snapshot\n\n"
+            "## Next Highest Priority Action\n\n"
+            "Run the expired rollout.\n\n"
+            "- **Valid Until:** 2000-01-01\n",
+            encoding="utf-8",
+        )
+
+        result = runner.invoke(app, ["handoff"])
+
+        assert result.exit_code == 0
+        assert "Current action status: needs_reconciliation" in result.output
+        assert "Current action valid until: 2000-01-01" in result.output
+        assert "expired after 2000-01-01" in result.output
+        suggested = result.output.split("Suggested Next Actions", 1)[1]
+        assert "Run the expired rollout" not in suggested
+    finally:
+        os.chdir(old_cwd)
+
+
 def test_handoff_on_non_flg_project(tmp_path):
     """Test that handoff fails on non-FLG project."""
     old_cwd = os.getcwd()

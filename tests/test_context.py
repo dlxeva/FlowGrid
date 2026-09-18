@@ -11,14 +11,48 @@ import glob
 import os
 import os.path
 import json
+from datetime import date
 from pathlib import Path
 
 from typer.testing import CliRunner
 
 from flg.cli import app
 from flg.commands.context import build_context_pack
+from flg.core.current_action import inspect_action_temporal_contract
 
 runner = CliRunner()
+
+
+def test_current_action_date_boundary_semantics():
+    snapshot = (
+        "# Project Snapshot\n\n"
+        "## Next Highest Priority Action\n\n"
+        "Run the bounded validation.\n\n"
+        "- **Review Date:** 2026-09-19\n"
+        "- **Valid Until:** 2026-09-19\n"
+    )
+
+    report = inspect_action_temporal_contract(
+        snapshot,
+        today=date(2026, 9, 19),
+    )
+
+    assert "current action review is due since 2026-09-19" in report["issues"]
+    assert not any("expired" in issue for issue in report["issues"])
+
+
+def test_duplicate_current_action_date_is_invalid():
+    snapshot = (
+        "# Project Snapshot\n\n"
+        "## Next Highest Priority Action\n\n"
+        "Run the bounded validation.\n\n"
+        "- **Valid Until:** 2999-01-01\n"
+        "- **有效期至：** 2999-02-01\n"
+    )
+
+    report = inspect_action_temporal_contract(snapshot)
+
+    assert "duplicate current-action valid until field" in report["issues"]
 
 
 def _init_and_get_context(tmp_path):
@@ -291,6 +325,82 @@ def test_context_pack_uses_snapshot_as_canonical_current_action(tmp_path):
             assert "Ignored legacy fallback actions: 1" in artifact
             assert "Implement the obsolete feature branch" not in artifact
             assert metadata["current_action"]["status"] == "current"
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_context_pack_refuses_expired_current_action(tmp_path):
+    """An explicit expired action cannot remain executable in generated views."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Expired Action Test"])
+        (tmp_path / "SNAPSHOT.md").write_text(
+            "# Project Snapshot\n\n"
+            "## Next Highest Priority Action\n\n"
+            "Run the old launch checklist.\n\n"
+            "- **Valid Until:** 2000-01-01\n",
+            encoding="utf-8",
+        )
+
+        for mode in ("resume", "manifest"):
+            content, metadata = build_context_pack(tmp_path, mode=mode)
+            current = content.split("## Current Action", 1)[1].split("##", 1)[0]
+            assert "Status: needs_reconciliation" in current
+            assert "expired after 2000-01-01" in current
+            assert "Run the old launch checklist" not in current
+            assert metadata["current_action"]["valid_until"] == "2000-01-01"
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_context_pack_keeps_current_action_before_declared_dates(tmp_path):
+    """Future explicit review and validity dates preserve the current action."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Future Action Test"])
+        (tmp_path / "SNAPSHOT.md").write_text(
+            "# Project Snapshot\n\n"
+            "## Next Highest Priority Action\n\n"
+            "Run the current validation.\n\n"
+            "- **Review Date:** 2999-01-01\n"
+            "- **Valid Until:** 2999-12-31\n",
+            encoding="utf-8",
+        )
+
+        content, metadata = build_context_pack(tmp_path, mode="manifest")
+
+        assert "Status: current" in content
+        assert "Run the current validation" in content
+        assert "Review date: 2999-01-01" in content
+        assert "Valid until: 2999-12-31" in content
+        assert metadata["current_action"]["review_date"] == "2999-01-01"
+        assert metadata["current_action"]["valid_until"] == "2999-12-31"
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_context_pack_refuses_due_chinese_review_date(tmp_path):
+    """Chinese labels follow the same explicit temporal contract."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Chinese Review Date Test"])
+        (tmp_path / "SNAPSHOT.md").write_text(
+            "# Project Snapshot\n\n"
+            "## 下一步行动\n\n"
+            "继续旧的渠道验证。\n\n"
+            "- **复核日期：** 2000-01-01\n",
+            encoding="utf-8",
+        )
+
+        content, metadata = build_context_pack(tmp_path, mode="resume")
+
+        current = content.split("## Current Action", 1)[1].split("##", 1)[0]
+        assert "Status: needs_reconciliation" in current
+        assert "review is due since 2000-01-01" in current
+        assert metadata["current_action"]["action"] is None
     finally:
         os.chdir(old_cwd)
 

@@ -8,8 +8,9 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from ..core.evidence import rebuild_evidence_index, save_evidence_index, validate_project
+from ..core.current_action import inspect_action_temporal_contract
 from ..core.delivery import active_delivery_issues
+from ..core.evidence import rebuild_evidence_index, save_evidence_index, validate_project
 from ..core.files import is_flg_project
 from ..core.relations import validate_decision_relations
 from ..core.state import load_state
@@ -139,6 +140,14 @@ def doctor(
     identity = _runtime_identity(root)
     identity_issues = identity.get("issues", []) if identity else []
     state = load_state(root) or {}
+    snapshot_path = root / "SNAPSHOT.md"
+    snapshot_content = (
+        snapshot_path.read_text(encoding="utf-8")
+        if snapshot_path.exists()
+        else ""
+    )
+    action_temporal = inspect_action_temporal_contract(snapshot_content)
+    action_temporal_issues = action_temporal["issues"]
     delivery_issues = active_delivery_issues(state)
     wiki_issues = wiki_health_issues(root)
     work_view_issues = work_view_health_issues(root, state)
@@ -152,6 +161,7 @@ def doctor(
         and not delivery_issues
         and not wiki_issues
         and not work_view_issues
+        and not action_temporal_issues
     )
     table.add_row("Overall", "OK" if overall_ok else "Needs attention")
     table.add_row("Formal decisions", str(report["decision_count"]))
@@ -202,6 +212,16 @@ def doctor(
         "Source-backed work view",
         "not configured" if "work_source" not in state
         else ("OK" if not work_view_issues else f"Needs attention ({len(work_view_issues)})"),
+    )
+    table.add_row(
+        "Current action dates",
+        "not declared"
+        if not action_temporal["declared"]
+        else (
+            "OK"
+            if not action_temporal_issues
+            else f"Needs attention ({len(action_temporal_issues)})"
+        ),
     )
     if identity is None:
         table.add_row("Runtime identity", "not configured (no repo-map)")
@@ -274,6 +294,11 @@ def doctor(
     if work_view_issues:
         console.print("[yellow]source_backed_work_view:[/yellow]")
         for issue in work_view_issues:
+            console.print(f"  - {issue}")
+
+    if action_temporal_issues:
+        console.print("[yellow]current_action_dates:[/yellow]")
+        for issue in action_temporal_issues:
             console.print(f"  - {issue}")
 
     if strict and not overall_ok:
