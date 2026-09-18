@@ -49,7 +49,8 @@ Its job is to let project state, boundaries, judgments, progress, and next actio
   from a third party named inside the utterance. It abstains on same-sentence,
   cross-sentence, quoted-first-person, and customer-requirement reports while
   preserving direct client speech and explicit owner adoption. The candidate
-  passes `282` local tests and forced source-tree smoke, pending public CI.
+  passes `282` local tests and forced source-tree smoke. PR #54 passes Linux
+  Python 3.10/3.11/3.12 and Windows Python 3.12 CI.
 - `doctor --strict` now treats a mapped runtime that is behind its configured
   upstream as unhealthy. A clean, internally consistent but stale checkout can
   no longer pass only because `repo-map.json` points to that stale commit.
