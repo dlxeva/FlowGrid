@@ -36,10 +36,12 @@ Its job is to let project state, boundaries, judgments, progress, and next actio
 - Public `master` is at merge commit `6d208db` (PR #51). It includes runtime
   freshness and commit attestation, read-only judgment impact, the bounded
   knowledge-source adapter direction, and Chinese temporal/hypothetical guards.
-- The rebased Windows-hardening candidate passes `266` local tests. It keeps
+- The rebased Windows-hardening candidate passes `268` local tests. It keeps
   the current product baseline while adding GBK-safe first-run output, MSYS
   path normalization, Windows UTF-8 CI, and capture-ID collision protection.
-  A new Windows runner result is still required before merge.
+  The first current-baseline Windows run exposed native-drive false positives
+  and host-dependent Wiki ordering; both now have deterministic regressions.
+  A rerun of the Windows job is still required before merge.
 - `doctor --strict` now treats a mapped runtime that is behind its configured
   upstream as unhealthy. A clean, internally consistent but stale checkout can
   no longer pass only because `repo-map.json` points to that stale commit.

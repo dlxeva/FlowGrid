@@ -8,7 +8,7 @@ from pathlib import Path, PureWindowsPath
 from typer.testing import CliRunner
 
 from flg.cli import app
-from flg.core.evidence import validate_project
+from flg.core.evidence import _legacy_paths_in_state, validate_project
 from flg.core.files import normalize_user_path
 
 runner = CliRunner()
@@ -520,6 +520,22 @@ def test_windows_path_spellings_normalize_for_native_windows_input():
     assert PureWindowsPath(str(normalize_user_path(r"C:\Users\owner\project\session.md", windows=True))) == expected
     assert PureWindowsPath(str(normalize_user_path("C:/Users/owner/project/session.md", windows=True))) == expected
     assert PureWindowsPath(str(normalize_user_path("/c/Users/owner/project/session.md", windows=True))) == expected
+
+
+def test_native_windows_drive_path_is_not_reported_as_legacy_on_windows():
+    state = json.dumps(
+        {
+            "native": "C:/Users/owner/project",
+            "msys": "/c/Users/owner/project",
+            "wsl": "/mnt/c/Users/owner/project",
+        }
+    )
+
+    issues = _legacy_paths_in_state(state, windows=True)
+
+    assert not any(item.startswith("C:/") for item in issues)
+    assert any(item.startswith("/c/") for item in issues)
+    assert any(item.startswith("/mnt/c/") for item in issues)
 
 
 def test_integrity_recognizes_all_supported_windows_path_spellings(tmp_path):

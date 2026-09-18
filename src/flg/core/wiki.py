@@ -165,7 +165,14 @@ def scan_wiki(root: Path, config: dict[str, Any] | None = None) -> list[dict[str
     wiki_root = _relative_project_path(root, config["root"], must_exist=True)
     pages: list[dict[str, Any]] = []
     seen_ids: dict[str, str] = {}
-    for path in sorted(wiki_root.rglob("*.md")):
+    # Path ordering follows host filesystem semantics and is case-insensitive
+    # on Windows. Sort the project-relative POSIX spelling so manifests are
+    # deterministic across hosts.
+    paths = sorted(
+        wiki_root.rglob("*.md"),
+        key=lambda path: path.relative_to(root).as_posix(),
+    )
+    for path in paths:
         if path.is_symlink():
             raise ValueError(f"Symlinked wiki pages are not supported: {path.relative_to(root)}")
         if path.is_file():

@@ -28,8 +28,12 @@ mergeable/CLEAN 只说明文本可合并，不说明产品状态仍然新鲜。
 MSYS 路径归一化、跨平台测试、Windows UTF-8 CI 和 capture ID 防碰撞；保留最新
 主线文档，再按当前基线重写收口记录。旧 PR 不直接合并。
 
-**验证**：本地全量 `266 passed`。历史现场报告只保留脱敏后的兼容性证据；
-新的 Windows runner 结果和 source-tree smoke 在推送前重新验收。
+**验证**：首轮当前基线 Windows runner 为 `3 failed, 263 passed`。其中一项是
+原生 Windows `C:/...` 被通用 legacy-path 检查误报，另外两项是 Windows
+大小写排序导致 Wiki manifest 顺序不稳定。修复改为按宿主识别原生路径，并用
+项目相对 POSIX 路径生成确定性顺序；新增两个跨平台回归后，本地全量
+`268 passed`，强制 source-tree smoke 与 diff check 通过。新的 Windows runner
+仍需再次通过后才能合并。
 
 ## 2026-09-19：长期项目健康复核与判断影响纵切
 
