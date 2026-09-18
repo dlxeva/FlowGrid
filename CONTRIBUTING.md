@@ -41,6 +41,18 @@ pip install -e .
 pytest -q
 ```
 
+FlowGrid ledgers and repository fixtures use UTF-8. Windows contributors should
+run Python in UTF-8 mode so unqualified test-only `pathlib` reads and writes use
+the same encoding contract:
+
+```powershell
+$env:PYTHONUTF8 = '1'
+pytest -q
+```
+
+The FlowGrid runtime explicitly reads and writes project ledger files as UTF-8;
+this environment setting is the repository test-process contract on Windows.
+
 ## Running the smoke test
 
 ```bash

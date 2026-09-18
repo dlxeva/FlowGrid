@@ -10,7 +10,7 @@ from rich.console import Console
 from rich.table import Table
 from rich.text import Text
 
-from ..core.files import ensure_dir, is_flg_project, safe_write
+from ..core.files import ensure_dir, is_flg_project, normalize_user_path, safe_write
 from ..core.i18n import normalize_language
 from ..core.state import create_initial_state, save_state
 from .. import templates_en
@@ -67,7 +67,7 @@ def init_project(
     This avoids the common pitfall of initializing in the wrong cwd.
     """
     if directory:
-        root = Path(directory).expanduser().resolve()
+        root = normalize_user_path(directory).resolve()
         root.mkdir(parents=True, exist_ok=True)
     else:
         root = Path.cwd()
@@ -252,7 +252,11 @@ def init_project(
     
     # Display results
     console.print()
-    console.print(f"[bold green]✓ FlowGrid project initialized: {project_name}[/bold green]")
+    # Keep first-run success output encodable by legacy Windows consoles such
+    # as code page 936. A literal checkmark crashes Rich's legacy renderer
+    # after the project has already been written, leaving users with a false
+    # failure and a partially confusing first-run state.
+    console.print(f"[bold green][OK] FlowGrid project initialized: {project_name}[/bold green]")
     creation_path = Text("Created in: ", style="dim")
     creation_path.append(str(root), style="dim")
     console.print(creation_path, soft_wrap=True)

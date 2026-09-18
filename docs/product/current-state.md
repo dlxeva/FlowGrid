@@ -33,11 +33,15 @@ Its job is to let project state, boundaries, judgments, progress, and next actio
 
 ## Current Verification
 
-- Public `master` is at merge commit `4665a4d` (PR #50). It includes the
-  Continuation V2 repair, feedback-driven capture hardening, Wiki continuity,
-  delivery contracts, Source-backed Work View, and README realignment.
-- The runtime-health, judgment-impact, and Chinese temporal-boundary candidate
-  passes `262` tests. It is local until pushed and reviewed.
+- Public `master` is at merge commit `6d208db` (PR #51). It includes runtime
+  freshness and commit attestation, read-only judgment impact, the bounded
+  knowledge-source adapter direction, and Chinese temporal/hypothetical guards.
+- The rebased Windows-hardening candidate passes `268` local tests. It keeps
+  the current product baseline while adding GBK-safe first-run output, MSYS
+  path normalization, Windows UTF-8 CI, and capture-ID collision protection.
+  The first current-baseline Windows run exposed native-drive false positives
+  and host-dependent Wiki ordering; both now have deterministic regressions.
+  A rerun of the Windows job is still required before merge.
 - `doctor --strict` now treats a mapped runtime that is behind its configured
   upstream as unhealthy. A clean, internally consistent but stale checkout can
   no longer pass only because `repo-map.json` points to that stale commit.

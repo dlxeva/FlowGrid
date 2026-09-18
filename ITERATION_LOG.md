@@ -16,6 +16,27 @@
 
 ---
 
+## 2026-09-19：Windows 加固重放到最新主线
+
+### FLG-ITER-20260919-07：旧 Windows PR 不能用可合并状态代替当前基线复核 [fixed — candidate]
+
+**场景**：PR #47 的历史 Windows CI 全部通过，但分支建立在早期主线上，旧版
+`ITERATION_LOG.md` 与 `current-state.md` 会覆盖后续产品事实。GitHub 显示
+mergeable/CLEAN 只说明文本可合并，不说明产品状态仍然新鲜。
+
+**处理**：从 PR #51 合并后的 `master` 新建独立分支，只重放 GBK 安全输出、
+MSYS 路径归一化、跨平台测试、Windows UTF-8 CI 和 capture ID 防碰撞；保留最新
+主线文档，再按当前基线重写收口记录。旧 PR 不直接合并。
+
+**验证**：首轮当前基线 Windows runner 为 `3 failed, 263 passed`。其中一项是
+原生 Windows `C:/...` 被通用 legacy-path 检查误报，另外两项是 Windows
+大小写排序导致 Wiki manifest 顺序不稳定。修复改为按宿主识别原生路径，并用
+项目相对 POSIX 路径生成确定性顺序；新增两个跨平台回归后，本地全量
+`268 passed`，强制 source-tree smoke 与 diff check 通过。第二轮 Windows
+runner 收敛到 `1 failed, 267 passed`，剩余项是旧测试仍固定要求 Windows 原生
+盘符被识别为 legacy；断言现已按宿主语义拆分。新的 Windows runner 仍需再次
+通过后才能合并。
+
 ## 2026-09-19：长期项目健康复核与判断影响纵切
 
 ### FLG-ITER-20260919-01：映射运行时可以“内部一致但已经落后上游” [fixed — P0]

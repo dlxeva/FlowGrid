@@ -26,6 +26,13 @@ separately in [`case-registry.json`](case-registry.json). The registry records
 both the supported claim and limitation of every case; it must not label
 owner-operated evidence as independent external adoption.
 
+The observed Windows 11 compatibility run against merge commit `4cd893b` and
+the seven-failure disposition are recorded in
+[`results/windows-compatibility-observed-20260817.md`](results/windows-compatibility-observed-20260817.md).
+The source report used a real private transcript and remains outside the public
+repository; the checked-in result keeps only the technical observations needed
+to reproduce and verify the fixes.
+
 ## Evaluation Modes
 
 Each scenario should support at least three modes:

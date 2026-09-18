@@ -32,10 +32,12 @@ def _git(*args: str) -> str:
 
 
 def product_changes_after_state_update(paths: list[str]) -> list[str]:
+    state_doc_path = STATE_DOC.as_posix()
     return sorted(
         path
         for path in paths
-        if path != str(STATE_DOC) and path.startswith(PRODUCT_PREFIXES)
+        if path.replace("\\", "/") != state_doc_path
+        and path.replace("\\", "/").startswith(PRODUCT_PREFIXES)
     )
 
 

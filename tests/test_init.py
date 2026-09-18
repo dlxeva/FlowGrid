@@ -10,6 +10,7 @@ from typer.testing import CliRunner
 
 from flg import __version__
 from flg.cli import app
+from flg.commands import init as init_command
 
 runner = CliRunner()
 
@@ -48,6 +49,15 @@ def test_init_creates_project_structure(tmp_dir):
     assert (tmp_dir / ".flg" / "sessions").is_dir()
     assert (tmp_dir / ".flg" / "memory").is_dir()
     assert ".flg/" in (tmp_dir / ".gitignore").read_text(encoding="utf-8")
+
+
+def test_init_output_is_encodable_by_gbk_console(tmp_dir):
+    """The first-run success path must not crash a code-page-936 console."""
+    result = runner.invoke(app, ["init", "中文项目"])
+
+    assert result.exit_code == 0
+    assert "[OK] FlowGrid project initialized" in result.output
+    result.output.encode("gbk")
 
 
 def test_init_keeps_existing_gitignore_and_adds_flg_privacy_rule(tmp_path):
@@ -239,6 +249,31 @@ def test_init_with_dir_creates_missing_directory(tmp_path):
         result = runner.invoke(app, ["init", "Nested Test", "--dir", str(target)])
         assert result.exit_code == 0
         assert (target / "PROJECT.md").exists()
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_init_routes_msys_drive_path_through_normalizer(tmp_path, monkeypatch):
+    """Git Bash /c/ input must reach the normalized native Windows target."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        target = tmp_path / "msys-target"
+        seen = []
+
+        def fake_normalize(value):
+            seen.append(value)
+            return target
+
+        monkeypatch.setattr(init_command, "normalize_user_path", fake_normalize)
+        result = runner.invoke(
+            app,
+            ["init", "MSYS Path Test", "--dir", "/c/Users/owner/project"],
+        )
+
+        assert result.exit_code == 0
+        assert seen == ["/c/Users/owner/project"]
+        assert (target / ".flg" / "state.json").exists()
     finally:
         os.chdir(old_cwd)
 

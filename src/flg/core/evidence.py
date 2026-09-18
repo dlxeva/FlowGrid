@@ -321,6 +321,40 @@ def _path_exists(root: Path, value: str) -> bool:
     return path.exists() if path.is_absolute() else (root / path).exists()
 
 
+def _legacy_paths_in_state(state_text: str, *, windows: bool | None = None) -> list[str]:
+    """Find foreign host paths without flagging native Windows drive paths."""
+    use_windows_rules = os.name == "nt" if windows is None else windows
+
+    def strings(value: Any):
+        if isinstance(value, str):
+            yield value
+        elif isinstance(value, list):
+            for item in value:
+                yield from strings(item)
+        elif isinstance(value, dict):
+            for item in value.values():
+                yield from strings(item)
+
+    try:
+        values = strings(json.loads(state_text))
+    except json.JSONDecodeError:
+        values = re.findall(r'"((?:\\.|[^"\\])*)"', state_text)
+
+    legacy: set[str] = set()
+    for value in values:
+        if re.match(r"^(?:/mnt/[A-Za-z]/|/[A-Za-z]/|/root/)", value):
+            legacy.add(value)
+        elif (
+            not use_windows_rules
+            and len(value) >= 3
+            and value[0].isalpha()
+            and value[1] == ":"
+            and value[2] in {"/", chr(92)}
+        ):
+            legacy.add(value)
+    return sorted(legacy)
+
+
 def validate_project(root: Path) -> dict[str, Any]:
     """Return deterministic cross-file health information without writing."""
     decisions_path = root / "DECISIONS.md"
@@ -361,14 +395,7 @@ def validate_project(root: Path) -> dict[str, Any]:
 
     state_path = root / ".flg" / "state.json"
     state_text = state_path.read_text(encoding="utf-8") if state_path.exists() else ""
-    legacy_paths = sorted(
-        set(
-            re.findall(
-                r"(?:/mnt/[A-Za-z]/|(?<![A-Za-z0-9:/])/[A-Za-z]/|/root/|(?<![A-Za-z0-9])[A-Za-z]:[\\/])[^\"\n]*",
-                state_text,
-            )
-        )
-    )
+    legacy_paths = _legacy_paths_in_state(state_text)
     merged_pending = []
     closed_statuses = {"merged", "rejected", "superseded"}
     try:

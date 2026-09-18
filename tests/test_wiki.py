@@ -75,6 +75,20 @@ def test_wiki_init_builds_manifest_without_moving_docs(tmp_path):
     assert manifest["pages"][0]["related_decisions"] == ["D-001"]
 
 
+def test_wiki_manifest_order_is_host_independent(tmp_path):
+    docs = _project_with_docs(tmp_path)
+    (docs / "Alpha.md").write_text("# Alpha\n", encoding="utf-8")
+
+    assert _invoke_in(tmp_path, ["wiki", "init"]).exit_code == 0
+    manifest = json.loads((tmp_path / WIKI_MANIFEST).read_text(encoding="utf-8"))
+
+    assert [page["path"] for page in manifest["pages"]] == [
+        "docs/Alpha.md",
+        "docs/README.md",
+        "docs/market.md",
+    ]
+
+
 def test_wiki_status_detects_drift_without_rewriting_manifest(tmp_path):
     docs = _project_with_docs(tmp_path)
     assert _invoke_in(tmp_path, ["wiki", "init"]).exit_code == 0
