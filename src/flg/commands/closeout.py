@@ -377,6 +377,42 @@ def is_user_directive(segment: str) -> bool:
     return bool(match_pattern(utterance, list(directive_patterns)))
 
 
+def is_non_current_decision_report(segment: str) -> bool:
+    """Reject historical reports and hypothetical or tentative future choices.
+
+    Decision keywords alone do not establish that a statement changes the
+    project's current state.  A past decision remains evidence, and a
+    conditional future option remains a condition.  A sentence that explicitly
+    contrasts the past with a present change is allowed through.
+    """
+    utterance = _segment_utterance(segment).strip()
+    historical_prefix = match_pattern(
+        utterance,
+        [r"^(?:之前|过去|当时|此前|曾经|原来|上次|历史上|早期|最初)"],
+    )
+    present_transition = match_pattern(
+        utterance,
+        [
+            r"(?:但|不过|然而).{0,20}(?:现在|目前|现阶段|这次)",
+            r"(?:现在|目前|现阶段|这次|从现在开始).{0,30}(?:改成|改为|调整为|不再|只做|采用|确认)",
+        ],
+    )
+    if historical_prefix and not present_transition:
+        return True
+
+    if match_pattern(utterance, [r"^(?:如果|假如|假设|要是|万一|倘若)"]):
+        return True
+
+    return bool(
+        match_pattern(
+            utterance,
+            [
+                r"^(?:未来|以后|后续|下一阶段|到时候).{0,30}(?:可以|可能|考虑|再看|再决定|视情况|或许)",
+            ],
+        )
+    )
+
+
 def is_long_user_scope_narrowing(segment: str) -> bool:
     """Recognize an attributed, discussion-length owner scope contraction.
 
@@ -582,6 +618,9 @@ def extract_decisions(
             continue
 
         if len(sentence) < 10:
+            continue
+
+        if is_non_current_decision_report(sentence):
             continue
 
         if is_user_directive(sentence):

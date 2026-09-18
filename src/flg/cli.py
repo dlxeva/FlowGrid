@@ -22,6 +22,7 @@ from .commands.onboard import onboard
 from .commands.doctor import doctor, reindex
 from .commands.delivery import delivery_show, delivery_set
 from .commands.trace import trace_command
+from .commands.impact import impact_command
 from .commands.session import save_session
 from .commands.wiki import wiki_build, wiki_init, wiki_status
 from .core.state import load_state, get_state_schema_info
@@ -51,6 +52,7 @@ app.command(name="onboard", help="First-run setup: env check, guided demo, and s
 app.command(name="doctor", help="Check cross-file project consistency")(doctor)
 app.command(name="reindex", help="Rebuild evidence index from DECISIONS.md")(reindex)
 app.command(name="trace", help="Trace a judgment through source episodes")(trace_command)
+app.command(name="impact", help="Report decisions affected by a judgment change")(impact_command)
 
 # Session archive group
 session_app = typer.Typer(help="Archive raw session evidence", no_args_is_help=True)

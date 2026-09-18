@@ -296,6 +296,7 @@ example-project/
 | `flg context --mode work` | 生成 Source-backed Work View |
 | `flg evidence <decision-id>` | 查看已审核决策的证据 |
 | `flg trace <decision-id>` | 沿来源 episode 追溯判断 |
+| `flg impact <decision-id>` | 推导某项判断变化后可能需要复核的关联决策 |
 | `flg handoff` | 生成 handoff 摘要 |
 | `flg export-handoff` | 导出可续接 handoff pack |
 | `flg doctor [--strict]` | 检查账本、索引、来源和视图一致性 |

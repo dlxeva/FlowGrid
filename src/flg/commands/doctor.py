@@ -60,12 +60,44 @@ def _runtime_identity(root: Path) -> dict | None:
     expected_branch = mapping.get("branch")
     expected_head = mapping.get("remote_commit")
     issues = []
+    if not expected_head:
+        issues.append(
+            "runtime mapping missing remote_commit attestation"
+        )
+    upstream = None
+    ahead = None
+    behind = None
+    try:
+        upstream = _git_value(
+            repo,
+            "rev-parse",
+            "--abbrev-ref",
+            "--symbolic-full-name",
+            "@{upstream}",
+        )
+        counts = _git_value(
+            repo,
+            "rev-list",
+            "--left-right",
+            "--count",
+            "HEAD...@{upstream}",
+        ).split()
+        if len(counts) == 2:
+            ahead, behind = (int(value) for value in counts)
+    except (RuntimeError, subprocess.TimeoutExpired, ValueError):
+        # A local-only checkout can still be valid. Freshness is reported only
+        # when the mapped branch has an upstream reference to compare against.
+        pass
     if expected_branch and branch != expected_branch:
         issues.append(
             f"branch mismatch: expected {expected_branch}, found {branch}"
         )
     if expected_head and head != expected_head:
         issues.append(f"HEAD mismatch: expected {expected_head}, found {head}")
+    if behind:
+        issues.append(
+            f"runtime behind upstream {upstream}: {behind} commit(s)"
+        )
 
     return {
         "configured": True,
@@ -75,6 +107,9 @@ def _runtime_identity(root: Path) -> dict | None:
         "head": head,
         "expected_head": expected_head,
         "dirty_count": len(dirty_lines),
+        "upstream": upstream,
+        "ahead": ahead,
+        "behind": behind,
         "issues": issues,
     }
 
@@ -186,6 +221,14 @@ def doctor(
         table.add_row("Runtime repo", identity["repo"])
         table.add_row("Runtime branch", branch_result)
         table.add_row("Runtime HEAD", head_result)
+        if identity.get("upstream"):
+            table.add_row(
+                "Runtime upstream",
+                f"{identity['upstream']} "
+                f"(ahead {identity.get('ahead', 0)}, behind {identity.get('behind', 0)})",
+            )
+        else:
+            table.add_row("Runtime upstream", "not configured")
         table.add_row(
             "Runtime worktree",
             "clean" if not dirty_count else f"dirty ({dirty_count} change(s))",

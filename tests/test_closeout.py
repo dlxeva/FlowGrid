@@ -1182,6 +1182,74 @@ def test_closeout_abstains_on_unattributed_long_chinese_entity_list(tmp_path):
         os.chdir(old_cwd)
 
 
+def test_closeout_abstains_on_historical_chinese_decision_report(tmp_path):
+    """A past decision is evidence, not a new current-state transition."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Historical Chinese Decision Test"])
+        transcript = tmp_path / "historical.md"
+        transcript.write_text(
+            "User: 当时我们确认采用方案 A，也决定不做方案 B。\n",
+            encoding="utf-8",
+        )
+        result = runner.invoke(app, ["closeout", "--transcript", str(transcript), "--no-llm"])
+        assert result.exit_code == 0
+        patch = next((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
+        decision_section = patch.read_text(encoding="utf-8").split(
+            "## 2. Candidate Decisions"
+        )[1].split("## 3.")[0]
+        assert "(no candidate decisions extracted)" in decision_section
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_closeout_abstains_on_hypothetical_chinese_decision(tmp_path):
+    """A conditional future option cannot become current truth."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Hypothetical Chinese Decision Test"])
+        transcript = tmp_path / "hypothetical.md"
+        transcript.write_text(
+            "User: 如果以后确认采用方案 A，我们就不做方案 B。\n",
+            encoding="utf-8",
+        )
+        result = runner.invoke(app, ["closeout", "--transcript", str(transcript), "--no-llm"])
+        assert result.exit_code == 0
+        patch = next((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
+        decision_section = patch.read_text(encoding="utf-8").split(
+            "## 2. Candidate Decisions"
+        )[1].split("## 3.")[0]
+        assert "(no candidate decisions extracted)" in decision_section
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_closeout_keeps_present_transition_after_historical_context(tmp_path):
+    """An explicit past-to-present change remains a reviewable candidate."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Current Transition Test"])
+        transcript = tmp_path / "transition.md"
+        transcript.write_text(
+            "User: 之前我们采用方案 A，但现在改成方案 B，不再做方案 A。\n",
+            encoding="utf-8",
+        )
+        result = runner.invoke(app, ["closeout", "--transcript", str(transcript), "--no-llm"])
+        assert result.exit_code == 0
+        patch = next((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
+        decision_section = patch.read_text(encoding="utf-8").split(
+            "## 2. Candidate Decisions"
+        )[1].split("## 3.")[0]
+        assert "之前我们采用方案 A，但现在改成方案 B" in decision_section
+        assert "source_actor: user" in decision_section
+        assert "(no candidate decisions extracted)" not in decision_section
+    finally:
+        os.chdir(old_cwd)
+
+
 def test_closeout_removed_weak_keywords_dont_fire(tmp_path):
     """Removed weak keywords ('优先' '边界' '选择') must NOT trigger decisions.
 
