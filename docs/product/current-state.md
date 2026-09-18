@@ -1,6 +1,6 @@
 # FlowGrid Current State
 
-Last updated: 2026-08-12
+Last updated: 2026-09-19
 Primary branch: `master`
 Current code version: `v0.3.0`
 Current stage: `v0.4 core validation`
@@ -24,9 +24,22 @@ Its job is to let project state, boundaries, judgments, progress, and next actio
 - Advisory evidence-basis quality signal for complete `FRAMING.md` files
 - Patch lifecycle parsing that preserves rejected and superseded states
 - Explicit, validated decision relations with derived incoming/outgoing trace views
+- Read-only judgment impact analysis that derives revalidation candidates while
+  preserving the owner gate
+- Optional project Wiki continuity, explicit active-delivery contracts, and a
+  Source-backed Work View
 - A machine-readable real-case registry with bounded claims and limitations
 
 ## Current Verification
+
+- Public `master` is at merge commit `4665a4d` (PR #50). It includes the
+  Continuation V2 repair, feedback-driven capture hardening, Wiki continuity,
+  delivery contracts, Source-backed Work View, and README realignment.
+- The runtime-health and judgment-impact candidate at `3cde18f` passes `258`
+  tests. It is a local candidate until pushed and reviewed.
+- `doctor --strict` now treats a mapped runtime that is behind its configured
+  upstream as unhealthy. A clean, internally consistent but stale checkout can
+  no longer pass only because `repo-map.json` points to that stale commit.
 
 - PR #44 established the pre-Continuation V2 `master` baseline at merge commit
   `11c337d`
@@ -127,15 +140,33 @@ Complete the v0.4 core loop:
 
 ## Immediate Priorities
 
-1. Validate the merged reliability behavior in continued real-project use.
-2. Use the repository `ITERATION_LOG.md` as the canonical product feedback source;
-   preserve the Vault log as a legacy archive instead of continuing dual writes.
-3. Validate automatic session capture across Codex, ZCode, Hermes, and other supported hosts.
-4. Run isolated comparisons between no state, raw history, and FlowGrid Context Pack.
-5. Measure repeated explanation, revived rejected directions, candidate/fact confusion, hallucinated project facts, and user correction count.
-6. Run one explicitly authorized external-host continuation. Measure raw transcript availability, speaker-label preservation, candidate false positives/negatives, user CLI burden, and fresh-agent recovery.
-7. Validate BIZ-to-FLG handoff with a real meeting that has explicit participant metadata. This is one meeting-input path, not the v0.4 product center.
-8. Keep `DECISIONS.md` as formal truth and avoid adding new cognitive abstractions until the loop is proven.
+1. Fix Chinese owner-language extraction for scope narrowing, temporal statements,
+   and historical or hypothetical speech. This remains the highest-risk silent
+   loss and false-attribution problem.
+2. Make expired current actions and review dates visible to `doctor --strict`.
+   The current contradiction checks do not provide general temporal freshness.
+3. Separate four continuity-health dimensions in host guidance: structural
+   integrity, runtime/source freshness, knowledge coverage, and unclosed work
+   increments. Do not collapse them into one green status.
+4. Validate `flg impact` on real decision reversals. Measure false-positive
+   review candidates before considering any automatic state transition.
+5. Rebase and rerun the still-open Windows hardening PR against current master
+   before any merge decision.
+6. Keep `DECISIONS.md` as formal truth. Derived impact and state views must stay
+   rebuildable and must not introduce an autonomous decision authority.
+
+## Iteration Triage
+
+- Wiki continuity and Source-backed Work View are implemented. The remaining
+  problem is host-triggered checking after source changes, not another Wiki
+  storage layer.
+- Pending captures are present in the startup Manifest on current master. The
+  earlier recovery omission is therefore closed at the CLI layer.
+- Runtime branch, HEAD, and dirty-state reporting was necessary but insufficient;
+  upstream freshness is now part of strict health.
+- Judgment-state ideas are accepted only as a bounded, derived impact view.
+  A new schema, model dependency, or automatic evidence-driven reversal is not
+  justified by current evidence.
 
 ## Deferred
 

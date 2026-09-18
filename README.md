@@ -290,6 +290,7 @@ automation, and debugging.
 | `flg context --mode work` | Build the Source-backed Work View |
 | `flg evidence <decision-id>` | Show evidence for a reviewed decision |
 | `flg trace <decision-id>` | Trace a judgment through source episodes |
+| `flg impact <decision-id>` | Derive decisions that may need revalidation after a change |
 | `flg handoff` | Generate a handoff summary |
 | `flg export-handoff` | Export a resumable handoff pack |
 | `flg doctor [--strict]` | Check ledger, index, source, and view consistency |
