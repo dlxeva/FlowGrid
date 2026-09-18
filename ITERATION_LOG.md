@@ -54,7 +54,8 @@ Windows Python 3.12 全部通过。PR #52 已合并到 `master`，merge commit �
 
 **验证**：新增英文过期、未来日期、中文复核日、边界日期、重复字段、Handoff
 和 malformed date 回归；本地全量 `276 passed`，强制 source-tree smoke 与
-diff check 通过。公开 CI 与合并状态仍待验证。
+diff check 通过。PR #53 的 Linux Python 3.10/3.11/3.12 与 Windows Python
+3.12 CI 全部通过，合并状态仍待确认。
 
 ## 2026-09-19：长期项目健康复核与判断影响纵切
 

@@ -43,7 +43,8 @@ Its job is to let project state, boundaries, judgments, progress, and next actio
   `Valid Until` fields. Due, expired, duplicate, or malformed declared dates
   make generated continuation views abstain and make `doctor --strict` fail;
   ordinary prose is never scanned for inferred deadlines. The candidate passes
-  `276` local tests and forced source-tree smoke, pending public CI and merge.
+  `276` local tests and forced source-tree smoke. PR #53 passes Linux Python
+  3.10/3.11/3.12 and Windows Python 3.12 CI; merge remains pending.
 - `doctor --strict` now treats a mapped runtime that is behind its configured
   upstream as unhealthy. A clean, internally consistent but stale checkout can
   no longer pass only because `repo-map.json` points to that stale commit.
