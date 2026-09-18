@@ -68,6 +68,19 @@ upstream 时，strict 检查失败。没有 upstream 的本地独立仓库保持
 - “错误候选被拒绝后，正确结论是否已覆盖”的 coverage/disposition 问题保留 P1，
   先结合真实 closeout 证据设计，不用自动补写正式决策。
 
+### FLG-ITER-20260919-05：不要把知识连续性扩张成自研 Wiki [confirmed — boundary]
+
+**场景**：一个真实长期项目已有数百页 Markdown 文档。现有 Wiki manifest
+能正确发现新增与变更，但检索、导航、页面组织和发布仍属于独立的信息架构问题。
+
+**判断**：该案例证明 FLG 需要“知识源连续性”，不证明 FLG 需要拥有 Wiki。
+FLG 应只登记来源、版本指纹、稳定定位、决策关联和变更后的复核影响；编辑、搜索、
+反向链接、权限、协作与发布复用成熟开源工具。
+
+**处理**：冻结 Wiki-specific surface 的扩张。现有 `flg wiki` 保留为
+filesystem-Markdown 兼容入口；后续先设计通用 knowledge-source adapter，验证
+MkDocs/Quartz/Wiki.js 等外部载体的接入，不新增 Wiki 存储层或页面系统。
+
 ---
 
 ## 2026-08-16：中文 owner 范围收拢与外部 Windows 案例收口

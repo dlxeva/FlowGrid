@@ -1,8 +1,23 @@
-# Wiki Continuity
+# Knowledge-Source Continuity
 
-FlowGrid can index an existing project wiki without moving or rewriting its source documents.
+FlowGrid can index an existing Markdown knowledge source without moving or rewriting its source documents. The current `flg wiki` command is the first compatibility adapter; it is not the start of a FlowGrid-owned Wiki product.
 
 This layer is opt-in. It gives agents a compact map of available knowledge, its freshness, and its relationship to reviewed decisions. Wiki content remains reference material. It does not become confirmed project truth until it passes through the normal FlowGrid review path.
+
+## Product boundary
+
+FlowGrid owns continuity questions:
+
+- Which knowledge source and version was used?
+- Has that source changed since it was accepted?
+- Which reviewed judgments cite it and may require revalidation?
+- What bounded locator should the next human or agent expand?
+
+FlowGrid does not own authoring, page trees, backlinks, full-text search UI,
+publishing, collaboration, permissions, or hosting. Those concerns belong to
+existing documentation and Wiki systems. A future source-adapter contract may
+cover filesystem Markdown, generated documentation sites, or external Wiki
+APIs while preserving the same authority boundary.
 
 ## Enable it
 
@@ -57,7 +72,9 @@ Pages without frontmatter still receive a stable path-derived ID and are indexed
 
 ## Authority boundary
 
-The wiki answers: "Where is the relevant knowledge, and has it changed?"
+The knowledge source answers: "Where is the relevant material?"
+
+FlowGrid answers: "Which version informed the project, has it changed, and what may need review?"
 
 The formal ledger answers: "What has been reviewed and may guide future action?"
 

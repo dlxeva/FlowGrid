@@ -26,8 +26,9 @@ Its job is to let project state, boundaries, judgments, progress, and next actio
 - Explicit, validated decision relations with derived incoming/outgoing trace views
 - Read-only judgment impact analysis that derives revalidation candidates while
   preserving the owner gate
-- Optional project Wiki continuity, explicit active-delivery contracts, and a
-  Source-backed Work View
+- Optional filesystem-Markdown knowledge-source continuity (currently exposed
+  through the compatibility command `flg wiki`), explicit active-delivery
+  contracts, and a Source-backed Work View
 - A machine-readable real-case registry with bounded claims and limitations
 
 ## Current Verification
@@ -35,11 +36,13 @@ Its job is to let project state, boundaries, judgments, progress, and next actio
 - Public `master` is at merge commit `4665a4d` (PR #50). It includes the
   Continuation V2 repair, feedback-driven capture hardening, Wiki continuity,
   delivery contracts, Source-backed Work View, and README realignment.
-- The runtime-health and judgment-impact candidate at `3cde18f` passes `258`
-  tests. It is a local candidate until pushed and reviewed.
+- The runtime-health and judgment-impact candidate through `5a6872e` passes
+  `259` tests. It is a local candidate until pushed and reviewed.
 - `doctor --strict` now treats a mapped runtime that is behind its configured
   upstream as unhealthy. A clean, internally consistent but stale checkout can
   no longer pass only because `repo-map.json` points to that stale commit.
+- `doctor --strict` also requires mapped runtimes to record a `remote_commit`;
+  an unversioned path alone is no longer accepted as runtime attestation.
 
 - PR #44 established the pre-Continuation V2 `master` baseline at merge commit
   `11c337d`
@@ -154,12 +157,16 @@ Complete the v0.4 core loop:
    before any merge decision.
 6. Keep `DECISIONS.md` as formal truth. Derived impact and state views must stay
    rebuildable and must not introduce an autonomous decision authority.
+7. Define a provider-neutral knowledge-source adapter before adding any new
+   Wiki-specific behavior. FLG must track provenance, freshness, locators, and
+   judgment impact while external tools own authoring, search, and publishing.
 
 ## Iteration Triage
 
-- Wiki continuity and Source-backed Work View are implemented. The remaining
-  problem is host-triggered checking after source changes, not another Wiki
-  storage layer.
+- The current filesystem-Markdown continuity adapter and Source-backed Work View
+  are implemented. The remaining problem is provider-neutral source freshness
+  and host-triggered revalidation, not another Wiki storage or presentation
+  layer.
 - Pending captures are present in the startup Manifest on current master. The
   earlier recovery omission is therefore closed at the CLI layer.
 - Runtime branch, HEAD, and dirty-state reporting was necessary but insufficient;
