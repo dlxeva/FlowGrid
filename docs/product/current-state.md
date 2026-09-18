@@ -36,8 +36,8 @@ Its job is to let project state, boundaries, judgments, progress, and next actio
 - Public `master` is at merge commit `4665a4d` (PR #50). It includes the
   Continuation V2 repair, feedback-driven capture hardening, Wiki continuity,
   delivery contracts, Source-backed Work View, and README realignment.
-- The runtime-health and judgment-impact candidate through `5a6872e` passes
-  `259` tests. It is a local candidate until pushed and reviewed.
+- The runtime-health, judgment-impact, and Chinese temporal-boundary candidate
+  passes `262` tests. It is local until pushed and reviewed.
 - `doctor --strict` now treats a mapped runtime that is behind its configured
   upstream as unhealthy. A clean, internally consistent but stale checkout can
   no longer pass only because `repo-map.json` points to that stale commit.
@@ -143,9 +143,10 @@ Complete the v0.4 core loop:
 
 ## Immediate Priorities
 
-1. Fix Chinese owner-language extraction for scope narrowing, temporal statements,
-   and historical or hypothetical speech. This remains the highest-risk silent
-   loss and false-attribution problem.
+1. Continue hardening Chinese owner-language extraction. Long-form scope
+   narrowing and single-sentence historical/hypothetical guards now have
+   regressions; reported speech, cross-sentence tense, and attribution remain
+   the highest-risk silent-loss and false-attribution cases.
 2. Make expired current actions and review dates visible to `doctor --strict`.
    The current contradiction checks do not provide general temporal freshness.
 3. Separate four continuity-health dimensions in host guidance: structural
