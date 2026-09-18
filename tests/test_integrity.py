@@ -479,6 +479,31 @@ def test_doctor_strict_fails_when_mapped_runtime_is_behind_upstream(tmp_path):
         os.chdir(old_cwd)
 
 
+def test_doctor_strict_requires_mapped_runtime_commit_attestation(tmp_path):
+    old_cwd = _project(tmp_path)
+    try:
+        assert runner.invoke(app, ["reindex"]).exit_code == 0
+        repo = tmp_path / "runtime"
+        repo.mkdir()
+        subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True)
+        subprocess.run(["git", "config", "user.email", "flowgrid@example.test"], cwd=repo, check=True)
+        subprocess.run(["git", "config", "user.name", "FlowGrid Test"], cwd=repo, check=True)
+        (repo / "tracked.txt").write_text("content\n", encoding="utf-8")
+        subprocess.run(["git", "add", "tracked.txt"], cwd=repo, check=True)
+        subprocess.run(["git", "commit", "-m", "initial"], cwd=repo, check=True, capture_output=True)
+        (tmp_path / ".flg" / "repo-map.json").write_text(
+            json.dumps({"code_repo": str(repo)}),
+            encoding="utf-8",
+        )
+
+        result = runner.invoke(app, ["doctor", "--strict"])
+
+        assert result.exit_code == 1
+        assert "runtime mapping missing remote_commit attestation" in result.output
+    finally:
+        os.chdir(old_cwd)
+
+
 def test_doctor_strict_ignores_runtime_identity_when_repo_map_is_absent(tmp_path):
     old_cwd = _project(tmp_path)
     try:

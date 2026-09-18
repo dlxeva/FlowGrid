@@ -60,6 +60,10 @@ def _runtime_identity(root: Path) -> dict | None:
     expected_branch = mapping.get("branch")
     expected_head = mapping.get("remote_commit")
     issues = []
+    if not expected_head:
+        issues.append(
+            "runtime mapping missing remote_commit attestation"
+        )
     upstream = None
     ahead = None
     behind = None
