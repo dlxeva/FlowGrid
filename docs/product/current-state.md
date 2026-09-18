@@ -33,9 +33,10 @@ Its job is to let project state, boundaries, judgments, progress, and next actio
 
 ## Current Verification
 
-- Public `master` is at merge commit `cc5e2ff` (PR #53). It includes PR #51's
+- Public `master` is at merge commit `fcac7b4` (PR #54). It includes PR #51's
   runtime freshness, read-only judgment impact, knowledge-source adapter
-  boundary, the rebased Windows hardening, and explicit current-action dates.
+  boundary, the rebased Windows hardening, explicit current-action dates, and
+  deterministic Chinese reported-speech attribution guards.
 - Windows Python 3.12 and Linux Python 3.10/3.11/3.12 passed before PR #52
   merged. Native drive paths, MSYS paths, deterministic Wiki ordering, GBK-safe
   first-run output, and capture-ID collision protection have current regressions.
@@ -45,12 +46,18 @@ Its job is to let project state, boundaries, judgments, progress, and next actio
   ordinary prose is never scanned for inferred deadlines. The candidate passes
   `276` local tests and forced source-tree smoke. PR #53 passes Linux Python
   3.10/3.11/3.12 and Windows Python 3.12 CI.
-- The Chinese attribution-guard candidate distinguishes the transcript speaker
+- The Chinese attribution guard distinguishes the transcript speaker
   from a third party named inside the utterance. It abstains on same-sentence,
   cross-sentence, quoted-first-person, and customer-requirement reports while
   preserving direct client speech and explicit owner adoption. The candidate
   passes `282` local tests and forced source-tree smoke. PR #54 passes Linux
   Python 3.10/3.11/3.12 and Windows Python 3.12 CI.
+- A read-only replay over the real FlowGrid ledger covered 48 decisions and all
+  3 declared relation edges. Four changed-decision roots produced five review
+  candidate instances with zero obvious false positives or missing candidates
+  under a frozen material-change interpretation. This is a bounded graph result,
+  not a general false-positive rate; see the
+  [real-ledger replay](../../evals/results/judgment-impact-real-replay-20260919.md).
 - `doctor --strict` now treats a mapped runtime that is behind its configured
   upstream as unhealthy. A clean, internally consistent but stale checkout can
   no longer pass only because `repo-map.json` points to that stale commit.
@@ -164,8 +171,8 @@ Complete the v0.4 core loop:
 3. Separate four continuity-health dimensions in host guidance: structural
    integrity, runtime/source freshness, knowledge coverage, and unclosed work
    increments. Do not collapse them into one green status.
-4. Validate `flg impact` on real decision reversals. Measure false-positive
-   review candidates before considering any automatic state transition.
+4. Re-run `flg impact` when a second privacy-safe real ledger has a larger
+   relation graph. Keep automatic state transitions out of scope.
 5. Validate the merged Windows hardening on another real Windows checkout when
    a current external host is available; CI coverage is complete for this slice.
 6. Keep `DECISIONS.md` as formal truth. Derived impact and state views must stay
