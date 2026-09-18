@@ -160,6 +160,8 @@ Complete the v0.4 core loop:
 7. Define a provider-neutral knowledge-source adapter before adding any new
    Wiki-specific behavior. FLG must track provenance, freshness, locators, and
    judgment impact while external tools own authoring, search, and publishing.
+   The proposed boundary and acceptance criteria are recorded in the
+   [Knowledge Source Adapter RFC](knowledge-source-adapter-rfc.md).
 
 ## Iteration Triage
 
