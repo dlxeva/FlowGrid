@@ -438,6 +438,47 @@ def test_doctor_strict_fails_on_mapped_runtime_identity_mismatch(tmp_path):
         os.chdir(old_cwd)
 
 
+def test_doctor_strict_fails_when_mapped_runtime_is_behind_upstream(tmp_path):
+    old_cwd = _project(tmp_path)
+    try:
+        assert runner.invoke(app, ["reindex"]).exit_code == 0
+        repo = tmp_path / "runtime"
+        repo.mkdir()
+        subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True)
+        subprocess.run(["git", "config", "user.email", "flowgrid@example.test"], cwd=repo, check=True)
+        subprocess.run(["git", "config", "user.name", "FlowGrid Test"], cwd=repo, check=True)
+        (repo / "tracked.txt").write_text("initial\n", encoding="utf-8")
+        subprocess.run(["git", "add", "tracked.txt"], cwd=repo, check=True)
+        subprocess.run(["git", "commit", "-m", "initial"], cwd=repo, check=True, capture_output=True)
+        head = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=repo, check=True, capture_output=True, text=True
+        ).stdout.strip()
+        subprocess.run(["git", "branch", "tracking"], cwd=repo, check=True)
+        subprocess.run(["git", "checkout", "tracking"], cwd=repo, check=True, capture_output=True)
+        (repo / "tracked.txt").write_text("new upstream state\n", encoding="utf-8")
+        subprocess.run(["git", "commit", "-am", "upstream change"], cwd=repo, check=True, capture_output=True)
+        subprocess.run(["git", "checkout", "main"], cwd=repo, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "branch", "--set-upstream-to", "tracking", "main"],
+            cwd=repo,
+            check=True,
+            capture_output=True,
+        )
+        (tmp_path / ".flg" / "repo-map.json").write_text(
+            json.dumps({"code_repo": str(repo), "branch": "main", "remote_commit": head}),
+            encoding="utf-8",
+        )
+
+        result = runner.invoke(app, ["doctor", "--strict"])
+
+        assert result.exit_code == 1
+        assert "Runtime upstream" in result.output
+        assert "ahead 0, behind 1" in result.output
+        assert "runtime behind upstream tracking: 1 commit(s)" in result.output
+    finally:
+        os.chdir(old_cwd)
+
+
 def test_doctor_strict_ignores_runtime_identity_when_repo_map_is_absent(tmp_path):
     old_cwd = _project(tmp_path)
     try:
