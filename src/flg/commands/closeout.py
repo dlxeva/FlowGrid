@@ -413,6 +413,96 @@ def is_non_current_decision_report(segment: str) -> bool:
     )
 
 
+def is_reported_third_party_decision(
+    segment: str,
+    previous_segment: str | None = None,
+) -> bool:
+    """Reject relayed third-party decisions from user-attributed candidates.
+
+    A ``User:`` label proves who supplied the transcript text, not who made the
+    decision described inside it. Deterministic extraction therefore abstains
+    when a user relays a customer, leader, team, or other third party's words.
+    An explicit first-person adoption in a later clause remains eligible.
+    """
+    if source_actor_for_segment(segment) != "user":
+        return False
+
+    utterance = _segment_utterance(segment).strip()
+    third_party = (
+        r"(?:客户|甲方|领导|老板|同事|研发|运营|发行|团队|委员会|对方|"
+        r"他|她|他们|她们|client|customer|stakeholder|leader|manager|"
+        r"team|committee|they|he|she)"
+    )
+    report_verb = (
+        r"(?:说|表示|提到|认为|要求|通知|反馈|强调|确认|决定|提出|给出|"
+        r"发来(?:了)?(?:反馈|结论|通知)|said|says|stated|mentioned|"
+        r"requested|told us|confirmed|decided|reported|informed us)"
+    )
+    same_sentence_report = match_pattern(
+        utterance,
+        [rf"{third_party}.{{0,24}}{report_verb}"],
+    )
+
+    explicit_owner_adoption = match_pattern(
+        utterance,
+        [
+            r"(?:但|不过|然而|所以|因此)\s*"
+            r"(?:现在|目前|这次|最终)?\s*(?:我们|我方|项目组|我)"
+            r".{0,12}(?:决定|确认|改成|改为|采用|只做|不再)",
+            r"[,，;；]\s*(?:我们|我方|项目组|我)"
+            r".{0,8}(?:现在|目前|这次|最终).{0,8}"
+            r"(?:决定|确认|改成|改为|采用|只做|不再)",
+            r"(?:but|however|so|therefore)\s*"
+            r"(?:we|i|our team)\s+(?:now\s+)?"
+            r"(?:decided|confirmed|chose|adopted|will use|will only)",
+            r"[,;]\s*(?:we|i|our team)\s+"
+            r"(?:now|currently|finally)\s+"
+            r"(?:decided|confirmed|chose|adopted|will use|will only)",
+        ],
+    )
+    if same_sentence_report:
+        return not bool(explicit_owner_adoption)
+
+    if not previous_segment or source_actor_for_segment(previous_segment) != "user":
+        return False
+    previous_utterance = _segment_utterance(previous_segment).strip()
+    previous_report = match_pattern(
+        previous_utterance,
+        [
+            rf"{third_party}.{{0,24}}{report_verb}",
+            rf"{third_party}.{{0,16}}(?:发来|给出).{{0,8}}(?:反馈|结论|通知)",
+        ],
+    )
+    if not previous_report:
+        return False
+
+    explicit_current_owner = match_pattern(
+        utterance,
+        [
+            r"^(?:我们|我方|项目组|我).{0,12}"
+            r"(?:现在|目前|这次|最终).{0,8}"
+            r"(?:决定|确认|改成|改为|采用|只做|不再)",
+            r"^(?:we|i|our team)\s+(?:now|currently|finally)\s+"
+            r"(?:decided|confirmed|chose|adopted|will use|will only)",
+        ],
+    )
+    if explicit_current_owner:
+        return False
+
+    return bool(
+        match_pattern(
+            utterance,
+            [
+                r"^(?:决定|确认|采用|改成|改为|只做|不再|最终选择)",
+                r"^(?:他们|她们|对方|客户|甲方).{0,12}(?:决定|确认|采用|改为)",
+                r"^(?:decided|confirmed|chose|adopted|will use|will only)\b",
+                r"^(?:they|the client|the customer|the team).{0,12}"
+                r"(?:decided|confirmed|chose|adopted)",
+            ],
+        )
+    )
+
+
 def is_long_user_scope_narrowing(segment: str) -> bool:
     """Recognize an attributed, discussion-length owner scope contraction.
 
@@ -620,6 +710,10 @@ def extract_decisions(
         if len(sentence) < 10:
             continue
 
+        previous_sentence = clean_segments[index - 1] if index > 0 else None
+        if is_reported_third_party_decision(sentence, previous_sentence):
+            continue
+
         if is_non_current_decision_report(sentence):
             continue
 
@@ -664,7 +758,6 @@ def extract_decisions(
 
         # Guard: skip sentences that describe risks or reopen a path for discussion.
         # These contain decision vocabulary but do not commit the project to a choice.
-        previous_sentence = clean_segments[index - 1] if index > 0 else None
         if (
             match_pattern(match_text, RISK_SENTENCE_PATTERNS)
             or is_revisit_or_question(match_text)
