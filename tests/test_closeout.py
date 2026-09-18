@@ -1250,6 +1250,152 @@ def test_closeout_keeps_present_transition_after_historical_context(tmp_path):
         os.chdir(old_cwd)
 
 
+def test_closeout_abstains_on_relayed_customer_decision(tmp_path):
+    """A user's report of a customer decision is not the user's own decision."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Reported Customer Decision Test"])
+        transcript = tmp_path / "reported-customer.md"
+        transcript.write_text(
+            "User: 客户说他们已经决定采用方案 A，因为预算更可控。\n",
+            encoding="utf-8",
+        )
+
+        result = runner.invoke(app, ["closeout", "--transcript", str(transcript), "--no-llm"])
+
+        assert result.exit_code == 0
+        patch = next((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
+        decision_section = patch.read_text(encoding="utf-8").split(
+            "## 2. Candidate Decisions"
+        )[1].split("## 3.")[0]
+        assert "(no candidate decisions extracted)" in decision_section
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_closeout_abstains_on_cross_sentence_customer_decision(tmp_path):
+    """A relayed actor remains distinct when the reported choice is next sentence."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Cross Sentence Attribution Test"])
+        transcript = tmp_path / "cross-sentence-report.md"
+        transcript.write_text(
+            "User: 客户昨天发来结论。决定采用方案 A，因为预算更可控。\n",
+            encoding="utf-8",
+        )
+
+        result = runner.invoke(app, ["closeout", "--transcript", str(transcript), "--no-llm"])
+
+        assert result.exit_code == 0
+        patch = next((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
+        decision_section = patch.read_text(encoding="utf-8").split(
+            "## 2. Candidate Decisions"
+        )[1].split("## 3.")[0]
+        assert "(no candidate decisions extracted)" in decision_section
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_closeout_abstains_on_customer_requirement_relay(tmp_path):
+    """A customer requirement relayed by the user is not user authority."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Customer Requirement Relay Test"])
+        transcript = tmp_path / "customer-requirement.md"
+        transcript.write_text(
+            "User: 客户要求我们采用方案 A，因为预算更可控。\n",
+            encoding="utf-8",
+        )
+
+        result = runner.invoke(app, ["closeout", "--transcript", str(transcript), "--no-llm"])
+
+        assert result.exit_code == 0
+        patch = next((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
+        decision_section = patch.read_text(encoding="utf-8").split(
+            "## 2. Candidate Decisions"
+        )[1].split("## 3.")[0]
+        assert "(no candidate decisions extracted)" in decision_section
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_closeout_keeps_owner_adoption_after_customer_suggestion(tmp_path):
+    """A customer report may precede an explicit first-person current choice."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Owner Adoption Test"])
+        transcript = tmp_path / "owner-adoption.md"
+        transcript.write_text(
+            "User: 客户建议方案 A，但我们现在决定采用方案 B，因为更符合当前目标。\n",
+            encoding="utf-8",
+        )
+
+        result = runner.invoke(app, ["closeout", "--transcript", str(transcript), "--no-llm"])
+
+        assert result.exit_code == 0
+        patch = next((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
+        decision_section = patch.read_text(encoding="utf-8").split(
+            "## 2. Candidate Decisions"
+        )[1].split("## 3.")[0]
+        assert "客户建议方案 A，但我们现在决定采用方案 B" in decision_section
+        assert "source_actor: user" in decision_section
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_closeout_keeps_direct_client_labeled_decision(tmp_path):
+    """A direct Client speaker label remains first-party decision evidence."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Direct Client Decision Test"])
+        transcript = tmp_path / "direct-client.md"
+        transcript.write_text(
+            "Client: 我们决定采用方案 A，因为预算更可控。\n",
+            encoding="utf-8",
+        )
+
+        result = runner.invoke(app, ["closeout", "--transcript", str(transcript), "--no-llm"])
+
+        assert result.exit_code == 0
+        patch = next((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
+        decision_section = patch.read_text(encoding="utf-8").split(
+            "## 2. Candidate Decisions"
+        )[1].split("## 3.")[0]
+        assert "我们决定采用方案 A" in decision_section
+        assert "source_actor: user" in decision_section
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_closeout_abstains_on_quoted_first_person_customer_wording(tmp_path):
+    """Quoted 'we decided' wording still belongs to the reported speaker."""
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        runner.invoke(app, ["init", "Quoted Customer Wording Test"])
+        transcript = tmp_path / "quoted-customer.md"
+        transcript.write_text(
+            "User: 客户说，我们决定采用方案 A，因为预算更可控。\n",
+            encoding="utf-8",
+        )
+
+        result = runner.invoke(app, ["closeout", "--transcript", str(transcript), "--no-llm"])
+
+        assert result.exit_code == 0
+        patch = next((tmp_path / ".flg" / "patches").glob("closeout-*.patch.md"))
+        decision_section = patch.read_text(encoding="utf-8").split(
+            "## 2. Candidate Decisions"
+        )[1].split("## 3.")[0]
+        assert "(no candidate decisions extracted)" in decision_section
+    finally:
+        os.chdir(old_cwd)
+
+
 def test_closeout_removed_weak_keywords_dont_fire(tmp_path):
     """Removed weak keywords ('优先' '边界' '选择') must NOT trigger decisions.
 

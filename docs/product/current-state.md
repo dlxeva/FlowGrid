@@ -33,18 +33,24 @@ Its job is to let project state, boundaries, judgments, progress, and next actio
 
 ## Current Verification
 
-- Public `master` is at merge commit `9849fec` (PR #52). It includes PR #51's
+- Public `master` is at merge commit `cc5e2ff` (PR #53). It includes PR #51's
   runtime freshness, read-only judgment impact, knowledge-source adapter
-  boundary, and Chinese temporal guards, plus the rebased Windows hardening.
+  boundary, the rebased Windows hardening, and explicit current-action dates.
 - Windows Python 3.12 and Linux Python 3.10/3.11/3.12 passed before PR #52
   merged. Native drive paths, MSYS paths, deterministic Wiki ordering, GBK-safe
   first-run output, and capture-ID collision protection have current regressions.
-- The explicit current-action date candidate adds optional `Review Date` and
+- The explicit current-action date contract adds optional `Review Date` and
   `Valid Until` fields. Due, expired, duplicate, or malformed declared dates
   make generated continuation views abstain and make `doctor --strict` fail;
   ordinary prose is never scanned for inferred deadlines. The candidate passes
   `276` local tests and forced source-tree smoke. PR #53 passes Linux Python
   3.10/3.11/3.12 and Windows Python 3.12 CI.
+- The Chinese attribution-guard candidate distinguishes the transcript speaker
+  from a third party named inside the utterance. It abstains on same-sentence,
+  cross-sentence, quoted-first-person, and customer-requirement reports while
+  preserving direct client speech and explicit owner adoption. The candidate
+  passes `282` local tests and forced source-tree smoke. PR #54 passes Linux
+  Python 3.10/3.11/3.12 and Windows Python 3.12 CI.
 - `doctor --strict` now treats a mapped runtime that is behind its configured
   upstream as unhealthy. A clean, internally consistent but stale checkout can
   no longer pass only because `repo-map.json` points to that stale commit.
@@ -150,10 +156,9 @@ Complete the v0.4 core loop:
 
 ## Immediate Priorities
 
-1. Continue hardening Chinese owner-language extraction. Long-form scope
-   narrowing and single-sentence historical/hypothetical guards now have
-   regressions; reported speech, cross-sentence tense, and attribution remain
-   the highest-risk silent-loss and false-attribution cases.
+1. Field-test the Chinese attribution guard on privacy-safe real transcripts.
+   Reported-speech and cross-sentence regressions now cover the deterministic
+   false-attribution slice; broader pronoun resolution remains out of scope.
 2. Field-test the explicit current-action date contract on real project state.
    Keep dates optional and machine-readable; do not infer deadlines from prose.
 3. Separate four continuity-health dimensions in host guidance: structural
