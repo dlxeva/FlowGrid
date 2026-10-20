@@ -5,6 +5,9 @@
 > A local project-state context engine for people who use multiple AI hosts and
 > models on rationale-heavy, non-coding work.
 
+> 📝 Background: [Why non-coding projects need a handoff layer](https://aizhiz.com/posts/ai-agent-handoff-non-coding-projects/) · [FlowGrid: preserving judgment across agent handoffs](https://aizhiz.com/posts/2026-08-13-flowgrid-project-continuity/)
+> 背景长文：[代码项目有 Git，非代码项目靠什么让 AI 接力？](https://aizhiz.com/zh/posts/ai-agent-handoff-non-coding-projects/) · [FlowGrid 项目续接实验](https://aizhiz.com/zh/posts/2026-08-13-flowgrid-project-continuity/)
+
 ![Stage](https://img.shields.io/badge/stage-v0.4--validation-4c6ef5)
 ![Runtime](https://img.shields.io/badge/runtime-local--first-2b8a3e)
 ![Interface](https://img.shields.io/badge/interface-host%20%2B%20CLI-495057)
