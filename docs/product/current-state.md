@@ -8,8 +8,11 @@ Current stage: `v0.4 core validation`
 The source-continuity candidate is reviewed in PR #58. The first native Windows
 run exposed incompatible CRT/path stat metadata and an attributes-only directory
 handle that did not prevent rename. The correction compares native descriptor
-signatures and requests directory data-read access. Native CI must confirm the
-correction; the Linux results alone do not establish Windows behavior.
+signatures and requests directory data-read access. Commit `4cb24b9` passed
+native Windows Python 3.12 and Linux Python 3.10/3.11/3.12 in
+[CI run 40772529638](https://github.com/dlxeva/FlowGrid/actions/runs/40772529638).
+The candidate is pushed, not merged; the mapped operational runtime has not
+been switched to this candidate.
 
 ## Product Position
 
