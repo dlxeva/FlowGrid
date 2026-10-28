@@ -74,6 +74,17 @@ This replaces the older Two-Layer State description. The third layer matters bec
 
 The formal ledger remains human-readable Markdown. Derived indexes and context files are disposable. If they disagree, inspect the source and formal ledger, then rebuild the view.
 
+## Source Review Continuity
+
+When a meeting changes a plan, the host can record the passage reviewed and
+link it to existing work and judgments. Resume, Manifest, and Work views show
+a compact review notice. Changed evidence hides old candidate actions; closed
+suggestions stay closed for the same version.
+
+The host operates `flg source inventory`, `flg source record`, and
+`flg source pending` while you continue speaking naturally. Formal approval
+follows the existing review flow. See [source review and processing continuity](./docs/product/source-continuity.md).
+
 ## Source-backed Work View
 
 Some projects already have a detailed work ledger, brief, or operating document that names the current action. Copying that document into another status system creates drift.

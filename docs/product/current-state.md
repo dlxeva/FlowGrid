@@ -1,9 +1,18 @@
 # FlowGrid Current State
 
-Last updated: 2026-09-19
+Last updated: 2026-10-29
 Primary branch: `master`
 Current code version: `v0.3.0`
 Current stage: `v0.4 core validation`
+
+The source-continuity candidate is reviewed in PR #58. The first native Windows
+run exposed incompatible CRT/path stat metadata and an attributes-only directory
+handle that did not prevent rename. The correction compares native descriptor
+signatures and requests directory data-read access. Commit `4cb24b9` passed
+native Windows Python 3.12 and Linux Python 3.10/3.11/3.12 in
+[CI run 40772529638](https://github.com/dlxeva/FlowGrid/actions/runs/40772529638).
+The candidate is pushed, not merged; the mapped operational runtime has not
+been switched to this candidate.
 
 ## Product Position
 
@@ -30,6 +39,31 @@ Its job is to let project state, boundaries, judgments, progress, and next actio
   through the compatibility command `flg wiki`), explicit active-delivery
   contracts, and a Source-backed Work View
 - A machine-readable real-case registry with bounded claims and limitations
+- Bounded filesystem source discovery, explicit version-bound review spans,
+  processing receipts and reverse lookup through `flg source`
+- Source-review notices in Resume, Manifest and Work contexts; explicit
+  acknowledgments, retry-safe registration and reviewed receipt replacement
+
+## Source Continuity Iteration
+
+The current candidate adds source processing through the same receipt file
+used by project adapters. Formal D state and work documents remain governed by
+their existing review paths. The host interprets source material, declares the
+actual reviewed scope, and records old-condition/new-evidence implications.
+
+New-source, target and D fingerprints are checked before registration. Excerpts
+stay partial, raw response metadata cannot be a reviewed primary source, and a
+source cannot certify its own absorption. Identical transport retries preserve
+closed suggestions; drift hides stale actions. A current reviewed replacement
+can explicitly resolve an obsolete processing receipt while retaining history.
+
+Tests use synthetic evidence, including eight parameter/date, rejection/reopen,
+discussion-only, and completed/accepted-work boundaries. Fresh-process recovery
+and private read-only portability checks are recorded in
+[source continuity validation](../../evals/results/source-continuity-20261029.md).
+The earlier real-source exercise lacked historic T/D snapshots; it does not
+establish a full adaptation A/B or universal FLG effectiveness. Current package
+version remains v0.3.0 and the broader v0.4 validation is ongoing.
 
 ## Current Verification
 

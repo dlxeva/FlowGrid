@@ -756,7 +756,7 @@ def _build_continuity_manifest(root: Path, budget: int) -> tuple[str, dict]:
     return content, metadata
 
 
-def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> tuple[str, dict]:
+def _build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> tuple[str, dict]:
     if mode == "work":
         state = load_state(root)
         if not state:
@@ -1039,6 +1039,32 @@ def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> 
         "wiki_truncated": wiki_truncated,
         "truncated": truncated,
     }
+    return content, metadata
+
+
+def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> tuple[str, dict]:
+    """Reserve bounded source-review navigation before building existing views."""
+    from ..core.source_receipts import context_notice
+    notice, view = context_notice(root)
+    if not notice:
+        return _build_context_pack(root, mode, budget)
+    reserved = (len(notice) + 3) // 4
+    if budget - reserved < 300:
+        raise ValueError('Context budget cannot retain source-review navigation and current work; increase --budget')
+    content, metadata = _build_context_pack(root, mode, budget-reserved)
+    if mode in {'resume','manifest'}:
+        required = (_render_current_action(metadata['current_action']),
+                    _render_work_view(metadata.get('work_view')))
+        if any(part.strip() not in content for part in required):
+            raise ValueError('Context budget cannot retain current action and work view alongside source review; increase --budget')
+    heading, separator, body = content.partition('\n')
+    content = heading + separator + '\n' + notice + body
+    if len(content) > max(1200,budget*4):
+        raise ValueError('Required context and source-review navigation exceed --budget; increase it')
+    metadata.update(chars=len(content), estimated_tokens=len(content)//4,
+                    source_continuity={'review_count':sum(i['needs_review'] for i in view['items']),
+                                       'errors':view['errors'],'state_sha256':view['state_sha256']})
+    metadata.setdefault('sources_included',[]).append('.flg/processing-receipts.json')
     return content, metadata
 
 

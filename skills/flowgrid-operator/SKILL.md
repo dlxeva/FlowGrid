@@ -122,6 +122,30 @@ Keyword extraction is the default. Do not send a raw transcript to a remote
 provider unless the user explicitly authorized that provider for this command;
 then use `--llm <provider> --allow-remote-llm`.
 
+### Source review continuity
+
+For a saved meeting, attachment transcription, or other substantial input that
+changes existing work or judgment conditions, use `flg source inventory` to find
+the declared sources. Read the relevant original passages and current judgments;
+keep speaker labels, proposed changes, and unfinished review explicit.
+
+Record the actual scope with `flg source prepare` and `flg source record`, using
+the current byte hashes and receipt-state SHA. Interpret the material yourself;
+these commands do not extract meaning or approve a decision. Excerpt review
+stays partial. A failed or drifted attempt requires rereading the affected input;
+an exact retry must not duplicate already-registered processing.
+
+On resume, use the bounded source-review notice and `flg source pending`, then
+`flg source show RECEIPT_ID` when the next action depends on it. Check drift
+before using candidate actions. Acknowledge `shown` only after actual display;
+use `completed` or `rejected` for a reviewed disposition.
+When a new review replaces a stale processing receipt, use `flg source resolve`
+with the current replacement and an explicit reason; retain the old history.
+Keep project-specific people and approval gates. Ordinary archiving needs no new judgment, and the
+user does not fill receipt fields. This is an explicit host workflow; no
+background hook is implied. Detailed schema: `docs/product/source-continuity.md`
+in the installed FlowGrid repository.
+
 ### Verification-only segments
 
 Do not manufacture a new formal decision merely because a session verified an

@@ -151,6 +151,12 @@ def doctor(
     delivery_issues = active_delivery_issues(state)
     wiki_issues = wiki_health_issues(root)
     work_view_issues = work_view_health_issues(root, state)
+    from ..core.source_receipts import collect as collect_source_receipts
+    source_reviews = collect_source_receipts(root)
+    receipt_issues = [*source_reviews['errors'],
+        *[item['receipt_id'] + ': source/work/judgment requires revalidation'
+          for item in source_reviews['items']
+          if item['binding'] != 'current' and item['needs_review']]]
     table = Table(title=f"FlowGrid Doctor: {root}")
     table.add_column("Check", style="cyan")
     table.add_column("Result", style="bold")
@@ -162,8 +168,11 @@ def doctor(
         and not wiki_issues
         and not work_view_issues
         and not action_temporal_issues
+        and not receipt_issues
     )
     table.add_row("Overall", "OK" if overall_ok else "Needs attention")
+    table.add_row('Processing source bindings', 'OK' if not receipt_issues
+                  else f'Needs attention ({len(receipt_issues)})')
     table.add_row("Formal decisions", str(report["decision_count"]))
     table.add_row(
         "Unparsed decision entries",
@@ -300,6 +309,11 @@ def doctor(
         console.print("[yellow]current_action_dates:[/yellow]")
         for issue in action_temporal_issues:
             console.print(f"  - {issue}")
+
+    if receipt_issues:
+        console.print('[yellow]processing_source_bindings:[/yellow]')
+        for issue in receipt_issues[:12]:
+            console.print('  - ' + issue, markup=False)
 
     if strict and not overall_ok:
         raise typer.Exit(1)
