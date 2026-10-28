@@ -232,8 +232,8 @@ def test_describe_never_scans_or_reads_siblings(tmp_path, monkeypatch):
     monkeypatch.setattr(os, "scandir", unexpected)
     monkeypatch.setattr(os, "open", track)
     assert describe(tmp_path, target) is not None
-    assert len(opens) == 1
-    assert opens[0].endswith("transcript.md")
+    assert len(opens) == 2  # Original read + metadata-only verification reopen.
+    assert all(path.endswith("transcript.md") for path in opens)
     assert describe(tmp_path, "../outside.md") is None
     assert describe(tmp_path, "unrelated.md") is None
     assert describe(tmp_path, "sources/meetings/missing.md") is None
@@ -361,3 +361,55 @@ def test_unreadable_file_and_concurrent_modification_are_omitted(tmp_path, monke
         raise PermissionError("Synthetic access failure")
     monkeypatch.setattr(os, "open", denied)
     assert inventory(tmp_path)["files"] == {}
+
+
+def test_path_stat_and_descriptor_metadata_are_not_mixed(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    path = "sources/meetings/synthetic/transcript.md"
+    target = put(tmp_path, path, "stable synthetic source")
+    original = module._safe_stat
+    def unlike_crt(root, relative):
+        info = original(root, relative)
+        if relative.as_posix() == path and info is not None:
+            # Model Python Windows APIs returning different identity/time values
+            # for the same unchanged file. Path metadata is only a type/size guard.
+            return SimpleNamespace(st_mode=info.st_mode, st_size=info.st_size,
+                st_dev=info.st_dev + 1, st_ino=info.st_ino + 2,
+                st_mtime_ns=info.st_mtime_ns + 101, st_ctime_ns=info.st_ctime_ns + 202)
+        return info
+    monkeypatch.setattr(module, "_safe_stat", unlike_crt)
+    expected = hashlib.sha256(target.read_bytes()).hexdigest()
+    assert describe(tmp_path, path)["sha256"] == expected
+    assert inventory(tmp_path)["files"][path]["sha256"] == expected
+
+
+def test_verification_descriptor_identity_change_is_still_rejected(tmp_path, monkeypatch):
+    path = "sources/meetings/synthetic/transcript.md"
+    original_path = put(tmp_path, path, "same synthetic bytes")
+    replacement = put(tmp_path, "replacement.md", "same synthetic bytes")
+    info = original_path.stat()
+    os.utime(replacement, ns=(info.st_atime_ns, info.st_mtime_ns))
+    original = module._open_source
+    count = 0
+    def reopen_different_file(root, relative, flags):
+        nonlocal count
+        count += 1
+        if count == 2:
+            return os.open(replacement, flags)
+        return original(root, relative, flags)
+    monkeypatch.setattr(module, "_open_source", reopen_different_file)
+    assert describe(tmp_path, path) is None
+    assert count == 2  # Same bytes, size and write time must not hide identity drift.
+
+
+def test_repeated_inventory_never_omits_unchanged_readable_files(tmp_path):
+    paths = [f"sources/meetings/synthetic/转写-{index}.md" for index in range(8)]
+    for index, path in enumerate(paths):
+        put(tmp_path, path, f"合成 source {index}\n")
+    baseline = inventory(tmp_path)
+    assert list(baseline["files"]) == sorted(paths)
+    for _ in range(10):
+        assert inventory(tmp_path) == baseline
+        for path in paths:
+            assert describe(tmp_path, path) == baseline["files"][path]

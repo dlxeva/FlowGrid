@@ -73,6 +73,19 @@ def test_crlf_source_quotes_use_lf_locators_but_hash_original_bytes(project):
     assert apply(project,item)['validation']=='current'
 
 
+def test_reader_compares_descriptor_metadata_without_mixing_path_stat(project):
+    from types import SimpleNamespace
+    original=os.fstat
+    def crt_style(fd):
+        info=original(fd)
+        return SimpleNamespace(st_mode=info.st_mode,st_dev=info.st_dev+1,
+            st_ino=info.st_ino+1,st_size=info.st_size,
+            st_mtime_ns=info.st_mtime_ns//1000*1000,
+            st_ctime_ns=info.st_ctime_ns//1000*1000)
+    with patch.object(os,'fstat',side_effect=crt_style):
+        assert sr.read_bytes(project,'work.md')==(project/'work.md').read_bytes()
+
+
 def test_registration_and_reverse_lookup_preserve_formal_documents(project):
     protected = {p:(project/p).read_bytes() for p in ['DECISIONS.md','SNAPSHOT.md','work.md']}
     result = apply(project)

@@ -12,7 +12,7 @@ import sys
 import pytest
 
 from flg.core import source_io as module
-from flg.core.source_io import create_candidate
+from flg.core.source_io import create_candidate, descriptor_signature
 
 
 @pytest.fixture
@@ -300,7 +300,7 @@ def test_windows_handle_contract_pins_ancestors_and_denies_write_delete_sharing(
     assert len(kernel.opens) == 5  # drive root, synthetic, project, new, file
     for path, access, sharing, disposition, flags in kernel.opens[:-1]:
         assert path.startswith("\\\\?\\Q:\\")
-        assert access == 0x80
+        assert access == 0x81  # LIST_DIRECTORY must participate in share checks.
         assert sharing == 1  # READ only; never WRITE(2) or DELETE(4).
         assert disposition == 3  # OPEN_EXISTING
         assert flags & 0x00200000 and flags & 0x02000000
@@ -328,6 +328,58 @@ def test_windows_existing_leaf_fails_without_fallback_or_handle_leak(monkeypatch
     assert len(kernel.opens) == 3
     assert kernel.closed == [2, 1]
     assert kernel.data == b""
+
+
+def test_descriptor_signature_matches_two_descriptors_and_preserves_position(project):
+    path = project / "source.txt"
+    path.write_bytes(b"synthetic")
+    flags = os.O_RDONLY | getattr(os, "O_BINARY", 0)
+    first, second = os.open(path, flags), os.open(path, flags)
+    try:
+        os.lseek(first, 3, os.SEEK_SET)
+        signature = descriptor_signature(first)
+        assert signature == descriptor_signature(second)
+        assert os.lseek(first, 0, os.SEEK_CUR) == 3
+        if os.name == "nt":
+            assert len(signature) == 4
+            assert signature[2] == len(b"synthetic")
+        else:
+            info = os.fstat(first)
+            assert signature == (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+        path.write_bytes(b"synthetic updated")
+        assert descriptor_signature(first) != signature
+    finally:
+        os.close(second)
+        os.close(first)
+
+
+def test_windows_descriptor_signature_uses_native_handle_and_full_precision(monkeypatch):
+    from types import SimpleNamespace
+
+    kernel = Kernel()
+    windows_shim(monkeypatch, kernel)
+    handles = []
+    def info(handle, pointer):
+        handles.append(handle)
+        result = ctypes.cast(pointer, ctypes.POINTER(module._FileInformation)).contents
+        result.volume = 123
+        result.index_high, result.index_low = 7, 0xABCDEF01
+        result.size_high, result.size_low = 2, 0xFEDCBA98
+        result.written.dwHighDateTime, result.written.dwLowDateTime = 0x1234567, 0x89ABCDEF
+        return 1
+    kernel.GetFileInformationByHandle = Function(info)
+    monkeypatch.setitem(sys.modules, "msvcrt", SimpleNamespace(get_osfhandle=lambda fd: 4321 if fd == 91 else -1))
+    def unexpected(*args):
+        pytest.fail("Native signatures must not consult CRT fstat")
+    with monkeypatch.context() as local:
+        local.setattr(os, "fstat", unexpected)
+        signature = module._windows_descriptor_signature(91)
+    assert signature == (
+        123, (7 << 32) | 0xABCDEF01, (2 << 32) | 0xFEDCBA98,
+        (0x1234567 << 32) | 0x89ABCDEF,
+    )
+    assert handles == [4321]
+    assert kernel.opens == [] and kernel.closed == []  # Borrowed, not owned.
 
 
 @pytest.mark.parametrize("drive_type", [0, 1, 4, 5])

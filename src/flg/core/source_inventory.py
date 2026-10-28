@@ -20,6 +20,8 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from .source_io import descriptor_signature
+
 
 MAX_ROOTS = 64
 MAX_ENTRIES = 20_000
@@ -175,8 +177,16 @@ def _open_directory(root: Path, parts: tuple[str, ...]) -> int:
         raise
 
 
-def _signature(info: os.stat_result) -> tuple:
-    return info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns
+def _open_source(root: Path, relative: PurePosixPath, flags: int) -> int:
+    directory_fd = None
+    try:
+        if os.open in os.supports_dir_fd and hasattr(os, "O_NOFOLLOW"):
+            directory_fd = _open_directory(root, relative.parts[:-1])
+            return os.open(relative.name, flags, dir_fd=directory_fd)
+        return os.open(root.joinpath(*relative.parts), flags)
+    finally:
+        if directory_fd is not None:
+            os.close(directory_fd)
 
 
 def _digest(root: Path, relative: PurePosixPath) -> tuple[str, int] | None:
@@ -186,18 +196,14 @@ def _digest(root: Path, relative: PurePosixPath) -> tuple[str, int] | None:
     if before.st_size > MAX_FILE_BYTES:
         raise ValueError("Source file byte budget exceeded.")
     fd = None
-    directory_fd = None
+    current_fd = None
     try:
         flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_BINARY", 0)
-        if os.open in os.supports_dir_fd and hasattr(os, "O_NOFOLLOW"):
-            # Pin each directory on POSIX, including while opening the leaf.
-            directory_fd = _open_directory(root, relative.parts[:-1])
-            fd = os.open(relative.name, flags, dir_fd=directory_fd)
-        else:
-            fd = os.open(root.joinpath(*relative.parts), flags)
+        fd = _open_source(root, relative, flags)
         opened = os.fstat(fd)
-        if not stat.S_ISREG(opened.st_mode) or (opened.st_dev, opened.st_ino) != (before.st_dev, before.st_ino):
+        if not stat.S_ISREG(opened.st_mode):
             return None
+        before_signature = descriptor_signature(fd)
         digest = hashlib.sha256()
         size = 0
         while True:
@@ -209,8 +215,16 @@ def _digest(root: Path, relative: PurePosixPath) -> tuple[str, int] | None:
                 raise ValueError("Source file byte budget exceeded.")
             digest.update(chunk)
         after = _safe_stat(root, relative)
-        final = os.fstat(fd)
-        if after is None or _signature(before) != _signature(final) or _signature(final) != _signature(after):
+        if after is None or not stat.S_ISREG(after.st_mode):
+            return None
+        # Open the *current* path with fresh ancestry, not the original parent
+        # FD. Query both descriptors using the same native metadata API. On
+        # Windows, CRT fstat/path stat timestamps and IDs are not interchangeable.
+        current_fd = _open_source(root, relative, flags)
+        if (not stat.S_ISREG(os.fstat(current_fd).st_mode)
+                or before_signature != descriptor_signature(fd)
+                or before_signature != descriptor_signature(current_fd)
+                or _safe_stat(root, relative) is None):
             return None
         return digest.hexdigest(), size
     except OSError:
@@ -218,8 +232,8 @@ def _digest(root: Path, relative: PurePosixPath) -> tuple[str, int] | None:
     finally:
         if fd is not None:
             os.close(fd)
-        if directory_fd is not None:
-            os.close(directory_fd)
+        if current_fd is not None:
+            os.close(current_fd)
 
 
 def _matches(relative: PurePosixPath, roots: list[_SourceRoot]) -> list[_SourceRoot]:

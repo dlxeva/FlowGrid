@@ -1,7 +1,7 @@
 """Exclusive UTF-8 candidate creation without following directory redirects.
 
 POSIX pins directory ancestry with directory FDs and O_NOFOLLOW. Windows pins
-every directory with read-attributes handles that deny write/delete sharing,
+every directory with list-directory/read-attributes handles that deny write/delete sharing,
 rejects reparse points, and uses CREATE_NEW for the leaf. Sharing conflicts
 fail closed; this helper never retries with weaker flags. Windows UNC/network
 roots are unsupported. The Windows implementation requires native validation.
@@ -131,10 +131,14 @@ class _WindowsAPI:
             function.argtypes, function.restype = arguments, result
 
     def _open(self, path: str, *, directory: bool) -> int:
-        # Directories: FILE_READ_ATTRIBUTES, FILE_SHARE_READ only, OPEN_EXISTING.
+        # FILE_LIST_DIRECTORY | FILE_READ_ATTRIBUTES, READ sharing, OPEN_EXISTING.
+        # Attributes-only access is metadata access and does not establish the
+        # sharing constraint needed to prevent rename. FILE_LIST_DIRECTORY (1)
+        # is directory data-read access, so the no-WRITE/no-DELETE share applies.
+        # See Microsoft CreateFileW dwShareMode and File Access Rights Constants.
         # Denying WRITE as well as DELETE also prevents reparse mutation through
         # another write handle. Existing incompatible handles cause failure.
-        access, sharing, disposition = (0x80, 1, 3) if directory else (0x40000080, 0, 1)
+        access, sharing, disposition = (0x81, 1, 3) if directory else (0x40000080, 0, 1)
         flags = 0x00200000 | (0x02000000 if directory else 0x80)
         handle = self.kernel.CreateFileW(path, access, sharing, None, disposition, flags, None)
         if handle == ctypes.c_void_p(-1).value:
@@ -153,6 +157,17 @@ class _WindowsAPI:
 
     def pin(self, path: str) -> int:
         return self._open(path, directory=True)
+
+    def signature(self, handle: int) -> tuple[int, int, int, int]:
+        info = _FileInformation()
+        if not self.kernel.GetFileInformationByHandle(handle, ctypes.byref(info)):
+            raise ctypes.WinError(ctypes.get_last_error())
+        return (
+            int(info.volume),
+            (int(info.index_high) << 32) | int(info.index_low),
+            (int(info.size_high) << 32) | int(info.size_low),
+            (int(info.written.dwHighDateTime) << 32) | int(info.written.dwLowDateTime),
+        )
 
     def require_local_drive(self, anchor: str) -> None:
         if self.kernel.GetDriveTypeW(anchor) not in {2, 3, 6}:
@@ -239,4 +254,26 @@ def create_candidate(root: Path, relative_path: str, content: str) -> None:
         raise NotImplementedError("Candidate creation is unsupported on this platform.")
 
 
-__all__ = ["create_candidate"]
+def _windows_descriptor_signature(fd: int) -> tuple[int, int, int, int]:
+    import msvcrt
+
+    # Borrow the native handle; never close it or transfer ownership from fd.
+    return _WindowsAPI().signature(msvcrt.get_osfhandle(fd))
+
+
+def descriptor_signature(fd: int) -> tuple:
+    """Comparable metadata from one descriptor API, without reading file bytes.
+
+    POSIX: (dev, ino, size, mtime_ns, ctime_ns).
+    Windows: (volume, fileIndex, size, lastWriteTime), with the native FILETIME
+    preserved as integer 100-nanosecond ticks. Compare descriptors obtained by
+    reopening the current path; never compare these tuples with path stat or
+    Windows CRT fstat. Native handles are borrowed and remain owned by fd.
+    """
+    if os.name == "nt":
+        return _windows_descriptor_signature(fd)
+    info = os.fstat(fd)
+    return info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns
+
+
+__all__ = ["create_candidate", "descriptor_signature"]

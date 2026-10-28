@@ -58,6 +58,7 @@ def checked_path(root: Path, value: str) -> Path:
 
 
 def read_bytes(root: Path, value: str) -> bytes:
+    from .source_io import descriptor_signature
     path = checked_path(root, value)
     # NONBLOCK prevents a FIFO from hanging before the regular-file check.
     flags = os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0) | getattr(os, 'O_NONBLOCK', 0) | getattr(os, 'O_BINARY', 0)
@@ -65,12 +66,15 @@ def read_bytes(root: Path, value: str) -> bytes:
     with os.fdopen(fd, 'rb') as handle:
         before = os.fstat(handle.fileno())
         require(stat.S_ISREG(before.st_mode), 'Expected a regular source/state file')
+        signature_before = descriptor_signature(handle.fileno())
         raw = handle.read()
-        after = os.fstat(handle.fileno())
-    checked_path(root, value)
-    final = path.stat()
-    signature = lambda s: (s.st_dev, s.st_ino, s.st_size, s.st_mtime_ns, s.st_ctime_ns)
-    require(signature(before) == signature(after) == signature(final), 'File changed while reading; retry')
+        signature_after = descriptor_signature(handle.fileno())
+        checked_path(root, value)
+        current_fd = os.open(path, flags)
+        with os.fdopen(current_fd,'rb') as current:
+            require(stat.S_ISREG(os.fstat(current.fileno()).st_mode),'Expected a regular source/state file')
+            signature_current = descriptor_signature(current.fileno())
+        require(signature_before == signature_after == signature_current, 'File changed while reading; retry')
     return raw
 
 

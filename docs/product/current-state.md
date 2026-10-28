@@ -5,6 +5,12 @@ Primary branch: `master`
 Current code version: `v0.3.0`
 Current stage: `v0.4 core validation`
 
+The source-continuity candidate is reviewed in PR #58. The first native Windows
+run exposed incompatible CRT/path stat metadata and an attributes-only directory
+handle that did not prevent rename. The correction compares native descriptor
+signatures and requests directory data-read access. Native CI must confirm the
+correction; the Linux results alone do not establish Windows behavior.
+
 ## Product Position
 
 FlowGrid is a local project-state context engine for rationale-heavy, non-coding business projects.
