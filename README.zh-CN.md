@@ -2,6 +2,10 @@
 
 [English](./README.md) | [简体中文](./README.zh-CN.md)
 
+会议等新材料可以记录实际读过的片段、来源版本，以及受影响的已有事项和判断。恢复入口会提示哪些判断需要复核；证据变化后，旧候选动作停止沿用。同版本下已完成或拒绝的建议保持关闭。
+
+宿主通过 `flg source inventory`、`flg source record`、`flg source pending` 操作这套流程。你继续自然地表达，材料理解和正式批准沿用已有审阅流程。详见[来源审阅与处理续接](./docs/product/source-continuity.md)。
+
 > 面向多 AI 宿主、多模型推导密集型非代码工作的本地项目状态上下文引擎。
 
 ![阶段](https://img.shields.io/badge/stage-v0.4--validation-4c6ef5)
