@@ -1,6 +1,7 @@
 # Candidate follow-up validation
 
-Date: 2026-10-29. Candidate implementation; no version tag or Release.
+Date: 2026-10-29. Implementation included in the v0.4.0a1 prerelease scope.
+Publication and native CI status must be checked against the actual Git refs.
 
 Synthetic tests cover legacy review/closed states, explicit waiting and closure
 reasons, quote/file references, due dates, changed candidate basis, invalid YAML,
@@ -18,7 +19,8 @@ and claims are retained; formal decisions, work ledger and control files are
 protected. Existing confirmed and historical closed candidates stay outside the
 new review queue. Legacy closure reasons remain unspecified where unknown.
 
-Local full-suite verification passed 575 tests, with two Windows-only skips.
+Local behavior verification passed 575 tests; version-consistency checks bring
+the local suite to 578 passed, with two Windows-only skips.
 Native Windows verification and external publication are separate gates; no
 cross-platform result is inferred from these local tests. Private input details,
 names, original records and local paths are not included in this repository.

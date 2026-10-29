@@ -8,7 +8,8 @@
 
 > 面向多 AI 宿主、多模型推导密集型非代码工作的本地项目状态上下文引擎。
 
-![阶段](https://img.shields.io/badge/stage-v0.4--validation-4c6ef5)
+![版本](https://img.shields.io/badge/version-0.4.0a1-4c6ef5)
+![阶段](https://img.shields.io/badge/stage-prerelease--validation-4c6ef5)
 ![运行方式](https://img.shields.io/badge/runtime-local--first-2b8a3e)
 ![入口](https://img.shields.io/badge/interface-host%20%2B%20CLI-495057)
 [![CI](https://github.com/dlxeva/FlowGrid/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/dlxeva/FlowGrid/actions/workflows/ci.yml)
@@ -20,9 +21,9 @@ FlowGrid 让项目判断跨会话、跨模型、跨本地 AI 宿主延续。它�
 
 主要入口是 AI 宿主里的自然语言。CLI 是宿主在后台调用、用户可以检查的底层协议。
 
-> **当前状态：** 软件包版本为 `v0.3.0`，仓库正在验证 v0.4 Core。
-> 当前重点是宿主入口可靠性、可重建状态、来源支撑的工作视图和真实项目续接。
-> v0.4 尚未作为已发布版本呈现。
+> **当前版本：`v0.4.0a1`，v0.4 首个预发布版。** 包含来源审阅续接与
+> 候选审阅跟进闭环。长期实际收益和更广泛的宿主可靠性仍待验证，
+> 尚未发布稳定版 `v0.4.0`。详见[变更记录](CHANGELOG.md)。
 
 ## 在 AI 宿主里开始
 

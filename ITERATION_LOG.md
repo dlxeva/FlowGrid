@@ -16,7 +16,7 @@
 
 ---
 
-## 2026-10-29：候选审阅与后续跟进 [fixing — local validation]
+## 2026-10-29：候选审阅与后续跟进 [fixed — v0.4.0a1]
 
 ### FLG-ITER-20261029-02：pending混合未审与已审待证
 
@@ -34,8 +34,10 @@
 审阅，用户无需批量清账。公开合成回归与私有隔离九条回放分别验证；
 没有新增长期守护、全局hook、自动批准或完整历史重建。
 
-本地全量575通过、2项Windows专属跳过；详细实装和独立复核结果见
-`evals/results/candidate-followup-20261029.md`。未作为v0.4发布或已合并版本。
+原行为验证575通过；版本一致性回归加入后本地全量578通过、2项Windows
+专属跳过。详细实装和独立复核结果见`evals/results/candidate-followup-20261029.md`。
+包、import、CLI与README统一为v0.4.0a1，预发布不代表稳定v0.4完成或长期
+收益已证实。项目历史记录版本保留，status单独显示实际runtime版本。
 
 ## 2026-10-29：来源审阅与处理续接公开实现 [fixed — PR #58, not merged]
 

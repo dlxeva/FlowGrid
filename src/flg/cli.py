@@ -128,7 +128,9 @@ def show_status() -> None:
     console.print(f"[bold]Project:[/bold] {state['project_name']}")
     console.print(f"[bold]Stage:[/bold] {state['current_stage']}")
     console.print(f"[bold]Created:[/bold] {state['created_at']}")
-    console.print(f"[bold]Version:[/bold] {state['flg_version']}")
+    from . import __version__
+    console.print(f"[bold]Runtime version:[/bold] {__version__}")
+    console.print(f"[bold]Project recorded version:[/bold] {state['flg_version']}")
     
     # Check pending patches from state
     pending_patches = state.get("pending_patches", [])
