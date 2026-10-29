@@ -355,6 +355,23 @@ def test_stale_review_resolves_through_current_successor_without_reopening(proje
     with pytest.raises(ValueError):sr.resolve(project,new['id'],old['id'],sr.load(project)[1],'Would create a cycle')
 
 
+def test_changed_source_can_resolve_through_full_current_review(project):
+    old = record(project)
+    apply(project, old)
+    source = project / old['source']['path']
+    source.write_text('New introduction.\n' + source.read_text())
+    new = record(project)
+    new['id'] = 'full-current-review'
+    new['continuity'].update(coverage='full', spans=[{
+        'start': 1, 'end': 4, 'quote': source.read_text().rstrip('\n'),
+        'attribution': 'All original labels retained'}])
+    apply(project, new)
+    sr.acknowledge(project, new['id'], 'completed', sr.load(project)[1], 'All current source reviewed')
+    assert sr.resolve(project, old['id'], new['id'], sr.load(project)[1],
+                      'Complete replacement review')['resolution'] == 'recorded'
+    assert sr.context_notice(project)[0] == ''
+
+
 def test_resolution_requires_real_current_replacement_and_cannot_hide_other_work(project):
     first=record(project);apply(project,first)
     second=deepcopy(first);second['id']='wrong-scope';second['targets']=[]
@@ -384,6 +401,31 @@ def test_resolution_cannot_skip_a_previously_reviewed_partial_range(project):
     new=record(project);new['id']='missing-range';apply(project,new)
     with pytest.raises(ValueError,match='every prior reviewed'):
         sr.resolve(project,old['id'],new['id'],sr.load(project)[1],'Old scope must remain visible')
+
+
+@pytest.mark.parametrize('edit', ['insert', 'delete'])
+def test_shifted_source_lines_cannot_resolve_old_excerpt(project, edit):
+    source = project / record(project)['source']['path']
+    source.write_text('Intro.\nPreviously reviewed topic.\nOther topic.\n')
+    old = record(project)
+    old['source']['quote'] = 'Previously reviewed topic.'
+    old['continuity']['spans'] = [{'start': 2, 'end': 2, 'quote': old['source']['quote'],
+                                 'attribution': 'Anonymous, role unknown'}]
+    apply(project, old)
+    source.write_text(('Inserted.\n' + source.read_text()) if edit == 'insert'
+                      else source.read_text().removeprefix('Intro.\n'))
+    new = record(project)
+    new['id'] = 'shifted-review'
+    new['source']['quote'] = source.read_text().splitlines()[1]
+    new['continuity']['spans'] = [{'start': 2, 'end': 2, 'quote': new['source']['quote'],
+                                 'attribution': 'Anonymous, role unknown'}]
+    apply(project, new)
+    sr.acknowledge(project, new['id'], 'completed', sr.load(project)[1], 'Only this excerpt reviewed')
+    before = (project / sr.RECEIPTS).read_bytes()
+    with pytest.raises(ValueError, match='source version'):
+        sr.resolve(project, old['id'], new['id'], sr.load(project)[1], 'Same numeric lines')
+    assert (project / sr.RECEIPTS).read_bytes() == before
+    assert sr.collect(project)['items'][0]['needs_review']
 
 
 @pytest.mark.parametrize('name,quote,disposition,after',[

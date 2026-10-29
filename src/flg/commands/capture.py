@@ -459,9 +459,27 @@ def _read_frontmatter(filepath: Path) -> dict | None:
     return data
 
 
-def _write_frontmatter(filepath: Path, data: dict) -> None:
+def _write_frontmatter(filepath: Path, data: dict, *, formal_review: bool = False,
+                       expected_sha256: str | None = None) -> None:
     """Update YAML frontmatter in a capture file, preserving body."""
     raw = filepath.read_text(encoding="utf-8")
+    if formal_review and 'followup' in data:
+        from ..core.capture_followup import MAX_BYTES, _parse, _read, bind_formal_review
+        from ..core.operations import atomic_write_text, project_operation_lock
+        from ..core.source_receipts import digest, require
+        root = filepath.parents[2]
+        relative = str(filepath.relative_to(root).as_posix())
+        with project_operation_lock(root):
+            original = _read(root, relative)
+            require(digest(original) == expected_sha256, 'Capture changed during formal review; reread before retrying')
+            _, body = _parse(original, filepath.stem)
+            bind_formal_review(data, body)
+            yaml_block = yaml.safe_dump(data, allow_unicode=True, sort_keys=False)
+            updated = f"---\n{yaml_block}---\n{body}"
+            require(len(updated.encode('utf-8')) <= MAX_BYTES, 'Capture history exceeds 2 MiB limit')
+            require(digest(_read(root, relative)) == expected_sha256, 'Capture changed during formal review; reread before retrying')
+            atomic_write_text(filepath, updated)
+        return
     body = YAML_FRONTMATTER_RE.sub("", raw).strip()
     yaml_block = yaml.dump(data, allow_unicode=True, default_flow_style=False, sort_keys=False)
     filepath.write_text(f"---\n{yaml_block}---\n\n{body}\n", encoding="utf-8")
@@ -589,7 +607,8 @@ def capture_review(
             followup_item = followup_items[0] if followup_items else None
         closed_followup = followup_item and followup_item['state'] in {'absorbed', 'expired', 'rejected'}
         legacy_review = any(k in meta for k in ('reviewed_at', 'waiting_for', 'review_trigger', 'review_refs'))
-        if closed_followup or (auto_confirm and (meta.get('followup') or meta.get('review_disposition') or legacy_review)):
+        if (closed_followup or (followup_item and followup_item['errors'])
+                or (auto_confirm and ('followup' in meta or 'review_disposition' in meta or legacy_review))):
             console.print(f"[yellow]Kept pending: {capture_id}; inspect flg capture followups before any approval.[/yellow]")
             continue
         console.print(f"[bold cyan]{capture_id}[/bold cyan]")
@@ -617,6 +636,13 @@ def capture_review(
             meta["reviewed_at"] = reviewed_at
             entry = _build_decision_entry(next_num, meta)
             entry = localize_ledger_entry(entry, project_language(root))
+            meta['status'] = 'confirmed'
+            try:
+                _write_frontmatter(filepath, meta, formal_review=True,
+                                   expected_sha256=followup_item['sha256'] if followup_item else None)
+            except (ValueError, OSError) as exc:
+                console.print(f'Kept pending: {capture_id}; {exc}', markup=False)
+                continue
             decisions_content = decisions_content.rstrip() + "\n\n" + entry
             evidence_index["items"][decision_id] = {
                 "decision_id": decision_id,
@@ -630,15 +656,18 @@ def capture_review(
                 "rationale": meta.get("rationale", ""),
                 "rejected_alternatives": ", ".join(meta.get("alternatives", [])),
             }
-            meta["status"] = "confirmed"
-            _write_frontmatter(filepath, meta)
             accepted.append((capture_id, decision_id))
             next_num += 1
             console.print(f"  [green]✓ Accepted → {decision_id}[/green]")
         elif choice == "r":
             meta["status"] = "rejected"
             meta["reviewed_at"] = reviewed_at
-            _write_frontmatter(filepath, meta)
+            try:
+                _write_frontmatter(filepath, meta, formal_review=True,
+                                   expected_sha256=followup_item['sha256'] if followup_item else None)
+            except (ValueError, OSError) as exc:
+                console.print(f'Kept pending: {capture_id}; {exc}', markup=False)
+                continue
             rejected.append(capture_id)
             console.print(f"  [red]✗ Rejected[/red]")
         else:

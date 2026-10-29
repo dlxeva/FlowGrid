@@ -6,6 +6,7 @@ import sys
 
 from typer.testing import CliRunner
 import yaml
+import pytest
 
 from flg.cli import app
 from flg.core.capture_followup import collect, record
@@ -108,3 +109,132 @@ def test_list_does_not_reexpose_drifted_claim(tmp_path, monkeypatch):
     assert result.exit_code == 0
     assert 'Pilot needs results' not in result.output
     assert 'suppressed' in result.output
+
+
+@pytest.mark.parametrize('choice,status', [('a', 'confirmed'), ('r', 'rejected')])
+@pytest.mark.parametrize('disposition', ['awaiting_evidence', 'needs_review'])
+@pytest.mark.parametrize('newline', [b'\n', b'\r\n'])
+def test_formal_review_closes_followup_without_drift(tmp_path, monkeypatch, choice, status, disposition, newline):
+    path, data = seed(tmp_path, monkeypatch)
+    assert runner.invoke(app, ['reindex']).exit_code == 0
+    path.write_bytes(path.read_bytes().replace(b'\n', newline))
+    (tmp_path / 'check.md').write_text('Synthetic pilot evidence.')
+    data['refs'] = [{'path': 'check.md', 'quote': 'Synthetic pilot evidence.',
+                     'scope': 'file', 'sha256': digest('Synthetic pilot evidence.')}]
+    data['disposition'] = disposition
+    data['review_after'] = '2001-01-01'
+    record(tmp_path, path.stem, data, digest(path.read_bytes()))
+    from flg.core.capture_followup import _parse
+    body = _parse(path.read_bytes(), path.stem)[1]
+    before = yaml.safe_load(path.read_text().split('---', 2)[1])
+    result = runner.invoke(app, ['capture', 'review'], input=choice + '\n')
+    assert result.exit_code == 0, result.output
+    current = collect(tmp_path)['items'][0]
+    assert current['state'] == status
+    assert not current['needs_review'] and not current['drifted']
+    assert not collect(tmp_path)['errors']
+    assert json.loads(runner.invoke(app, ['capture', 'followups']).output)['items'] == []
+    meta = yaml.safe_load(path.read_text().split('---', 2)[1])
+    assert meta['status'] == status
+    assert meta['followup_history'][:len(before['followup_history'])] == before['followup_history']
+    assert meta['followup_history'][-1]['previous_followup'] == before['followup']
+    assert _parse(path.read_bytes(), path.stem)[1] == body
+    doctor = runner.invoke(app, ['doctor', '--strict'])
+    assert doctor.exit_code == 0, doctor.output
+    (tmp_path / 'check.md').write_text('Changed pilot evidence.')
+    assert collect(tmp_path)['items'][0]['drifted']
+    (tmp_path / 'check.md').write_text('Synthetic pilot evidence.')
+    # A new explicit follow-up must replace, rather than inherit, the formal
+    # outcome marker; candidate status alone must never approve that review.
+    record(tmp_path, path.stem, data, digest(path.read_bytes()))
+    assert collect(tmp_path)['items'][0]['state'] == 'needs_review'
+    assert 'formal_outcome' not in collect(tmp_path)['items'][0]['followup']
+    path.write_text(path.read_text() + '\nChanged candidate body.\n')
+    assert collect(tmp_path)['items'][0]['drifted']
+
+
+@pytest.mark.parametrize('followup', [None, {}, False, [], ''])
+def test_invalid_falsy_followup_cannot_auto_confirm(tmp_path, monkeypatch, followup):
+    path, _ = seed(tmp_path, monkeypatch)
+    front, body = path.read_text().split('---', 2)[1:]
+    meta = yaml.safe_load(front)
+    meta['followup'] = followup
+    path.write_text('---\n' + yaml.safe_dump(meta) + '---' + body)
+    raw = path.read_bytes()
+    formal = (tmp_path / 'DECISIONS.md').read_bytes()
+    assert collect(tmp_path)['errors']
+    result = runner.invoke(app, ['capture', 'review', '--auto-confirm'])
+    assert result.exit_code == 0, result.output
+    assert path.read_bytes() == raw
+    assert (tmp_path / 'DECISIONS.md').read_bytes() == formal
+
+
+def test_invalid_review_cannot_be_silently_rebased_by_interactive_accept(tmp_path, monkeypatch):
+    path, data = seed(tmp_path, monkeypatch)
+    record(tmp_path, path.stem, data, digest(path.read_bytes()))
+    path.write_text(path.read_text() + '\nUnreviewed new claim.\n')
+    before = path.read_bytes()
+    formal = (tmp_path / 'DECISIONS.md').read_bytes()
+    result = runner.invoke(app, ['capture', 'review'], input='a\n')
+    assert result.exit_code == 0, result.output
+    assert path.read_bytes() == before
+    assert (tmp_path / 'DECISIONS.md').read_bytes() == formal
+
+
+def test_capture_changed_during_formal_prompt_is_not_overwritten(tmp_path, monkeypatch):
+    from flg.commands import capture
+    path, data = seed(tmp_path, monkeypatch)
+    record(tmp_path, path.stem, data, digest(path.read_bytes()))
+    original = path.read_bytes()
+    formal = (tmp_path / 'DECISIONS.md').read_bytes()
+    def prompt(*args, **kwargs):
+        path.write_bytes(original + b'Concurrent candidate change.\n')
+        return 'a'
+    monkeypatch.setattr(capture.typer, 'prompt', prompt)
+    result = runner.invoke(app, ['capture', 'review'])
+    assert result.exit_code == 0
+    assert 'changed during formal review' in result.output
+    assert path.read_bytes() == original + b'Concurrent candidate change.\n'
+    assert (tmp_path / 'DECISIONS.md').read_bytes() == formal
+
+
+def test_later_conflict_does_not_lose_earlier_accepted_decision(tmp_path, monkeypatch):
+    from flg.commands import capture
+    path, data = seed(tmp_path, monkeypatch)
+    record(tmp_path, path.stem, data, digest(path.read_bytes()))
+    second = path.with_name('cap-zz-second.md')
+    second.write_text(path.read_text().replace(path.stem, second.stem))
+    record(tmp_path, second.stem, data, digest(second.read_bytes()))
+    calls = []
+    def prompt(*args, **kwargs):
+        calls.append(True)
+        if len(calls) == 2:
+            second.write_bytes(second.read_bytes() + b'Concurrent edit.\n')
+        return 'a'
+    monkeypatch.setattr(capture.typer, 'prompt', prompt)
+    result = runner.invoke(app, ['capture', 'review'])
+    assert result.exit_code == 0, result.output
+    assert len(calls) == 2
+    assert '## D-001' in (tmp_path / 'DECISIONS.md').read_text()
+    assert '## D-002' not in (tmp_path / 'DECISIONS.md').read_text()
+    assert yaml.safe_load(second.read_text().split('---', 2)[1])['status'] == 'pending_review'
+    assert collect(tmp_path, capture_id=path.stem)['items'][0]['state'] == 'confirmed'
+
+
+@pytest.mark.parametrize('change_candidate', [False, True])
+def test_old_writer_retained_outcome_cannot_hide_new_review(tmp_path, monkeypatch, change_candidate):
+    from flg.core.capture_followup import _parse, _basis
+    path, data = seed(tmp_path, monkeypatch)
+    record(tmp_path, path.stem, data, digest(path.read_bytes()))
+    assert runner.invoke(app, ['capture', 'review'], input='a\n').exit_code == 0
+    meta, body = _parse(path.read_bytes(), path.stem)
+    # Model the old writer: it preserves unknown formal_outcome, replaces
+    # defined review fields, and recalculates only the outer candidate basis.
+    if change_candidate:
+        body += 'Changed candidate.\n'
+    meta['followup'].update(data)
+    meta['followup']['disposition'] = 'needs_review'
+    meta['followup']['basis_sha256'] = _basis(meta, body)
+    path.write_text('---\n' + yaml.safe_dump(meta) + '---\n' + body)
+    current = collect(tmp_path)['items'][0]
+    assert current['state'] == 'needs_review' and current['drifted']
