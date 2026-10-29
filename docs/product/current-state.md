@@ -28,6 +28,16 @@ this correction. The current PR's native CI must verify the corrected head.
 
 ## Product Position
 
+Local review-continuity hardening candidate (based on master `6081728`):
+partial receipt replacement now requires the same source SHA; changed sources
+require a full current review. Formal capture accept/reject retains follow-up
+history and binds its outcome to the updated candidate basis. Empty/null review
+metadata cannot bypass automatic-confirmation guards. Invalid/drifted follow-ups
+must be explicitly rereviewed before formal processing. These changes are local
+and do not imply a release, runtime switch, or native Windows validation.
+Native CI fixtures normalize existing CRLF before selecting test newlines,
+avoiding accidental CRCRLF input on Windows; runtime byte preservation remains.
+
 FlowGrid is a local project-state context engine for rationale-heavy, non-coding business projects.
 
 Its job is to let project state, boundaries, judgments, progress, and next actions follow the project directory across AI sessions and hosts, reducing repeated context explanation.

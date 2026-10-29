@@ -88,7 +88,11 @@ If a fresh review replaces a stale processing receipt, register the new review,
 then run `flg source resolve OLD_ID --replacement NEW_ID --reason "Revalidated"
 --expected-sha256 HASH`. The replacement must be current and cover the same
 source, previous work references, judgment IDs, and original references. The
-replacement preserves full coverage or every prior partial line range. The
+replacement preserves full coverage or every prior partial line range within
+the same source byte version. A changed source SHA requires a full current
+source review: numeric line ranges cannot establish coverage after insertions
+or deletions. A partial replacement across source versions is refused without
+changing the receipt or clearing the old notice. The
 resolution retains prior acknowledgments. The old
 receipt remains inspectable; later drift is tracked through the replacement.
 It does not replace a formal decision.

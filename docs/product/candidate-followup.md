@@ -43,6 +43,27 @@ remain readable. Unversioned legacy references do not become retroactively
 verified evidence. Automatic capture confirmation must not bypass an explicit
 follow-up; approval remains on the existing authorized review path.
 
+Automatic confirmation checks for the presence of review metadata, including
+null or empty `followup` values. Invalid or drifted follow-ups require explicit
+follow-up re-review before formal capture review can proceed. Interactive
+accept/reject of a valid follow-up preserves the exact body and prior history,
+then records `formal_outcome` and rebinds the follow-up to the new capture basis.
+The resulting confirmed/rejected record leaves the action queue; an old due
+date does not reopen it. Later candidate or reference drift still requires
+review. A new `followup-record` replaces this outcome marker and once again
+derives state from its explicit disposition. That command cannot grant formal
+approval or set `formal_outcome` in its payload.
+
+The outcome fingerprints the complete follow-up, including its candidate basis.
+Older runtimes do not understand this outcome: they display the previous waiting
+or review state. If an old writer retains the marker while changing the review,
+the new reader reports drift rather than accepting that obsolete outcome.
+Use one runtime version for a project; this is not mixed-version write support.
+Historical incorrectly superseded receipts are not automatically restored.
+File-scoped references to DECISIONS.md still drift when acceptance appends a
+decision to that file; use a unique quote-scoped reference when unrelated ledger
+appends should not reopen review. Formal review does not silently rehash evidence.
+
 This is a host-operated workflow, with no background watcher or global hook.
 An unchanged waiting item is available on demand without becoming a repeated
 action alert. The first real-project validation preserves all nine original

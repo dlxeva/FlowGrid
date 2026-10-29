@@ -342,6 +342,11 @@ def _replacement(old: dict, new: dict) -> None:
                 if candidate['start'] > cursor:break
                 cursor=candidate['end']+1
             require(cursor > span['end'],'Replacement must cover every prior reviewed line range')
+        # Line numbers are locators within one byte version, not identities
+        # across edits. Without a version mapping, only a full current review
+        # can prove that an obsolete excerpt has not been silently skipped.
+        require(old['source']['sha256'] == new['source']['sha256'],
+                'A changed source version requires a full-source replacement review')
 
 
 def resolve(root: Path, receipt_id: str, replacement_id: str, expected: str, reason: str) -> dict:

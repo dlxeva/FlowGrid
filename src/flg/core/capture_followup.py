@@ -75,6 +75,29 @@ def _basis(meta, body):
     return digest(json.dumps(candidate, sort_keys=True, ensure_ascii=False, default=str) + "\n" + body)
 
 
+def bind_formal_review(meta, body):
+    """Bind an explicit formal outcome without losing the prior follow-up.
+
+    Called only by interactive capture review, after its validation gate. This
+    does not grant authority to followup-record or repair an invalid review.
+    """
+    require(meta.get('status') in {'confirmed', 'rejected'}, 'Expected formal review status')
+    previous = deepcopy(meta['followup'])
+    _validate(previous)
+    outcome = {'status': meta['status'], 'reviewed_at': meta['reviewed_at']}
+    meta['followup'] = {**deepcopy(previous), 'formal_outcome': outcome,
+                        'basis_sha256': _basis(meta, body)}
+    outcome['followup_sha256'] = _followup_basis(meta['followup'])
+    meta.setdefault('followup_history', []).append({
+        'previous_followup': previous, 'formal_outcome': deepcopy(outcome),
+        'followup': deepcopy(meta['followup'])})
+
+
+def _followup_basis(data):
+    return digest(json.dumps({k: v for k, v in data.items() if k != 'formal_outcome'},
+                             sort_keys=True, ensure_ascii=False, default=str))
+
+
 def _time(value):
     require(isinstance(value, (str, date, datetime)) and bool(str(value).strip()), "Expected ISO date/time")
     try:
@@ -237,7 +260,17 @@ def collect(root, now=None, limit=12, capture_id=None, state=None, needs_review_
                     raise ValueError("Legacy closure is unversioned; explicit rereview required")
                 _check_refs(root, checked_refs)
                 item["state"] = data["disposition"]
-                item["due"] = data.get("review_after") is not None and instant >= _time(data["review_after"])
+                outcome = data.get('formal_outcome')
+                if outcome is not None:
+                    require(not item['legacy'] and isinstance(outcome, dict)
+                            and outcome.get('status') in {'confirmed', 'rejected'}
+                            and outcome['status'] == meta.get('status')
+                            and outcome.get('reviewed_at') == meta.get('reviewed_at')
+                            and outcome.get('followup_sha256') == _followup_basis(data),
+                            'Invalid formal review outcome')
+                    _time(outcome.get('reviewed_at'))
+                    item['state'] = outcome['status']
+                item["due"] = outcome is None and data.get("review_after") is not None and instant >= _time(data["review_after"])
                 if item["due"]:
                     item["state"] = "needs_review"
         except READ_ERRORS as exc:
@@ -302,7 +335,7 @@ def record(root, capture_id, payload, expected_sha256) -> dict:
         # Preserve extension fields while replacing the defined review fields.
         data = {**{k: v for k, v in old.items() if k not in {
             "schema_version", "disposition", "reason", "waiting_for", "review_trigger",
-            "review_after", "refs", "reviewed_at", "basis_sha256"}}, **data}
+            "review_after", "refs", "reviewed_at", "basis_sha256", "formal_outcome"}}, **data}
         if not history and old:
             history = [{"followup": deepcopy(old)}]
         history.append({"expected_sha256": expected_sha256, "payload": request, "followup": deepcopy(data)})
