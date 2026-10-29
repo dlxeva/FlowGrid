@@ -22,6 +22,8 @@ validation. It is not a stable 0.4.0 release.
 - Align package metadata, Python import and CLI version. `status` displays the
   installed runtime version separately from the project's recorded version;
   existing project files are not migrated merely to change a version display.
+- Preserve literal UTF-8 bytes in atomic text writes on Windows, including
+  existing CRLF bodies, so declared review hashes and exact retries remain valid.
 
 Detailed private-project inputs remain private. Public tests use synthetic
 fixtures and bounded, redacted evidence reports.

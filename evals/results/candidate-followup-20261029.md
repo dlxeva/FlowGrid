@@ -20,10 +20,17 @@ protected. Existing confirmed and historical closed candidates stay outside the
 new review queue. Legacy closure reasons remain unspecified where unknown.
 
 Local behavior verification passed 575 tests; version-consistency checks bring
-the local suite to 578 passed, with two Windows-only skips.
+the local suite to 578 passed; four atomic-newline regressions bring it to
+582 passed, with two Windows-only skips.
 Native Windows verification and external publication are separate gates; no
 cross-platform result is inferred from these local tests. Private input details,
 names, original records and local paths are not included in this repository.
+
+The first native Windows run exposed automatic text newline translation during
+atomic writes, changing existing CRLF bodies and invalidating review basis hashes
+and retries. The writer now preserves exact UTF-8 bytes. LF, CRLF, mixed endings
+and a CRLF capture retry are covered without weakening the original assertions;
+the corrected head must pass native CI before merge.
 
 Independent synthetic reproduction found and drove fixes for legacy evidence
 waits bypassing automatic-confirmation guards, status filtering after a display

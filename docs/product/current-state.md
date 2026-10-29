@@ -21,6 +21,10 @@ prerelease does not claim stable v0.4 completion or proven longitudinal benefit;
 see [candidate follow-up](candidate-followup.md) and the [changelog](../../CHANGELOG.md).
 The package, Python import and CLI share the same version. Project-recorded
 creation versions are preserved and displayed separately from runtime version.
+Native Windows testing exposed newline translation in atomic text writes, which
+changed preserved CRLF bodies and invalidated review hashes. Atomic writes now
+preserve exact UTF-8 bytes; LF, CRLF, mixed-newline and retry regressions cover
+this correction. The current PR's native CI must verify the corrected head.
 
 ## Product Position
 
