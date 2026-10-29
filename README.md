@@ -8,7 +8,8 @@
 > 📝 Background: [Why non-coding projects need a handoff layer](https://aizhiz.com/posts/ai-agent-handoff-non-coding-projects/) · [FlowGrid: preserving judgment across agent handoffs](https://aizhiz.com/posts/2026-08-13-flowgrid-project-continuity/)
 > 背景长文：[代码项目有 Git，非代码项目靠什么让 AI 接力？](https://aizhiz.com/zh/posts/ai-agent-handoff-non-coding-projects/) · [FlowGrid 项目续接实验](https://aizhiz.com/zh/posts/2026-08-13-flowgrid-project-continuity/)
 
-![Stage](https://img.shields.io/badge/stage-v0.4--validation-4c6ef5)
+![Version](https://img.shields.io/badge/version-0.4.0a1-4c6ef5)
+![Stage](https://img.shields.io/badge/stage-prerelease--validation-4c6ef5)
 ![Runtime](https://img.shields.io/badge/runtime-local--first-2b8a3e)
 ![Interface](https://img.shields.io/badge/interface-host%20%2B%20CLI-495057)
 [![CI](https://github.com/dlxeva/FlowGrid/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/dlxeva/FlowGrid/actions/workflows/ci.yml)
@@ -19,10 +20,10 @@ FlowGrid keeps the judgment behind a project available across sessions, models, 
 
 The primary interface is natural language in an AI host. The CLI is the underlying protocol that the host operates and that people can inspect.
 
-> **Current status:** the package reports `v0.3.0`. The repository is validating
-> the v0.4 core. Current work focuses on reliable host entry, rebuildable state,
-> source-backed work views, and real-project continuation. v0.4 is not presented
-> as a released version.
+> **Current version: `v0.4.0a1`, the first v0.4 prerelease.** It includes
+> source-review continuity and explicit candidate follow-up. Longitudinal
+> effectiveness and broader host reliability remain under validation; this is
+> not the stable `v0.4.0` release. See the [changelog](CHANGELOG.md).
 
 ## Start in an AI Host
 
@@ -158,6 +159,11 @@ When stale:
 The SHA check detects change. It does not judge whether the new text is correct, approved, or a formal decision. Decision candidates still use the normal review and merge gates.
 
 ## Decision Logs
+
+`flg capture followups` separates unreviewed candidates from reviewed evidence
+waits, due reviews and explicitly reasoned closures. Age and reference changes
+request review without promoting or clearing candidates. See
+[candidate follow-up](docs/product/candidate-followup.md).
 
 FlowGrid began as a Markdown decision-log mechanism. That remains the center of the project.
 

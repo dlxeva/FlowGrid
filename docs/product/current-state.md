@@ -2,17 +2,29 @@
 
 Last updated: 2026-10-29
 Primary branch: `master`
-Current code version: `v0.3.0`
-Current stage: `v0.4 core validation`
+Current code version: `v0.4.0a1`
+Current stage: `v0.4 prerelease validation`
 
-The source-continuity candidate is reviewed in PR #58. The first native Windows
+Source continuity merged in PR #58 at `8ea7489`. The first native Windows
 run exposed incompatible CRT/path stat metadata and an attributes-only directory
 handle that did not prevent rename. The correction compares native descriptor
 signatures and requests directory data-read access. Commit `4cb24b9` passed
 native Windows Python 3.12 and Linux Python 3.10/3.11/3.12 in
 [CI run 40772529638](https://github.com/dlxeva/FlowGrid/actions/runs/40772529638).
-The candidate is pushed, not merged; the mapped operational runtime has not
-been switched to this candidate.
+The merge head passed [CI run 40774026016](https://github.com/dlxeva/FlowGrid/actions/runs/40774026016).
+
+The v0.4.0a1 implementation adds explicit capture follow-up: unreviewed work, reviewed
+waiting, date/reference-triggered re-review, and separately reasoned closures.
+Original capture status and formal decisions are not changed by follow-up
+recording. Legacy waiting and closed captures retain their distinctions. This
+prerelease does not claim stable v0.4 completion or proven longitudinal benefit;
+see [candidate follow-up](candidate-followup.md) and the [changelog](../../CHANGELOG.md).
+The package, Python import and CLI share the same version. Project-recorded
+creation versions are preserved and displayed separately from runtime version.
+Native Windows testing exposed newline translation in atomic text writes, which
+changed preserved CRLF bodies and invalidated review hashes. Atomic writes now
+preserve exact UTF-8 bytes; LF, CRLF, mixed-newline and retry regressions cover
+this correction. The current PR's native CI must verify the corrected head.
 
 ## Product Position
 
@@ -63,7 +75,7 @@ and private read-only portability checks are recorded in
 [source continuity validation](../../evals/results/source-continuity-20261029.md).
 The earlier real-source exercise lacked historic T/D snapshots; it does not
 establish a full adaptation A/B or universal FLG effectiveness. Current package
-version remains v0.3.0 and the broader v0.4 validation is ongoing.
+version is now v0.4.0a1 and the broader v0.4 validation is ongoing.
 
 ## Current Verification
 
@@ -244,7 +256,8 @@ Complete the v0.4 core loop:
 
 - Do not turn FlowGrid into a generic PM tool.
 - Do not optimize for coding-agent workflows.
-- Do not present v0.4 as released before real-project validation is complete.
+- Do not present stable v0.4.0 as complete before real-project validation is complete.
+  The v0.4.0a1 prerelease identifies implemented behavior without asserting that result.
 
 ## Reading Order for Future Agents
 

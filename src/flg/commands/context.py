@@ -1045,7 +1045,10 @@ def _build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) ->
 def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> tuple[str, dict]:
     """Reserve bounded source-review navigation before building existing views."""
     from ..core.source_receipts import context_notice
+    from ..core.capture_followup import render_notice
     notice, view = context_notice(root)
+    candidate_notice = render_notice(root)
+    notice += candidate_notice
     if not notice:
         return _build_context_pack(root, mode, budget)
     reserved = (len(notice) + 3) // 4
@@ -1065,6 +1068,8 @@ def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> 
                     source_continuity={'review_count':sum(i['needs_review'] for i in view['items']),
                                        'errors':view['errors'],'state_sha256':view['state_sha256']})
     metadata.setdefault('sources_included',[]).append('.flg/processing-receipts.json')
+    if candidate_notice:
+        metadata['sources_included'].append('.flg/captures/')
     return content, metadata
 
 

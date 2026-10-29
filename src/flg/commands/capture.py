@@ -323,17 +323,30 @@ def capture_list(
     table = Table(title="Judgment Candidates")
     table.add_column("ID", style="cyan")
     table.add_column("Type", style="green")
-    table.add_column("Status", style="yellow")
+    table.add_column("Stored status", style="yellow")
+    table.add_column("Follow-up", style="yellow")
     table.add_column("Claim", style="white")
 
+    from ..core.capture_followup import collect
+    followup_view = collect(root, limit=1000)
+    checked_by_id = {i['capture_id']: i for i in followup_view['items']}
+
     for item in items:
-        claim_short = item.get("claim", "")[:60]
+        # Resolve by ID so even a late item uses checked, drift-safe wording.
+        checked_item = checked_by_id.get(item.get('id'))
+        if checked_item is None:
+            checked = collect(root, limit=1, capture_id=item.get('id'))['items']
+            checked_item = checked[0] if checked else {}
+        claim_short = checked_item.get('claim', '')[:60]
+        if checked_item.get('drifted') or checked_item.get('errors'):
+            claim_short = '(evidence requires review; prior claim suppressed)'
         if item.get("claim", "") and len(item.get("claim", "")) > 60:
             claim_short += "..."
         table.add_row(
             item.get("id", "?"),
             item.get("type", "?"),
             item.get("status", "?"),
+            checked_item.get('state', 'unknown'),
             claim_short,
         )
 
@@ -342,7 +355,7 @@ def capture_list(
     console.print(f"\n[dim]{len(items)} capture(s)[/dim]")
     pending = sum(1 for i in items if i.get("status") == "pending_review")
     if pending:
-        console.print(f"[yellow]{pending} pending review[/yellow]")
+        console.print(f"[yellow]{pending} stored pending; follow-up distinguishes waiting from unreviewed[/yellow]")
     console.print()
 
 
@@ -560,6 +573,8 @@ def capture_review(
 
     accepted: list = []
     rejected: list = []
+    from ..core.capture_followup import collect
+    checked_by_id = {i['capture_id']: i for i in collect(root, limit=1000)['items']}
 
     console.print()
     console.print(f"[bold]Reviewing {len(pending)} pending capture(s)[/bold]")
@@ -567,6 +582,16 @@ def capture_review(
 
     for filepath, meta in pending:
         capture_id = meta.get("id", filepath.stem)
+        # A reviewed follow-up never becomes approval through the auto path.
+        followup_item = checked_by_id.get(capture_id)
+        if followup_item is None:
+            followup_items = collect(root, limit=1, capture_id=capture_id)['items']
+            followup_item = followup_items[0] if followup_items else None
+        closed_followup = followup_item and followup_item['state'] in {'absorbed', 'expired', 'rejected'}
+        legacy_review = any(k in meta for k in ('reviewed_at', 'waiting_for', 'review_trigger', 'review_refs'))
+        if closed_followup or (auto_confirm and (meta.get('followup') or meta.get('review_disposition') or legacy_review)):
+            console.print(f"[yellow]Kept pending: {capture_id}; inspect flg capture followups before any approval.[/yellow]")
+            continue
         console.print(f"[bold cyan]{capture_id}[/bold cyan]")
         console.print(f"  Type: {meta.get('type', '?')}  |  Confidence: {meta.get('confidence', '?')}")
         console.print(f"  Claim: [white]{meta.get('claim', '')}[/white]")
