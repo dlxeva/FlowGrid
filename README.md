@@ -159,6 +159,11 @@ The SHA check detects change. It does not judge whether the new text is correct,
 
 ## Decision Logs
 
+`flg capture followups` separates unreviewed candidates from reviewed evidence
+waits, due reviews and explicitly reasoned closures. Age and reference changes
+request review without promoting or clearing candidates. See
+[candidate follow-up](docs/product/candidate-followup.md).
+
 FlowGrid began as a Markdown decision-log mechanism. That remains the center of the project.
 
 `DECISIONS.md` records what was decided, why it was chosen, what was rejected, and what would justify revisiting it. A decision entry uses these fields:

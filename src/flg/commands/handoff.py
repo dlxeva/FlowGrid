@@ -563,6 +563,8 @@ def generate_handoff_summary(root: Path, format: str = "markdown") -> str:
     
     from ..core.source_receipts import context_notice
     source_notice, _ = context_notice(root)
+    from ..core.capture_followup import render_notice
+    source_notice += render_notice(root)
     if source_notice:
         heading,separator,body = summary.partition('\n')
         summary = heading + separator + '\n' + source_notice + body

@@ -26,6 +26,7 @@ from .commands.impact import impact_command
 from .commands.session import save_session
 from .commands.wiki import wiki_build, wiki_init, wiki_status
 from .commands.source import app as source_app
+from .commands.capture_followup import capture_followups, capture_followup_record
 from .core.state import load_state, get_state_schema_info
 
 console = Console()
@@ -69,6 +70,8 @@ capture_app.command(name="list", help="List captured judgment candidates")(captu
 capture_app.command(name="show", help="Show details of a captured judgment")(capture_show)
 capture_app.command(name="review", help="Background-process confirmed captures; keep inferred captures pending")(capture_review)
 capture_app.command(name="profile", help="Manage judgment language profile for this project")(capture_profile)
+capture_app.command(name="followups", help="Inspect unreviewed, waiting, due and closed candidates")(capture_followups)
+capture_app.command(name="followup-record", help="Record explicit review and follow-up without promotion")(capture_followup_record)
 app.add_typer(capture_app, name="capture")
 
 # Decision subcommand group
@@ -221,19 +224,15 @@ def show_status() -> None:
         summary_parts = [f"{count} {status}" for status, count in closed_counts.items()]
         console.print(f"[dim]Closed patches (kept for audit): {', '.join(summary_parts)}[/dim]")
 
-    captures_dir = root / ".flg" / "captures"
-    pending_captures = 0
-    if captures_dir.exists():
-        for capture_path in captures_dir.glob("cap-*.md"):
-            metadata = _read_frontmatter(capture_path)
-            if metadata and metadata.get("status") == "pending_review":
-                pending_captures += 1
-    if pending_captures:
-        console.print(
-            f"[yellow]⚠ This project has {pending_captures} pending capture(s) awaiting judgment review.[/yellow]"
-        )
-    else:
-        console.print("[green]No pending captures awaiting judgment review[/green]")
+    from .core.capture_followup import collect
+    followups = collect(root)
+    counts = followups['counts']
+    stored_pending = counts.get('unreviewed', 0) + counts.get('awaiting_evidence', 0) + counts.get('needs_review', 0)
+    if stored_pending:
+        console.print(f"{stored_pending} pending capture(s); judgment review and evidence waits are detailed below.")
+    console.print(f"Candidate follow-up: {counts}; inspect with flg capture followups")
+    for error in followups['errors'][:5]:
+        console.print(f"[yellow]Candidate follow-up error: {error}[/yellow]")
     
     console.print()
 

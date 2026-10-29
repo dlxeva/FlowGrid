@@ -153,6 +153,9 @@ def doctor(
     work_view_issues = work_view_health_issues(root, state)
     from ..core.source_receipts import collect as collect_source_receipts
     source_reviews = collect_source_receipts(root)
+    from ..core.capture_followup import collect as collect_followups
+    candidate_reviews = collect_followups(root)
+    candidate_issues = candidate_reviews['errors']
     receipt_issues = [*source_reviews['errors'],
         *[item['receipt_id'] + ': source/work/judgment requires revalidation'
           for item in source_reviews['items']
@@ -169,8 +172,10 @@ def doctor(
         and not work_view_issues
         and not action_temporal_issues
         and not receipt_issues
+        and not candidate_issues
     )
     table.add_row("Overall", "OK" if overall_ok else "Needs attention")
+    table.add_row('Candidate follow-up', str(candidate_reviews['counts']))
     table.add_row('Processing source bindings', 'OK' if not receipt_issues
                   else f'Needs attention ({len(receipt_issues)})')
     table.add_row("Formal decisions", str(report["decision_count"]))
@@ -315,6 +320,9 @@ def doctor(
         for issue in receipt_issues[:12]:
             console.print('  - ' + issue, markup=False)
 
+    if candidate_issues:
+        for issue in candidate_issues[:12]:
+            console.print(str(issue), markup=False)
     if strict and not overall_ok:
         raise typer.Exit(1)
 

@@ -146,6 +146,18 @@ user does not fill receipt fields. This is an explicit host workflow; no
 background hook is implied. Detailed schema: `docs/product/source-continuity.md`
 in the installed FlowGrid repository.
 
+### Candidate review follow-up
+
+When a candidate affects current work, inspect `flg capture followups` and expand
+the relevant capture. Preserve any previous review, waiting condition and trigger;
+an old pending item can already have been reviewed. Check new evidence before
+proposing promotion or closure. Record the disposition with
+`flg capture followup-record` and the version actually reviewed. Waiting for
+evidence stays distinct from unreviewed work. Age only requests review; it never
+authorizes promotion or cleanup. Explicit absorption, expiry and rejection need
+their own reason and evidence. Do not turn all old candidates into user approval
+requests. See `docs/product/candidate-followup.md` in the installed repository.
+
 ### Verification-only segments
 
 Do not manufacture a new formal decision merely because a session verified an

@@ -5,14 +5,20 @@ Primary branch: `master`
 Current code version: `v0.3.0`
 Current stage: `v0.4 core validation`
 
-The source-continuity candidate is reviewed in PR #58. The first native Windows
+Source continuity merged in PR #58 at `8ea7489`. The first native Windows
 run exposed incompatible CRT/path stat metadata and an attributes-only directory
 handle that did not prevent rename. The correction compares native descriptor
 signatures and requests directory data-read access. Commit `4cb24b9` passed
 native Windows Python 3.12 and Linux Python 3.10/3.11/3.12 in
 [CI run 40772529638](https://github.com/dlxeva/FlowGrid/actions/runs/40772529638).
-The candidate is pushed, not merged; the mapped operational runtime has not
-been switched to this candidate.
+The merge head passed [CI run 40774026016](https://github.com/dlxeva/FlowGrid/actions/runs/40774026016).
+
+The next candidate adds explicit capture follow-up: unreviewed work, reviewed
+waiting, date/reference-triggered re-review, and separately reasoned closures.
+Original capture status and formal decisions are not changed by follow-up
+recording. Legacy waiting and closed captures retain their distinctions. This
+candidate has not been presented as a released v0.4 or merged implementation;
+see [candidate follow-up](candidate-followup.md).
 
 ## Product Position
 
