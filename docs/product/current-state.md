@@ -35,6 +35,8 @@ history and binds its outcome to the updated candidate basis. Empty/null review
 metadata cannot bypass automatic-confirmation guards. Invalid/drifted follow-ups
 must be explicitly rereviewed before formal processing. These changes are local
 and do not imply a release, runtime switch, or native Windows validation.
+Native CI fixtures normalize existing CRLF before selecting test newlines,
+avoiding accidental CRCRLF input on Windows; runtime byte preservation remains.
 
 FlowGrid is a local project-state context engine for rationale-heavy, non-coding business projects.
 

@@ -117,7 +117,9 @@ def test_list_does_not_reexpose_drifted_claim(tmp_path, monkeypatch):
 def test_formal_review_closes_followup_without_drift(tmp_path, monkeypatch, choice, status, disposition, newline):
     path, data = seed(tmp_path, monkeypatch)
     assert runner.invoke(app, ['reindex']).exit_code == 0
-    path.write_bytes(path.read_bytes().replace(b'\n', newline))
+    # capture-add already emits CRLF on Windows; normalize before selecting
+    # fixture newlines so CRLF cases do not accidentally become CRCRLF.
+    path.write_bytes(path.read_bytes().replace(b'\r\n', b'\n').replace(b'\n', newline))
     (tmp_path / 'check.md').write_text('Synthetic pilot evidence.')
     data['refs'] = [{'path': 'check.md', 'quote': 'Synthetic pilot evidence.',
                      'scope': 'file', 'sha256': digest('Synthetic pilot evidence.')}]
