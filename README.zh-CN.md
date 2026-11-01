@@ -389,6 +389,7 @@ AML Retriever 与 FlowGrid Core 共享来源、时间状态、冲突保留和可
 - [判断捕获流程](./docs/product/judgment-capture-pipeline.md)
 - [决策关系](./docs/product/decision-relations-v0.md)
 - [用户痛点模型](./docs/product/user-pain-model.md)
+- [实验性本地任务续接](./docs/product/task-continuity.md)：默认关闭，保留任务身份并区分执行尝试；仅核验本地产物，不替代正式批准或控制外部操作。
 - [虚构客户方案续接案例](./docs/use-cases/client-solution-continuation.md)
 - [开发日志](./docs/devlog/README.md)
 - [安全策略](./SECURITY.md)

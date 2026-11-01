@@ -21,6 +21,7 @@ from .commands.patch_cmd import patch_supersede, patch_discard
 from .commands.onboard import onboard
 from .commands.doctor import doctor, reindex
 from .commands.delivery import delivery_show, delivery_set
+from .commands.task import app as task_app
 from .commands.trace import trace_command
 from .commands.impact import impact_command
 from .commands.session import save_session
@@ -97,6 +98,7 @@ delivery_app = typer.Typer(help="Manage an explicit current delivery contract", 
 delivery_app.command(name="show", help="Show the active delivery contract")(delivery_show)
 delivery_app.command(name="set", help="Replace the active delivery contract explicitly")(delivery_set)
 app.add_typer(delivery_app, name="delivery")
+app.add_typer(task_app, name="task")
 
 
 @app.command(name="version")
@@ -235,6 +237,10 @@ def show_status() -> None:
     console.print(f"Candidate follow-up: {counts}; inspect with flg capture followups")
     for error in followups['errors'][:5]:
         console.print(f"[yellow]Candidate follow-up error: {error}[/yellow]")
+    from .core.task_continuity import render_notice as task_notice
+    notice = task_notice(root)
+    if notice:
+        console.print(notice, markup=False)
     
     console.print()
 

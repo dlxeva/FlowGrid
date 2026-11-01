@@ -156,6 +156,9 @@ def doctor(
     from ..core.capture_followup import collect as collect_followups
     candidate_reviews = collect_followups(root)
     candidate_issues = candidate_reviews['errors']
+    from ..core.task_continuity import collect as collect_tasks
+    task_view = collect_tasks(root)
+    task_issues = task_view['issues']
     receipt_issues = [*source_reviews['errors'],
         *[item['receipt_id'] + ': source/work/judgment requires revalidation'
           for item in source_reviews['items']
@@ -173,9 +176,15 @@ def doctor(
         and not action_temporal_issues
         and not receipt_issues
         and not candidate_issues
+        and not task_issues
     )
     table.add_row("Overall", "OK" if overall_ok else "Needs attention")
     table.add_row('Candidate follow-up', str(candidate_reviews['counts']))
+    if task_view['enabled'] or task_issues:
+        table.add_row('Local task continuation', 'OK' if not task_issues
+                      else f'Needs attention ({len(task_issues)})')
+        for issue in task_issues[:5]:
+            console.print(f"Task continuity: {issue}", markup=False)
     table.add_row('Processing source bindings', 'OK' if not receipt_issues
                   else f'Needs attention ({len(receipt_issues)})')
     table.add_row("Formal decisions", str(report["decision_count"]))
