@@ -10,7 +10,7 @@ from rich.console import Console
 
 from ..core.files import is_flg_project, read_file_safe
 from ..core.patches import create_patch, generate_patch_id
-from ..core.state import add_pending_patch, load_state
+from ..core.state import add_pending_patch, load_state, update_state
 from ..templates import CLOSEOUT_PATCH_MD, DECISION_PROMPT_TEMPLATE, CLOSEOUT_LLM_PROMPT_TEMPLATE, get_iso_now
 from ..llm_client import call_llm, parse_llm_response, get_llm_config, is_llm_available, is_local_endpoint, VALID_PROVIDERS
 from .session import archive_session
@@ -1484,11 +1484,45 @@ def _delegate_to_hermes(root: Path, transcript: Path, content: str) -> None:
     console.print(f"  [cyan]flg closeout --llm-write .flg/sessions/llm-result-{ts}.json[/cyan]")
 
 
+def _verified_llm_write_source(excerpt: object, transcript_content: str) -> tuple[str, str]:
+    """Attribute only a complete, single-line user quote from the raw source.
+
+    JSON actor fields and generated summaries are not attribution evidence.
+    Multi-line/embedded-role quotes stay unverified rather than flattening
+    separate speakers into one user statement.
+    """
+    unknown = ("(source excerpt not verified against raw transcript)", "unknown")
+    if not isinstance(excerpt, str) or len(excerpt.splitlines()) != 1:
+        return unknown
+    label = re.match(r"^\s*(?:User|用户)\s*[:：]\s*", excerpt, re.IGNORECASE)
+    if not label or not excerpt[label.end():].strip():
+        return unknown
+    if re.search(
+        r"\b(?:user|human|client|customer|assistant|agent|ai)\s*[:：]|(?:用户|客户|甲方|助手|系统)\s*[:：]",
+        excerpt[label.end():], re.IGNORECASE,
+    ):
+        return unknown
+    raw_content = strip_generated_transcript_sections(transcript_content)
+    in_code_block = False
+    lines = raw_content.splitlines()
+    for index, line in enumerate(lines):
+        if re.match(r"^\s*(?:```|~~~)", line):
+            in_code_block = not in_code_block
+        elif not in_code_block and line == excerpt:
+            if index + 1 < len(lines) and lines[index + 1].strip() and source_actor_for_segment(lines[index + 1]) == "unknown":
+                # A wrapped continuation is part of the same source paragraph.
+                return unknown
+            return excerpt, source_actor_for_segment(line)
+    return unknown
+
+
 def _finalize_llm_result(root: Path, json_path: Path, transcript: Path | None, force: bool) -> None:
     """Write a JSON decision file (from AI extraction) into a closeout patch.
 
     The JSON file should be an array of objects with: what, type, confidence,
-    why, rejected, reverse_condition. Or an object with a "decisions" key.
+    why, rejected, reverse_condition, and optional source_excerpt. A source
+    excerpt requires --transcript for raw-source attribution. Or an object
+    with a "decisions" key.
     """
     import json as _json
 
@@ -1519,11 +1553,17 @@ def _finalize_llm_result(root: Path, json_path: Path, transcript: Path | None, f
         console.print("[red]JSON must be an array of decisions or object with 'decisions' key[/red]")
         raise typer.Exit(1)
 
+    # A JSON result alone cannot establish who authored a candidate.
+    transcript_content = ""
+    if transcript is not None and transcript.is_file() and transcript.name.lower() not in STRUCTURED_LEDGER_FILENAMES:
+        transcript_content = read_file_safe(transcript) or ""
+
     # Normalize to internal format
     llm_decisions = []
     for i, d in enumerate(decisions_raw):
         if not isinstance(d, dict):
             continue
+        source_excerpt, source_actor = _verified_llm_write_source(d.get("source_excerpt"), transcript_content)
         llm_decisions.append({
             "id": d.get("id", f"D-HERMES-{i+1:03d}"),
             "content": d.get("what", str(d)),
@@ -1532,6 +1572,8 @@ def _finalize_llm_result(root: Path, json_path: Path, transcript: Path | None, f
             "reasoning": d.get("why", ""),
             "rejected_alternatives": d.get("rejected", ""),
             "reversal_conditions": d.get("reverse_condition", ""),
+            "source_excerpt": source_excerpt,
+            "source_actor": source_actor,
         })
 
     if not llm_decisions:
@@ -1548,7 +1590,7 @@ def _finalize_llm_result(root: Path, json_path: Path, transcript: Path | None, f
         rejected = d.get("rejected_alternatives", "")
         reversal = d.get("reversal_conditions", "")
         title = generate_decision_title(d["content"])
-        source_excerpt = d.get("content", "")[:120]
+        source_excerpt = d["source_excerpt"]
 
         # Quality gate (same as keyword / LLM paths): flag shell decisions.
         why_label = "Hermes AI extracted (v0.2.3)"
@@ -1577,6 +1619,7 @@ why_this_is_a_decision: {why_label}
 **Affected actions:** (not analyzed)
 **Supersedes:** (not analyzed)
 source_excerpt: > {source_excerpt}
+source_actor: {d['source_actor']}
 suggested_action: {suggested_action}
 
 """
@@ -1647,6 +1690,7 @@ mode: llm-hermes
 
     patch_path = create_patch(root, patch_id, patch_content)
     add_pending_patch(root, patch_id, str(patch_path), "medium", source_command="flg closeout --llm-write")
+    update_state(root, last_closeout_at=get_iso_now())
 
     console.print()
     console.print(f"[bold green]✓ Hermes AI extraction finalized[/bold green]")
@@ -1726,6 +1770,7 @@ The LLM found no explicit decisions in this conversation.
 """
         patch_path = create_patch(root, patch_id, patch_content)
         add_pending_patch(root, patch_id, str(patch_path), "low", source_command="flg closeout --llm")
+        update_state(root, last_closeout_at=get_iso_now())
 
         console.print()
         console.print(f"[bold green]✓ Patch generated (no decisions found)[/bold green]")
@@ -1849,6 +1894,7 @@ llm_model: {llm_model}
 
     patch_path = create_patch(root, patch_id, patch_content)
     add_pending_patch(root, patch_id, str(patch_path), "medium", source_command="flg closeout --llm")
+    update_state(root, last_closeout_at=get_iso_now())
 
     console.print()
     console.print(f"[bold green]✓ LLM extraction complete (v0.2.3)[/bold green]")
@@ -2100,6 +2146,7 @@ mode: {mode}
 
     # Update state
     add_pending_patch(root, patch_id, str(patch_path), "medium", source_command="flg closeout")
+    update_state(root, last_closeout_at=get_iso_now())
 
     # Display results
     console.print()
