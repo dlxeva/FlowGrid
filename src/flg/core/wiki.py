@@ -6,6 +6,8 @@ import hashlib
 import json
 import re
 from datetime import datetime, timezone
+from fnmatch import fnmatchcase
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -55,6 +57,8 @@ def load_wiki_config(root: Path) -> dict[str, Any] | None:
         raise ValueError(f"Wiki home must be a Markdown file: {config.get('home')}")
     if wiki_root != home.parent and wiki_root not in home.parents:
         raise ValueError("Wiki home must be inside the configured wiki root.")
+    _wiki_patterns(config, "include", ["**/*.md"])
+    _wiki_patterns(config, "exclude", [])
     return config
 
 
@@ -158,11 +162,52 @@ def _page_record(root: Path, path: Path) -> dict[str, Any]:
     }
 
 
+def _wiki_patterns(config: dict[str, Any], field: str, default: list[str]) -> list[str]:
+    """Validate POSIX glob patterns relative to wiki_root, never filesystem paths."""
+    patterns = config.get(field, default)
+    if not isinstance(patterns, list):
+        raise ValueError(f"Wiki {field} must be a list of relative glob patterns.")
+    for pattern in patterns:
+        if not isinstance(pattern, str) or not pattern or "\\" in pattern:
+            raise ValueError(f"Invalid wiki {field} pattern: {pattern!r}")
+        parts = pattern.split("/")
+        if (
+            re.match(r"^[A-Za-z]:", pattern)
+            or any(part in {"", ".", ".."} for part in parts)
+            or any("**" in part and part != "**" for part in parts)
+        ):
+            raise ValueError(f"Wiki {field} pattern must stay relative to wiki root: {pattern!r}")
+    return patterns
+
+
+def _matches_wiki_pattern(relative_path: str, pattern: str) -> bool:
+    """Match the entire relative path; ** spans zero or more components."""
+    parts, glob_parts = relative_path.split("/"), pattern.split("/")
+
+    @lru_cache(maxsize=None)
+    def match(path_index: int, glob_index: int) -> bool:
+        if glob_index == len(glob_parts):
+            return path_index == len(parts)
+        if glob_parts[glob_index] == "**":
+            return match(path_index, glob_index + 1) or (
+                path_index < len(parts) and match(path_index + 1, glob_index)
+            )
+        return (
+            path_index < len(parts)
+            and fnmatchcase(parts[path_index], glob_parts[glob_index])
+            and match(path_index + 1, glob_index + 1)
+        )
+
+    return match(0, 0)
+
+
 def scan_wiki(root: Path, config: dict[str, Any] | None = None) -> list[dict[str, Any]]:
     config = config or load_wiki_config(root)
     if config is None:
         return []
     wiki_root = _relative_project_path(root, config["root"], must_exist=True)
+    include = _wiki_patterns(config, "include", ["**/*.md"])
+    exclude = _wiki_patterns(config, "exclude", [])
     pages: list[dict[str, Any]] = []
     seen_ids: dict[str, str] = {}
     # Path ordering follows host filesystem semantics and is case-insensitive
@@ -175,6 +220,11 @@ def scan_wiki(root: Path, config: dict[str, Any] | None = None) -> list[dict[str
     for path in paths:
         if path.is_symlink():
             raise ValueError(f"Symlinked wiki pages are not supported: {path.relative_to(root)}")
+        relative_path = path.relative_to(wiki_root).as_posix()
+        if not any(_matches_wiki_pattern(relative_path, pattern) for pattern in include):
+            continue
+        if any(_matches_wiki_pattern(relative_path, pattern) for pattern in exclude):
+            continue
         if path.is_file():
             page = _page_record(root, path)
             previous = seen_ids.get(page["id"])
@@ -201,6 +251,7 @@ def _config_snapshot(config: dict[str, Any]) -> dict[str, Any]:
         "root": config.get("root"),
         "home": config.get("home"),
         "include": config.get("include", ["**/*.md"]),
+        "exclude": config.get("exclude", []),
         "authority": config.get("authority", "reference"),
     }
 
@@ -218,7 +269,10 @@ def compare_wiki(root: Path) -> dict[str, Any]:
     added = sorted(set(current) - set(previous))
     removed = sorted(set(previous) - set(current))
     changed = sorted(path for path in set(current) & set(previous) if current[path].get("sha256") != previous[path].get("sha256"))
-    config_changed = old.get("config") != _config_snapshot(config)
+    previous_config = old.get("config")
+    if isinstance(previous_config, dict):
+        previous_config = _config_snapshot(previous_config)
+    config_changed = previous_config != _config_snapshot(config)
     status = "fresh" if not (added or changed or removed or config_changed) else "stale"
     return {
         "configured": True,
@@ -278,7 +332,10 @@ def wiki_context_summary(root: Path, decision_ids: set[str] | None = None, limit
         return None
     comparison = compare_wiki(root)
     manifest = load_wiki_manifest(root)
-    pages = list((manifest or {}).get("pages", []))
+    # A stale manifest may still contain pages excluded by the current config.
+    # Never surface those cached titles/metadata while waiting for a rebuild.
+    current_paths = {page["path"] for page in comparison["pages"]}
+    pages = [page for page in (manifest or {}).get("pages", []) if page.get("path") in current_paths]
     decision_ids = decision_ids or set()
     selected: list[dict[str, Any]] = []
 
