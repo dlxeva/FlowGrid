@@ -10,6 +10,7 @@ import typer
 from rich.console import Console
 from rich.prompt import Confirm
 
+from ..core.decision_admission import decision_impact
 from ..core.evidence import load_evidence_index, save_evidence_index
 from ..core.files import is_flg_project, read_file_safe
 from ..core.operations import atomic_write_text, serialized_project_operation
@@ -94,6 +95,9 @@ def _build_decision_entry(number: int, decision: dict) -> str:
     rejected = decision.get("rejected") or "对话中未说明"
     reversal = decision.get("reversal") or "如果关键前提变化，需要重新评估"
 
+    impact = decision_impact(decision)
+    impact_section = f"### 后续影响\n{impact}\n\n" if impact else ""
+
     return f"""
 ## D-{number:03d} | {title}
 
@@ -118,7 +122,7 @@ A. {alternatives}
 ### 决策理由
 {why}
 
-### 放弃理由
+{impact_section}### 放弃理由
 {rejected}
 
 ### 风险判断
@@ -187,6 +191,9 @@ def review_patch(
         "--autonomous",
         help="Adopt clear candidates in the background with medium authority",
     ),
+    require_decision_impact: bool = typer.Option(
+        False, "--require-decision-impact", help="Keep candidates without a stated downstream impact pending",
+    ),
     report_only: bool = typer.Option(False, "--report-only", help="Report candidates without writing ledger state"),
 ) -> None:
     """Process candidate decisions, optionally without writing ledger state."""
@@ -222,6 +229,8 @@ def review_patch(
             is_shell = _is_shell_decision_for_review(decision)
             quality = "shell / needs re-extraction" if is_shell else "reviewable"
             console.print(f"{index}. [cyan]{decision.get('title', 'Untitled decision')}[/cyan] [{quality}]")
+            if require_decision_impact and not decision_impact(decision):
+                console.print("   Decision impact missing")
             if decision.get("what_decided"):
                 console.print(f"   What: {decision['what_decided']}")
             if decision.get("why"):
@@ -288,6 +297,12 @@ def review_patch(
         elif is_shell:
             console.print("  [yellow]⚠ Shell decision: no reasoning/alternatives/reversal detected.[/yellow]")
             console.print("  [dim]Recommended: reject and re-extract with more context, or fill in the why before accepting.[/dim]")
+
+        if require_decision_impact and not decision_impact(decision):
+            console.print("[yellow]Kept pending: state whose later judgment or action changes.[/yellow]")
+            continue
+        if impact := decision_impact(decision):
+            console.print(f"  Decision impact: {impact}", markup=False)
 
         default_accept = True if not is_shell else False
         accepted = background or Confirm.ask("Accept this decision into DECISIONS.md?", default=default_accept)

@@ -16,6 +16,7 @@ from rich.panel import Panel
 from rich.prompt import Confirm
 from rich.table import Table
 
+from ..core.decision_admission import decision_impact
 from ..core.evidence import load_evidence_index, save_evidence_index
 from ..core.files import is_flg_project, read_file_safe
 from ..core.i18n import localize_ledger_entry, project_language
@@ -79,6 +80,9 @@ def capture_add(
     source: str = typer.Option(
         "user_text", "--source", help="user_text | agent_summary"
     ),
+    impact: Optional[str] = typer.Option(
+        None, "--decision-impact", help="Whose later judgment or action changes, and how",
+    ),
     confirmation_event_id: Optional[str] = typer.Option(
         None,
         "--confirmation-event-id",
@@ -121,6 +125,7 @@ def capture_add(
         alt_list = [a.strip() for a in alternatives.split(",") if a.strip()]
 
     frontmatter = {
+        **({"decision_impact": impact.strip()} if impact and impact.strip() else {}),
         "id": capture_id,
         "created_at": now,
         "type": type_,
@@ -519,6 +524,8 @@ confirmed
         sections.append(f"### 核心问题\n{question}\n")
     if rationale:
         sections.append(f"### 决策理由\n{rationale}\n")
+    if impact := decision_impact(meta):
+        sections.append(f"### 后续影响\n{impact}\n")
     if alternatives:
         sections.append(f"### 备选方案\n" + "\n".join(f"- {item}" for item in alternatives) + "\n")
     if risks:
@@ -559,6 +566,9 @@ def capture_review(
         False,
         "--auto-confirm",
         help="Auto-process only explicitly confirmed captures; keep inferred items pending",
+    ),
+    require_decision_impact: bool = typer.Option(
+        False, "--require-decision-impact", help="Keep candidates without a stated downstream impact pending",
     ),
 ) -> None:
     """后台处理候选判断；仅显式 confirmed 捕获可自动写入账本。"""
@@ -624,6 +634,12 @@ def capture_review(
             console.print("  [yellow]⚠ Kept pending (capture lacks explicit human authorization evidence).[/yellow]")
             console.print()
             continue
+
+        if require_decision_impact and not decision_impact(meta):
+            console.print("[yellow]Kept pending: state whose later judgment or action changes.[/yellow]")
+            continue
+        if impact := decision_impact(meta):
+            console.print(f"  Decision impact: {impact}", markup=False)
 
         if auto_confirm:
             choice = "a"

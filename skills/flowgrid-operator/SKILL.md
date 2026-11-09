@@ -174,18 +174,38 @@ handoff outcome:
 This prevents routine validation from polluting `DECISIONS.md` while keeping
 the evidence available for `flg trace`.
 
+### Decision admission
+
+Before capture or adoption, state what was chosen, why, and whose later
+judgment or action changes. A routine draft, delivery format, or date update
+with no reusable tradeoff belongs in the existing task, artifact, or schedule.
+A proposal awaiting confirmation stays a candidate. Do not invent impact to
+fill a field.
+
+Add a single-line `**Decision impact:**` to a qualifying closeout candidate,
+or supply `--decision-impact` when using `flg capture add`. Use
+`--require-decision-impact` on patch and capture review, including background
+review. This checks that the consequence is stated. The host or reviewer
+checks whether it is concrete and supported. Missing impact stays pending
+while it can be clarified. Route routine items to their existing home and
+resolve them through the usual candidate workflow.
+
+For example, putting a draft in a shared document needs no decision entry.
+Changing recruitment so the research lead defines participant criteria before
+the field team recruits changes how the next study is staffed and merits one.
+
 ### Background review and merge
 
 `closeout` output is an internal candidate state, not a user-facing approval
 step. In the normal host-integrated flow:
 
-1. Run `flg review --patch <patch-file> --report-only` in the background as an
+1. Run `flg review --patch <patch-file> --report-only --require-decision-impact` in the background as an
    internal quality gate. It never interrupts the user or writes ledger state.
-2. Run `flg review --patch <patch-file> --autonomous` only after that gate.
+2. Run `flg review --patch <patch-file> --autonomous --require-decision-impact` only after that gate.
    Only rich candidates with explicit user/client attribution are adopted into
    the ledger. Agent-authored, unattributed, shell, or ambiguous candidates
    remain pending and are not written as decisions.
-3. If the host used real-time capture, run `flg capture review --auto-confirm`
+3. If the host used real-time capture, run `flg capture review --auto-confirm --require-decision-impact`
    in the background; this only processes captures explicitly marked
    `confirmed` and leaves inferred captures pending.
 4. Run `flg merge --patch <patch-file> --yes` in the background.
