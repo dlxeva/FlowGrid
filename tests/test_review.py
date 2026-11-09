@@ -376,3 +376,58 @@ def test_review_autonomous_records_medium_authority(tmp_path):
         assert item["source_type"] == "closeout_patch"
     finally:
         os.chdir(old_cwd)
+
+
+def test_review_with_impact_gate_keeps_routine_candidate_pending(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    assert runner.invoke(app, ["init", "Screening Test"]).exit_code == 0
+    patch = _write_two_candidate_patch(tmp_path)
+    impact = "Future operators must store client records locally."
+    patch.write_text(
+        patch.read_text().replace(
+            "**Why:** Privacy matters for client work.",
+            f"**Why:** Privacy matters for client work.\n**Decision impact:** {impact}",
+        ).replace("Add cloud sync", "Save the draft in the shared folder").replace(
+            "User: Add cloud sync", "User: Save the draft in the shared folder",
+        ),
+        encoding="utf-8",
+    )
+    args = ["review", "--patch", patch.name, "--require-decision-impact"]
+    before = (tmp_path / "DECISIONS.md").read_bytes()
+    report = runner.invoke(app, args + ["--report-only"])
+    assert report.exit_code == 0
+    assert "Decision impact missing" in report.output
+    assert (tmp_path / "DECISIONS.md").read_bytes() == before
+
+    result = runner.invoke(app, args + ["--accept-all"])
+    assert result.exit_code == 0
+    assert "Kept pending" in result.output
+    ledger = (tmp_path / "DECISIONS.md").read_text()
+    assert impact in ledger
+    assert "Save the draft" not in ledger
+
+
+def test_capture_with_impact_gate_preserves_legacy_pending_capture(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    assert runner.invoke(app, ["init", "Capture Screening"]).exit_code == 0
+    base = ["capture", "add", "--confidence", "confirmed", "-r", "Reduce scheduling delays"]
+    routine = runner.invoke(app, base + [
+        "-c", "Save the draft today", "-e", "User: Save the draft today.",
+        "--confirmation-event-id", "draft-event",
+    ])
+    assert routine.exit_code == 0
+    durable = runner.invoke(app, base + [
+        "-c", "Research defines participant criteria before recruitment",
+        "-e", "User: Research defines participant criteria before recruitment.",
+        "--confirmation-event-id", "recruitment-event",
+        "--decision-impact", "The field team waits for participant criteria before inviting anyone.",
+    ])
+    assert durable.exit_code == 0
+    result = runner.invoke(app, [
+        "capture", "review", "--auto-confirm", "--require-decision-impact",
+    ])
+    assert result.exit_code == 0
+    assert "Kept pending" in result.output
+    ledger = (tmp_path / "DECISIONS.md").read_text()
+    assert "The field team waits for participant criteria" in ledger
+    assert "Save the draft today" not in ledger
