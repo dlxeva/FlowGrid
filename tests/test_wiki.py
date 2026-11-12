@@ -2,13 +2,16 @@
 
 import json
 import os
+from pathlib import Path
+
+import pytest
 
 from typer.testing import CliRunner
 
 from flg.cli import app
 import flg.commands.wiki as wiki_commands
 from flg.commands.context import build_context_pack
-from flg.core.wiki import WIKI_MANIFEST, compare_wiki
+from flg.core.wiki import WIKI_MANIFEST, compare_wiki, scan_wiki, wiki_context_summary
 
 runner = CliRunner()
 
@@ -257,3 +260,114 @@ def test_wiki_config_change_marks_manifest_stale(tmp_path):
     doctor = _invoke_in(tmp_path, ["doctor", "--strict"])
     assert doctor.exit_code == 1
     assert "wiki manifest is stale" in doctor.output
+
+
+def test_wiki_filters_people_and_portraits_before_reading(tmp_path, monkeypatch):
+    docs = _project_with_docs(tmp_path)
+    excluded = [
+        "people/alice.md", "people/team/alice.md", "research/people/bob.md",
+        "research/people/team/bob.md", "用户画像.md", "research/用户画像.md",
+        "research/nested/用户画像.md",
+    ]
+    for name in excluded + ["research/market.md", "research/nested/market.md"]:
+        path = docs / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("# Reference\n", encoding="utf-8")
+    original_read_text = Path.read_text
+
+    def guarded_read(path, *args, **kwargs):
+        if path.is_relative_to(docs) and path.relative_to(docs).as_posix() in excluded:
+            pytest.fail(f"Excluded file was read: {path}")
+        return original_read_text(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", guarded_read)
+    pages = scan_wiki(tmp_path, {
+        "root": "docs", "include": ["**/*.md"],
+        "exclude": ["people/**", "research/people/**", "*画像*.md", "**/*画像*.md"],
+    })
+    assert {page["path"] for page in pages} == {
+        "docs/README.md", "docs/market.md", "docs/research/market.md", "docs/research/nested/market.md",
+    }
+
+
+def test_wiki_include_is_anchored_to_root_and_star_does_not_span_slashes(tmp_path):
+    docs = _project_with_docs(tmp_path)
+    for name in ("research/one.md", "research/deep/two.md", "other/research/three.md"):
+        path = docs / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("# Reference\n", encoding="utf-8")
+    config = {"root": "docs", "include": ["research/*.md"]}
+    assert [p["path"] for p in scan_wiki(tmp_path, config)] == ["docs/research/one.md"]
+    config["include"] = ["research/**/*.md"]
+    assert {p["path"] for p in scan_wiki(tmp_path, config)} == {"docs/research/one.md", "docs/research/deep/two.md"}
+    config["include"] = []
+    assert scan_wiki(tmp_path, config) == []
+
+
+def test_wiki_legacy_config_and_manifest_without_exclude_remain_fresh(tmp_path):
+    docs = _project_with_docs(tmp_path)
+    (docs / "nested").mkdir()
+    (docs / "nested/page.md").write_text("# Nested\n", encoding="utf-8")
+    assert _invoke_in(tmp_path, ["wiki", "init"]).exit_code == 0
+    config_path = tmp_path / ".flg/wiki.json"
+    config = json.loads(config_path.read_text())
+    config.pop("include")
+    config_path.write_text(json.dumps(config))
+    manifest_path = tmp_path / WIKI_MANIFEST
+    manifest = json.loads(manifest_path.read_text())
+    manifest["config"].pop("exclude")
+    manifest_path.write_text(json.dumps(manifest))
+    assert compare_wiki(tmp_path)["status"] == "fresh"
+    assert len(scan_wiki(tmp_path)) == 3
+
+
+def test_wiki_exclude_change_is_stale_even_without_page_change(tmp_path):
+    _project_with_docs(tmp_path)
+    assert _invoke_in(tmp_path, ["wiki", "init"]).exit_code == 0
+    config_path = tmp_path / ".flg/wiki.json"
+    config = json.loads(config_path.read_text())
+    config["exclude"] = ["people/**"]
+    config_path.write_text(json.dumps(config))
+    comparison = compare_wiki(tmp_path)
+    assert comparison["status"] == "stale"
+    assert comparison["config_changed"] is True
+    assert comparison["added"] == comparison["removed"] == comparison["changed"] == []
+
+
+def test_wiki_exclude_hides_cached_manifest_metadata_before_rebuild(tmp_path):
+    docs = _project_with_docs(tmp_path)
+    (docs / "people").mkdir()
+    (docs / "people/alice.md").write_text("---\ntype: index\n---\n# Private Alice\n", encoding="utf-8")
+    assert _invoke_in(tmp_path, ["wiki", "init"]).exit_code == 0
+    config_path = tmp_path / ".flg/wiki.json"
+    config = json.loads(config_path.read_text())
+    config["exclude"] = ["people/**"]
+    config_path.write_text(json.dumps(config))
+    manifest_before = (tmp_path / WIKI_MANIFEST).read_bytes()
+    summary = wiki_context_summary(tmp_path)
+    assert summary["status"] == "stale"
+    assert summary["page_count"] == 2
+    assert all(page["path"] != "docs/people/alice.md" for page in summary["pages"])
+    assert (tmp_path / WIKI_MANIFEST).read_bytes() == manifest_before
+
+
+@pytest.mark.parametrize("field", ["include", "exclude"])
+@pytest.mark.parametrize("pattern", ["../*.md", "/tmp/*.md", "C:/tmp/*.md", "docs/../*.md", "docs\\*.md", "", "a/**b.md", "a//*.md", 3])
+def test_wiki_rejects_invalid_patterns(tmp_path, field, pattern):
+    _project_with_docs(tmp_path)
+    with pytest.raises(ValueError, match="[Ww]iki"):
+        scan_wiki(tmp_path, {"root": "docs", field: [pattern]})
+
+
+@pytest.mark.parametrize("field", ["include", "exclude"])
+def test_wiki_rejects_nonlist_patterns(tmp_path, field):
+    _project_with_docs(tmp_path)
+    with pytest.raises(ValueError, match="list of relative glob patterns"):
+        scan_wiki(tmp_path, {"root": "docs", field: "*.md"})
+
+
+def test_wiki_exclude_does_not_bypass_symlink_rejection(tmp_path):
+    docs = _project_with_docs(tmp_path)
+    (docs / "alias.md").symlink_to(docs / "market.md")
+    with pytest.raises(ValueError, match="Symlinked wiki pages"):
+        scan_wiki(tmp_path, {"root": "docs", "exclude": ["alias.md"]})

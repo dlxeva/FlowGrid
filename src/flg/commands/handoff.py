@@ -109,6 +109,9 @@ def parse_patch_for_handoff(content: str) -> dict:
                 if current_decision:
                     val = line.split(":", 1)[1].strip().lstrip("*").strip()
                     current_decision["why"] = val
+            elif line.startswith("**Decision impact:**"):
+                if current_decision:
+                    current_decision["decision_impact"] = line.removeprefix("**Decision impact:**").strip()
             elif line.startswith("**Alternatives mentioned:**"):
                 if current_decision:
                     val = line.split(":", 1)[1].strip().lstrip("*").strip()
