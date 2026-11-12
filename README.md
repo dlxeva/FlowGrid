@@ -402,6 +402,7 @@ FlowGrid Core dependencies or evidence of Core maturity.
 - [Judgment capture pipeline](./docs/product/judgment-capture-pipeline.md)
 - [Decision relations](./docs/product/decision-relations-v0.md)
 - [User pain model](./docs/product/user-pain-model.md)
+- [Experimental opt-in local task continuation](./docs/product/task-continuity.md): task identity and execution attempts; local artifact checks only, no formal approval or external execution control.
 - [Synthetic client-solution use case](./docs/use-cases/client-solution-continuation.md)
 - [Development log](./docs/devlog/README.md)
 - [Security policy](./SECURITY.md)

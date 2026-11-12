@@ -1,9 +1,35 @@
 # FlowGrid Current State
 
-Last updated: 2026-10-29
+Last updated: 2026-11-12
 Primary branch: `master`
 Current code version: `v0.4.0a1`
 Current stage: `v0.4 prerelease validation`
+
+## Latest Source Changes
+
+The task-continuation source change is based on public `master` at `f503bb8`,
+including reviewed follow-up hardening (PR #60), explicit decision-impact
+screening (PR #61), and closeout/source-exclusion corrections (PR #62).
+Package metadata remains `0.4.0a1`; the additional source changes are recorded
+under Unreleased and do not move the existing prerelease tag.
+
+Experimental [local task continuation](task-continuity.md) is disabled by
+default. It preserves explicit task identity, execution attempts, unresolved
+waits and local-artifact evidence through process changes. It adds no automatic
+task extraction, runtime migration, global hooks or formal decision authority.
+Existing projects retain their current ledgers and opt in individually.
+
+The reviewed source passes 787 local tests with two native-Windows-only skips,
+plus source-tree smoke. Corrections cover concurrent configuration changes,
+case-insensitive and Win32 internal-artifact aliases, and read-only root aliases.
+Disabled-project read comparisons preserve existing views and protected files.
+The reviewed commit's Linux and native Windows CI remains the merge gate.
+These checks do not establish real-user continuation effectiveness.
+
+Earlier validation records below retain their historical scope and counts;
+they are not current installed-runtime attestations.
+
+## Earlier Prerelease Context
 
 Source continuity merged in PR #58 at `8ea7489`. The first native Windows
 run exposed incompatible CRT/path stat metadata and an attributes-only directory
@@ -28,13 +54,13 @@ this correction. The current PR's native CI must verify the corrected head.
 
 ## Product Position
 
-Local review-continuity hardening candidate (based on master `6081728`):
+Review-continuity hardening merged through PR #60 (based on `6081728`):
 partial receipt replacement now requires the same source SHA; changed sources
 require a full current review. Formal capture accept/reject retains follow-up
 history and binds its outcome to the updated candidate basis. Empty/null review
 metadata cannot bypass automatic-confirmation guards. Invalid/drifted follow-ups
-must be explicitly rereviewed before formal processing. These changes are local
-and do not imply a release, runtime switch, or native Windows validation.
+must be explicitly rereviewed before formal processing. A source merge alone
+does not switch an existing project's runtime or establish real-host validation.
 Native CI fixtures normalize existing CRLF before selecting test newlines,
 avoiding accidental CRCRLF input on Windows; runtime byte preservation remains.
 
@@ -65,6 +91,9 @@ Its job is to let project state, boundaries, judgments, progress, and next actio
   processing receipts and reverse lookup through `flg source`
 - Source-review notices in Resume, Manifest and Work contexts; explicit
   acknowledgments, retry-safe registration and reviewed receipt replacement
+- Experimental opt-in local task continuation with explicit takeover, stale
+  attempt rejection, retained waits and version-bound local-artifact checks;
+  bounded read-only notices in status, context, handoff and doctor
 
 ## Source Continuity Iteration
 
@@ -87,9 +116,9 @@ The earlier real-source exercise lacked historic T/D snapshots; it does not
 establish a full adaptation A/B or universal FLG effectiveness. Current package
 version is now v0.4.0a1 and the broader v0.4 validation is ongoing.
 
-## Current Verification
+## Historical Verification
 
-- The latest product-behavior merge is `fcac7b4` (PR #54). It includes PR #51's
+- The earlier product-behavior merge `fcac7b4` (PR #54) includes PR #51's
   runtime freshness, read-only judgment impact, knowledge-source adapter
   boundary, the rebased Windows hardening, explicit current-action dates, and
   deterministic Chinese reported-speech attribution guards.
