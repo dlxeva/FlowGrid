@@ -143,6 +143,11 @@ task notices. This extension does not switch project runtime mappings or change
 installed skills. Explicit enabling is scoped to one project.
 An unrelated legacy `.flg/tasks/` directory does not opt a project in. Deleting
 configuration or editing task records outside this API is outside its guarantees.
+Read views resolve project-root aliases to the canonical root; mutation requests
+still require the actual root. Symlinked source/state subpaths remain rejected.
+Configuration changes during a read produce a retry/recheck finding rather than
+a mixed partial task list. Internal artifact paths reserve the top-level `.flg`
+namespace across case variations and Win32 trailing-dot/space aliases.
 
 Disabling requires resolving live task work first and retains history. A corrupt
 or unsupported extension reports a health issue; it is never silently treated as

@@ -579,3 +579,151 @@ def test_notice_prioritizes_active_tasks_over_sorted_terminal_history(root):
     notice = tc.render_notice(root)
     assert "zzz-active" in notice and "5 historical tasks omitted" in notice
     assert len(tc.collect(root)["tasks"]) == 6
+
+
+@pytest.mark.parametrize("reader", ["collect", "render_notice"])
+@pytest.mark.parametrize("boundary", ["after_ids", "after_first_show"])
+@pytest.mark.parametrize("change", ["disable", "disable_enable", "corrupt_config", "corrupt_task"])
+def test_collect_config_race_is_read_only_and_fail_closed(root, monkeypatch, reader, boundary, change):
+    configure(root)
+    for ident in ("task-1", "task-2"):
+        register(root, ident)
+        op(root, "cancel", task_id=ident)
+    original = tc._task_ids if boundary == "after_ids" else tc.show
+    after_change = None
+    changed = False
+
+    def interleaved_read(*args):
+        nonlocal after_change, changed
+        result = original(*args)
+        if not changed:
+            # Deterministic scheduling at a read boundary, without sleeps.
+            # These config transitions use the same API as another process.
+            changed = True
+            if change in {"disable", "disable_enable"}:
+                configure(root, False)
+                if change == "disable_enable":
+                    configure(root, True)
+            else:
+                target = tc.CONFIG if change == "corrupt_config" else ".flg/tasks/task-2.json"
+                (root / target).write_text("corrupt")
+            after_change = snapshot(root)
+        return result
+
+    monkeypatch.setattr(tc, "_task_ids" if boundary == "after_ids" else "show", interleaved_read)
+    result = getattr(tc, reader)(root)
+    assert changed and snapshot(root) == after_change
+    assert not (root / ".flg/.operation.lock").exists()
+    if reader == "collect":
+        assert result["enabled"] is True and result["needs_recheck"] and result["issues"]
+        if change != "corrupt_task":
+            assert result["tasks"] == []  # Never expose a mixed-config partial list.
+        else:
+            corrupt = next(task for task in result["tasks"] if task["task_id"] == "task-2")
+            assert corrupt["status"] == "unknown" and corrupt["checks"]["executable"] is False
+    else:
+        assert "needs_recheck" in result and "No active tasks" not in result
+
+
+@pytest.mark.parametrize("path", [".flg", ".FLG", ".flg/state.json", ".FLG/state.json",
+                                 ".FlG/state.json", ".fLg/tasks/task-1.json", ".flG/nested/output.bin",
+                                 ".flg.", ".flg ", ".FLG. /state.json", ".flg./state.json",
+                                 ".flg /state.json", ".FlG...   /nested/output.bin"])
+def test_internal_artifact_paths_rejected_on_every_filesystem(root, path):
+    configure(root)
+    before = snapshot(root)
+    # No existence check or case-insensitive-filesystem skip: this is a
+    # portable namespace rule even when the differently cased path is absent.
+    with pytest.raises(ValueError, match="Internal task/ledger"):
+        register(root, criteria=[{"id": "internal", "path": path}])
+    assert snapshot(root) == before
+
+
+@pytest.mark.parametrize("path", [".flg-output.bin", "outputs/.FLG/artifact.bin"])
+def test_internal_artifact_rule_does_not_reserve_unrelated_paths(root, path):
+    target = root / path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(b"local deliverable")
+    configure(root)
+    register(root, criteria=[{"id": "artifact", "path": path}])
+    op(root, "takeover", executor="worker", attempt_id="attempt-1")
+    result = op(root, "complete", actor="worker", attempt_id="attempt-1", evidence_refs=[ref(root, path)])
+    assert result["status"] == "completed"
+
+
+def test_unconfigured_root_alias_is_read_only_and_notice_free(tmp_path, monkeypatch):
+    from typer.testing import CliRunner
+    from flg.cli import app
+    from flg.commands.context import build_context_pack
+    from flg.commands.handoff import generate_handoff_summary
+
+    project = tmp_path / "project"
+    project.mkdir()
+    monkeypatch.chdir(project)
+    assert CliRunner().invoke(app, ["init", "Synthetic legacy project"]).exit_code == 0
+    alias = tmp_path / "project-alias"
+    alias.symlink_to(project, target_is_directory=True)
+    # An unrelated legacy task folder must stay outside this opt-in feature.
+    (project / ".flg/tasks").mkdir()
+    (project / ".flg/tasks/legacy.txt").write_text("unrelated legacy data")
+    before = snapshot(project)
+    directory_times = {p: p.stat().st_mtime_ns for p in [project, *project.rglob("*")] if p.is_dir()}
+    alias_time = alias.lstat().st_mtime_ns
+
+    for path in (project, alias):
+        assert tc.collect(path) == {"enabled": False, "tasks": [], "issues": []}
+        assert tc.show(path, "task-1") == {
+            "enabled": False, "task_id": "task-1", "issues": [], "checks": {"executable": False}}
+        assert tc.render_notice(path) == ""
+        content, metadata = build_context_pack(path, mode="manifest")
+        assert "Task continuity" not in content
+        assert ".flg/tasks/" not in metadata["sources_included"]
+        assert "Task continuity" not in generate_handoff_summary(path)
+    assert snapshot(project) == before
+    assert {p: p.stat().st_mtime_ns for p in directory_times} == directory_times
+    assert alias.lstat().st_mtime_ns == alias_time
+
+
+def test_root_alias_reads_match_but_writes_remain_rejected(root, tmp_path_factory):
+    running(root)
+    alias = tmp_path_factory.mktemp("root-alias") / "project"
+    alias.symlink_to(root, target_is_directory=True)
+    before = snapshot(root)
+    assert tc.show(alias, "task-1") == tc.show(root, "task-1")
+    assert tc.collect(alias) == tc.collect(root)
+    assert tc.render_notice(alias) == tc.render_notice(root)
+    with pytest.raises(ValueError, match="Symlinked project roots"):
+        configure(alias)
+    with pytest.raises(ValueError, match="Symlinked project roots"):
+        tc.apply(alias, "task-1", {"action": "pause", "actor": "owner", "expected_revision": 2,
+                                  "operation_id": "alias-write"})
+    assert snapshot(root) == before
+
+
+@pytest.mark.parametrize("target", [".flg", ".flg/tasks", ".flg/task-continuity.json",
+                                   ".flg/tasks/task-1.json", "goal.md", "artifact.bin"])
+def test_root_alias_does_not_allow_symlinked_subpaths(root, tmp_path_factory, target):
+    running(root)
+    outside = tmp_path_factory.mktemp("alias-boundary")
+    alias = outside / "project"
+    alias.symlink_to(root, target_is_directory=True)
+    path = root / target
+    destination = outside / "retained"
+    path.rename(destination)
+    path.symlink_to(destination, target_is_directory=destination.is_dir())
+    for report in (tc.collect(alias), tc.show(alias, "task-1")):
+        assert report["enabled"] is True and report["needs_recheck"] and report["issues"]
+        assert "Symlinked source/state paths" in str(report["issues"])
+    assert tc.show(alias, "task-1")["checks"]["executable"] is False
+    assert "needs_recheck" in tc.render_notice(alias)
+
+
+@pytest.mark.parametrize("kind", ["missing", "loop"])
+def test_unresolvable_root_alias_is_fail_closed(tmp_path, kind):
+    alias = tmp_path / "alias"
+    alias.symlink_to(tmp_path / "missing" if kind == "missing" else alias)
+    before = alias.lstat().st_mtime_ns
+    for report in (tc.collect(alias), tc.show(alias, "task-1")):
+        assert report["enabled"] is True and report["needs_recheck"] and report["issues"]
+    assert "needs_recheck" in tc.render_notice(alias)
+    assert list(tmp_path.iterdir()) == [alias] and alias.lstat().st_mtime_ns == before

@@ -1,11 +1,11 @@
-# Task continuity: bounded stage-1 implementation contract
+# Task continuity: bounded local implementation contract
 
-This work is an opt-in local continuation slice, authorized 2026-11-01. It does
+This extension is an opt-in local continuation slice. It does
 not implement external effects, distributed leases, remote identity verification,
 formal judgment approval or automatic task extraction. Existing projects and
-their runtime mappings must remain unchanged. No release/version bump.
+their runtime mappings remain unchanged by installation.
 
-## Core API (owned by implementation worker)
+## Core API
 
 Module `flg.core.task_continuity`:
 
@@ -79,18 +79,19 @@ never calls complete. Actor strings are host assertions, not authenticated
 identities; publish this limitation. No promises about old writers outside this
 new task-record API.
 
-Tests owned by worker: core tests for opt-in, zero writes when disabled, schema
+Core tests cover opt-in, zero writes when disabled, schema
 and paths, CAS and old-attempt fence, operation replay/conflict, task/session
 independence, waiting read stability, pause/cancel, recheck, refs drift/quote,
 artifact completion checks, data preservation and atomic-write failure.
 
-## Integration (owned by parent)
+## Integration
 
-Parent owns CLI adapter `flg task enable/disable/list/show/apply`, existing CLI
-registration and status, context/handoff/doctor projections, integration tests,
-public docs. JSON input remains a host interface; users need not hand-operate it.
+The CLI adapter exposes `flg task enable/disable/list/show/apply`; existing CLI
+status, context, handoff and doctor consume read-only task projections.
+JSON input remains a host interface; users need not hand-operate it.
 No existing mutation command will be described as task-fenced in this slice.
 Existing follow-up is referenced and checked, not rewritten by this module.
 
-Stop before modifying a real project's ledger, runtime mapping, installed skill,
-release version/tag, pushing or publishing. Work only in this isolated worktree.
+Enabling is an explicit per-project action. Installing this extension must not
+migrate a real project's ledger, switch its runtime mapping or enable task state.
+External publishing and formal approval retain their existing authorization gates.

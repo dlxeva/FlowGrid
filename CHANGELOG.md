@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+- Add experimental, explicitly enabled local task continuation. Retain task
+  identity across sessions, fence superseded execution attempts, preserve waits
+  and check version-bound local artifacts without changing formal ledgers.
+  Installation does not enable the extension or migrate existing projects.
+- Detect configuration changes during task reads, reject internal-artifact path
+  aliases across platforms and preserve read-only project-root alias support.
+- Preserve exact closeout source bytes and honor excluded knowledge-source paths.
+- Add optional downstream-impact screening to decision review. Missing impact
+  remains pending; stating an impact does not establish its truth or approval.
+
 ## 0.4.0a1 (2026-10-29)
 
 First v0.4 prerelease. This version identifies the implemented continuation and

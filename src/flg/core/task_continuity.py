@@ -142,7 +142,10 @@ def _criteria(root, criteria):
         ident = _id(criterion["id"])
         path = relative(criterion["path"])
         checked_path(root, path)
-        require(not path.startswith(".flg/"), "Internal task/ledger paths cannot be completion artifacts")
+        # Reserve the namespace on every platform, including case aliases and
+        # Win32's trailing-dot/space aliases; none may certify ledger state.
+        require(path.split("/", 1)[0].rstrip(" .").casefold() != ".flg",
+                "Internal task/ledger paths cannot be completion artifacts")
         require(ident not in ids and path not in paths, "Duplicate criterion ID/path")
         ids.add(ident)
         paths.add(path)
@@ -522,11 +525,13 @@ def show(root, task_id) -> dict:
     """Read top-level task fields plus checks; corrupt state is never executable."""
     root, ident = Path(root), _id(task_id)
     try:
+        # Hosts may pass a root alias for read views. Subpath checks stay strict.
+        root = root.resolve(strict=True)
         config = _config(root)
         if not config["enabled"]:
             return {"enabled": False, "task_id": ident, "issues": [], "checks": {"executable": False}}
         return {"enabled": True, **_projection(root, _read_task(root, ident))}
-    except ERRORS as exc:
+    except (*ERRORS, RuntimeError) as exc:  # Older Python raises RuntimeError for symlink loops.
         return {"enabled": True, "task_id": ident, "status": "unknown", "revision": None,
                 "active_attempt": None, "needs_recheck": True, "issues": [str(exc)[:300]],
                 "checks": {"needs_recheck": True, "executable": False}, "next_safe_action": "owner inspect corrupt local record"}
@@ -536,12 +541,19 @@ def collect(root) -> dict:
     """Bounded read-only projection; corruption is explicit, never implicit off."""
     root = Path(root)
     try:
-        if not _config(root)["enabled"]:
+        root = root.resolve(strict=True)
+        config = _config(root)
+        if not config["enabled"]:
             return {"enabled": False, "tasks": [], "issues": []}
         ids = _task_ids(root)
-    except ERRORS as exc:
+        tasks = [show(root, ident) for ident in ids]
+        # Readers never acquire the write lock. Detect config changes across
+        # this projection, including disable/enable ABA via its append history.
+        # Revalidate instead of treating mixed or corrupt state as disabled.
+        require(_config(root) == config and all(task["enabled"] for task in tasks),
+                "Task continuity configuration changed during read; retry")
+    except (*ERRORS, RuntimeError) as exc:
         return {"enabled": True, "tasks": [], "issues": [str(exc)[:300]], "needs_recheck": True}
-    tasks = [show(root, ident) for ident in ids]
     issues = [{"task_id": task["task_id"], "error": issue} for task in tasks for issue in task["issues"]][:50]
     return {"enabled": True, "tasks": tasks, "issues": issues,
             "needs_recheck": any(t["needs_recheck"] for t in tasks)}
