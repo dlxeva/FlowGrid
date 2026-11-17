@@ -1,11 +1,27 @@
 # FlowGrid Current State
 
-Last updated: 2026-11-12
+Last updated: 2026-11-17
 Primary branch: `master`
 Current code version: `v0.4.0a1`
 Current stage: `v0.4 prerelease validation`
 
 ## Latest Source Changes
+
+The current local task-aware-context iteration builds on merged PR #63 at
+`df919cb`. Explicit Resume `--query` selects task-related older decisions using
+bounded lexical matches, separates non-current history and links reversal cues
+to source review. Query output never grants authority or writes decision state.
+Default context behavior and deployed runtime mappings remain unchanged.
+See [task-aware context](task-aware-context.md) for scope and limitations.
+Local verification and availability results are recorded separately from native
+CI, deployment or real-user effectiveness; this candidate has not been deployed.
+The local regression passes 871 tests with two native-Windows-only skips, plus
+source smoke. Nine fixed synthetic cases check evidence availability at the same
+approximate budget: 8/8 positive query targets versus 1/8 in default Resume and
+7/8 in a raw-ledger prefix. The remaining case checks no-match behavior. Short
+raw ledgers retain all targets; the long raw-prefix stress case is constructed.
+This result does not establish better reasoning or real-user time savings.
+See the [bounded availability report](../../evals/results/task-focus-availability-20261117.md).
 
 The task-continuation source change is based on public `master` at `f503bb8`,
 including reviewed follow-up hardening (PR #60), explicit decision-impact

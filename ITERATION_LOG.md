@@ -328,7 +328,7 @@ MkDocs/Quartz/Wiki.js 等外部载体的接入，不新增 Wiki 存储层或页�
 
 **处理方向**：保持默认 resume pack 有界；后续以显式任务意图或主题查询实验“近期执行状态 + 长期母叙事”分层召回，并把 stale/superseded 检查放在增加更多内容之前。
 
-**当前状态**：Continuity Manifest v1 已实现“紧凑地图 → 按判断 ID 展开”的第一段纵切，复用正式账本与现有 evidence/trace 入口，保持 resume 兼容。长期母叙事的主题召回仍未实现，因此本条只标记为 partially fixed。
+**当前状态**：Continuity Manifest v1 已实现“紧凑地图 → 按判断 ID 展开”的第一段纵切。2026-11-17 在独立候选增加显式 Resume `--query`，按当前任务词面召回旧有效判断，分离非现行历史，并呈现反转条件词面线索及已有来源复核。默认入口保持兼容，不增加并行业务账本。合成与本地只读验证尚不能证明语义泛化、解释成本下降或真实用户收益，因此本条继续保留 partially fixed；具体结果见 `evals/results/task-focus-availability-20261117.md`。
 
 ### FLG-ITER-20260808-07：长期判断账本与任务执行层仍靠宿主纪律交接 [observed — P1]
 
