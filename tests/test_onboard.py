@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
 from typer.testing import CliRunner
 
 from flg.cli import app
@@ -16,6 +17,14 @@ from flg.commands.onboard import (
 )
 
 runner = CliRunner()
+
+
+@pytest.fixture(autouse=True)
+def isolated_host_home(tmp_path, monkeypatch):
+    """Never let an onboard --yes regression update the developer's skills."""
+    host_home = tmp_path / 'synthetic-host-home'
+    host_home.mkdir()
+    monkeypatch.setattr('flg.commands.onboard.Path.home', lambda: host_home)
 
 
 def test_onboard_env_check_on_fresh_dir(tmp_path):

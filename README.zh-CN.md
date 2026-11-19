@@ -388,6 +388,7 @@ AML Retriever 与 FlowGrid Core 共享来源、时间状态、冲突保留和可
 - [Context Pack 契约](./docs/product/context-pack-contract.md)
 - [判断捕获流程](./docs/product/judgment-capture-pipeline.md)
 - [决策关系](./docs/product/decision-relations-v0.md)
+- [任务相关上下文](./docs/product/task-aware-context.md)：显式调回与当前任务相关的历史，保留来源审阅与决策权限边界。
 - [用户痛点模型](./docs/product/user-pain-model.md)
 - [实验性本地任务续接](./docs/product/task-continuity.md)：默认关闭，保留任务身份并区分执行尝试；仅核验本地产物，不替代正式批准或控制外部操作。
 - [虚构客户方案续接案例](./docs/use-cases/client-solution-continuation.md)

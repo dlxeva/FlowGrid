@@ -346,14 +346,14 @@ def _render_items(items: list[str], empty: str = "(none recorded)") -> str:
     return "".join(f"- {item}\n" for item in items)
 
 
-def _render_confirmed_decisions(decisions: list[dict[str, str]]) -> str:
+def _render_confirmed_decisions(decisions: list[dict[str, str]], preserve_status: bool = False) -> str:
     if not decisions:
         return "- (none recorded)\n"
 
     out = ""
     for decision in decisions:
         out += f"### {decision['id']} | {decision['title']}\n"
-        out += "- Status: confirmed\n"
+        out += f"- Status: {decision['status'] if preserve_status else 'confirmed'}\n"
         out += f"- Authority: {decision['authority']}\n"
         out += f"- Decision: {decision['decision']}\n"
         out += f"- Rationale: {decision['rationale']}\n"
@@ -395,12 +395,13 @@ def _render_pending_patches(patches: list[dict]) -> str:
     return out
 
 
-def _render_evidence_refs(decisions: list[dict[str, str]], patches: list[dict]) -> str:
+def _render_evidence_refs(decisions: list[dict[str, str]], patches: list[dict],
+                         preserve_status: bool = False) -> str:
     refs: list[str] = []
     for decision in decisions:
         refs.append(
             f"- {decision['id']}: DECISIONS.md#{decision['id']} "
-            f"(source_type: {decision['source_type']}, status: confirmed)"
+            f"(source_type: {decision['source_type']}, status: {decision['status'] if preserve_status else 'confirmed'})"
         )
     for patch in patches:
         refs.append(f"- {patch['filename']}: .flg/patches/{patch['filename']} (source_type: closeout_patch, status: pending_review)")
@@ -756,7 +757,8 @@ def _build_continuity_manifest(root: Path, budget: int) -> tuple[str, dict]:
     return content, metadata
 
 
-def _build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> tuple[str, dict]:
+def _build_context_pack(root: Path, mode: str = "resume", budget: int = 4000,
+                        focus: Optional[dict] = None) -> tuple[str, dict]:
     if mode == "work":
         state = load_state(root)
         if not state:
@@ -787,6 +789,10 @@ def _build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) ->
     progress_content = read_file_safe(root / "PROGRESS.md") or ""
     constraints_content = read_file_safe(root / "CONSTRAINTS.md") or ""
     goal_evolution_content = read_file_safe(root / "GOAL_EVOLUTION.md") or ""
+    if focus is not None:
+        from ..core.source_receipts import digest
+        if digest(decisions_content) != focus['ledger_sha256']:
+            raise ValueError('Decision ledger changed during task selection; reread and retry')
     framing_is_obsolete = _is_explicitly_obsolete(framing_content)
 
     project_name = state.get("project_name", "Unknown")
@@ -823,6 +829,10 @@ def _build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) ->
 
     evidence_items = load_evidence_index(root).get("items", {})
     confirmed_decisions = _parse_confirmed_decisions(decisions_content, evidence_items)
+    if focus is not None:
+        available = {item['id']: item for item in _parse_confirmed_decisions(
+            decisions_content, evidence_items, limit=1000000)}
+        confirmed_decisions = [available[ident] for ident in focus['current_ids']]
     pending_patches = _pending_patch_summaries(root)
     source_health = validate_project(root)
     work_view = inspect_work_view(root, state)
@@ -864,16 +874,18 @@ def _build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) ->
     risks = risks[:8]
 
     recent_progress = _compact_lines(progress_content, limit_chars=900) or "(not recorded)"
-    snapshot_constraints = _list_items(_section(snapshot_content, "Hard Constraints"), limit=6)
-    snapshot_constraints += _list_items(_section(snapshot_content, "硬约束"), limit=6)
-    snapshot_non_goals = _list_items(_section(snapshot_content, "Current Non-Goals"), limit=6)
-    snapshot_non_goals += _list_items(_section(snapshot_content, "当前不做什么"), limit=6)
+    constraint_limit = 1000000 if focus is not None else 6
+    snapshot_constraints = _list_items(_section(snapshot_content, "Hard Constraints"), limit=constraint_limit)
+    snapshot_constraints += _list_items(_section(snapshot_content, "硬约束"), limit=constraint_limit)
+    snapshot_non_goals = _list_items(_section(snapshot_content, "Current Non-Goals"), limit=constraint_limit)
+    snapshot_non_goals += _list_items(_section(snapshot_content, "当前不做什么"), limit=constraint_limit)
     if snapshot_constraints or snapshot_non_goals:
-        active_constraints = _render_items(snapshot_constraints[:6])
+        active_constraints = _render_items(snapshot_constraints[:constraint_limit])
         if snapshot_non_goals:
-            active_constraints += "\nCurrent non-goals:\n" + _render_items(snapshot_non_goals[:6])
+            active_constraints += "\nCurrent non-goals:\n" + _render_items(snapshot_non_goals[:constraint_limit])
     else:
-        active_constraints = _compact_lines(constraints_content, limit_chars=700) or "(not recorded)"
+        active_constraints = _compact_lines(constraints_content,
+            limit_chars=len(constraints_content) + 1 if focus is not None else 700) or "(not recorded)"
 
     sources_included = [
         "PROJECT.md",
@@ -959,7 +971,7 @@ def _build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) ->
 
 ## Confirmed Decisions
 
-{_render_confirmed_decisions(confirmed_decisions)}
+{_render_confirmed_decisions(confirmed_decisions, preserve_status=focus is not None)}
 ## Pending Judgments
 
 {_render_pending_patches(pending_patches)}
@@ -991,7 +1003,7 @@ def _build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) ->
 {_render_source_health(source_health)}
 {wiki_section}## Evidence References
 
-{_render_evidence_refs(confirmed_decisions, pending_patches)}
+{_render_evidence_refs(confirmed_decisions, pending_patches, preserve_status=focus is not None)}
 ## Agent Instructions
 
 - Read this Context Pack before acting.
@@ -1042,12 +1054,66 @@ def _build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) ->
     return content, metadata
 
 
-def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> tuple[str, dict]:
+def _focus_navigation(root: Path, query: str, focus: dict, source_view: dict) -> str:
+    """Explain bounded lexical selection without granting decision authority."""
+    def compact(value: str, size: int = 220) -> str:
+        text = ' '.join(str(value).split())
+        return text if len(text) <= size else text[:size] + '… [excerpt; expand source]'
+
+    lines = ['## Task-related History', '', f'- Query: {json.dumps(query, ensure_ascii=False)}',
+             '- Selection uses explicit IDs and lexical matches, not semantic proof or approval.',
+             '- Current action and constraints retain their existing authority. No state was changed.']
+    if not focus['matches']:
+        lines.append('- No additional lexical match; recent valid decisions remain the fallback.')
+    for match in focus['matches']:
+        lines.append(f"- {match['id']}: {compact(match['reason'])}; expand `flg evidence {match['id']}`.")
+        if match['reversal_terms']:
+            lines.append('  Possible reversal-condition cue: ' + ', '.join(match['reversal_terms']) +
+                         '. Term overlap only; inspect original conditions and new evidence. No condition is confirmed met.')
+    for ident in focus.get('missing_ids', []):
+        lines.append(f'- Requested {ident} was not found; do not infer its contents.')
+    for ident in focus.get('diagnostics', {}).get('unparsed_ids', []):
+        lines.append(f'- Requested {ident} has no usable parsed judgment; inspect the original ledger.')
+    if focus['historical']:
+        lines += ['', '### Non-current history (reference only, never current instructions)']
+        for item in focus['historical']:
+            lines.append(f"- {item['id']} status={item['status']}: {compact(item['title'], 100)}; {compact(item['reason'], 100)}")
+            for field, label in [('decision', 'Historical statement'), ('rejected', 'Rejected alternatives'),
+                                 ('reversal', 'Reversal conditions')]:
+                if item.get(field):
+                    lines.append(f'  {label}: {compact(item[field])}')
+            lines.append(f"  Source: DECISIONS.md#{item['id']}; current validity is not restored by retrieval.")
+    relevant = set(focus['current_ids']) | {item['id'] for item in focus['historical']}
+    receipts = [item for item in source_view['items'] if item['needs_review'] and
+                any(j['id'] in relevant for j in item['judgments'])]
+    if receipts:
+        lines += ['', '### Existing source reviews for selected judgments']
+        for receipt in receipts[:3]:
+            lines.append(f"- {receipt['receipt_id']} binding={receipt['binding']}; expand `flg source show {receipt['receipt_id']}`. Review only; formal state unchanged.")
+        if len(receipts) > 3:
+            lines.append(f'- {len(receipts) - 3} further reviews omitted; use `flg source pending`.')
+    lines += ['- Limits: lexical recall may miss paraphrases; absence is not evidence of no relevant history.',
+              '- Verify evidence freshness before relying on a retrieved judgment.', '']
+    return '\n'.join(lines) + '\n'
+
+
+def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000,
+                       query: Optional[str] = None) -> tuple[str, dict]:
     """Reserve bounded source-review navigation before building existing views."""
     from ..core.source_receipts import context_notice
     from ..core.capture_followup import render_notice
     notice, view = context_notice(root)
     has_source_notice = bool(notice)
+    focus = None
+    if query is not None:
+        if mode != 'resume':
+            raise ValueError('--query is currently supported only with --mode resume')
+        from ..core.task_focus import select_decisions
+        from ..core.source_receipts import digest
+        ledger = read_file_safe(root / 'DECISIONS.md') or ''
+        focus = select_decisions(ledger, query)
+        focus['ledger_sha256'] = digest(ledger)
+        notice += _focus_navigation(root, query, focus, view)
     candidate_notice = render_notice(root)
     notice += candidate_notice
     from ..core.task_continuity import render_notice as render_task_notice
@@ -1058,7 +1124,9 @@ def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> 
     reserved = (len(notice) + 3) // 4
     if budget - reserved < 300:
         raise ValueError('Context budget cannot retain source-review navigation and current work; increase --budget')
-    content, metadata = _build_context_pack(root, mode, budget-reserved)
+    content, metadata = _build_context_pack(root, mode, budget-reserved, focus=focus)
+    if focus is not None and metadata['truncated']:
+        raise ValueError('Task-focused context cannot retain all current work and constraints; increase --budget')
     if mode in {'resume','manifest'}:
         required = (_render_current_action(metadata['current_action']),
                     _render_work_view(metadata.get('work_view')))
@@ -1077,6 +1145,15 @@ def build_context_pack(root: Path, mode: str = "resume", budget: int = 4000) -> 
         metadata['sources_included'].append('.flg/captures/')
     if task_notice:
         metadata['sources_included'].extend(['.flg/task-continuity.json', '.flg/tasks/'])
+    if focus is not None:
+        # The health check and rendering may read other project files. Reject
+        # a decision-ledger change anywhere in this generation window too.
+        if digest(read_file_safe(root / 'DECISIONS.md') or '') != focus['ledger_sha256']:
+            raise ValueError('Decision ledger changed during task selection; reread and retry')
+        metadata['task_focus'] = {**focus, 'query': query, 'formal_state_changed': False,
+                                  'source_reviews': len([item for item in view['items'] if item['needs_review'] and
+                                      any(j['id'] in (set(focus['current_ids']) |
+                                          {h['id'] for h in focus['historical']}) for j in item['judgments'])])}
     return content, metadata
 
 
@@ -1085,6 +1162,7 @@ def context_command(
     budget: int = typer.Option(4000, "--budget", help="Approximate token budget for the generated context pack."),
     output: Optional[str] = typer.Option(None, "--output", "-o", help="Optional output path. Defaults by mode under .flg/context/."),
     print_pack: bool = typer.Option(False, "--print", help="Print the generated context pack after writing it."),
+    query: Optional[str] = typer.Option(None, "--query", help="Explicit task intent for read-only lexical history selection (resume only)."),
 ) -> None:
     """Generate a bounded Context Pack for agent startup."""
     root = Path.cwd()
@@ -1093,7 +1171,7 @@ def context_command(
         raise typer.Exit(1)
 
     try:
-        content, metadata = build_context_pack(root, mode=mode, budget=budget)
+        content, metadata = build_context_pack(root, mode=mode, budget=budget, query=query)
     except ValueError as exc:
         console.print(f"[red]{exc}[/red]")
         raise typer.Exit(1) from exc

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Add explicit Resume `--query` for deterministic task-related decision recall,
+  separately labelled non-current history and review-only reversal cues. Reuse
+  existing source reviews without changing any formal judgment or project state.
+  Default contexts remain unchanged; no new provider, hook or migration is added.
+
 - Add experimental, explicitly enabled local task continuation. Retain task
   identity across sessions, fence superseded execution attempts, preserve waits
   and check version-bound local artifacts without changing formal ledgers.

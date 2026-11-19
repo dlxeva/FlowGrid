@@ -70,6 +70,18 @@ At the start of a new work segment in a project containing `.flg/`:
 3. Read `.flg/context/startup.md` and active pending patches before proposing work.
 4. Use `flg evidence <decision-id>` when the user challenges a recorded decision.
 
+When a concrete task needs older decisions, use the installed CLI's supported
+`flg context --mode resume --query "short task intent" --budget 4000`.
+Check `flg context --help` first on older runtimes. Derive the query from the
+user's actual request; do not ask them to maintain tags or ranking fields.
+Read the query's selection reasons, non-current-history labels and review cues.
+Expand original decisions and evidence before relying on them. Word overlap in
+a reversal condition only requests checking; it does not prove the condition
+is met or approve a state transition. If the budget cannot retain current work
+and constraints, narrow the query or expand evidence separately. Do not silently
+fall back to an older derived output. This interface performs lexical retrieval,
+so explicitly check for missed paraphrases and counterevidence when material.
+
 ### Capture a work segment
 
 When a meaningful discussion changes direction, constraints, decisions, evidence,
